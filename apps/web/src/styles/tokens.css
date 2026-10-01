@@ -2,6 +2,7 @@
 :root {
   /* Primitives */
   --color-blue-50: #f0f9ff;
+  --color-blue-100: #e0f2fe;
   --color-blue-200: #bae6fd;
   --color-blue-600: #0284c7;
   --color-blue-800: #075985;
@@ -12,6 +13,7 @@
   --color-slate-100: #f1f5f9;
   --color-slate-300: #cbd5e1;
   --color-slate-600: #475569;
+  --color-slate-800: #1e293b;
   --color-slate-900: #0f172a;
   --color-white: #ffffff;
   --space-1: 0.25rem;
@@ -26,21 +28,24 @@
   --fs-lg: 1.125rem;
   --fs-xl: 1.25rem;
   --fs-2xl: 1.5rem;
+  --fs-display: clamp(2.75rem, 7vw, 5rem);
   --fw-regular: 400;
   --fw-semibold: 600;
   --fw-bold: 700;
   --radius-sm: 0.375rem;
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
+  --radius-xl: 5rem;
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-md: 0 8px 24px rgb(15 23 42 / 0.10);
+  --shadow-md: 0 8px 24px rgb(15 23 42 / 0.1);
+  --shadow-lg: 0 24px 48px rgb(15 23 42 / 0.16);
   --dur-fast: 160ms;
   --dur-normal: 240ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
   /* Semantic */
-  --font-body: "Atkinson Hyperlegible", "Noto Sans Thai", Arial, sans-serif;
-  --font-heading: "Crimson Pro", "Noto Sans Thai", Georgia, serif;
+  --font-body: 'Atkinson Hyperlegible', 'Noto Sans Thai', Arial, sans-serif;
+  --font-heading: 'Crimson Pro', 'Noto Sans Thai', Georgia, serif;
   --color-page: var(--color-slate-50);
   --color-surface: var(--color-white);
   --color-surface-subtle: var(--color-blue-50);
@@ -56,9 +61,23 @@
   --color-danger: var(--color-red-600);
   --color-info: var(--color-blue-800);
   --color-focus: var(--color-blue-600);
+  --color-research-surface: var(--color-slate-900);
+  --color-research-surface-muted: var(--color-slate-800);
+  --color-on-research: var(--color-white);
+  --color-on-research-muted: var(--color-slate-300);
+  --color-hero-tint: var(--color-blue-100);
+  --background-hero:
+    radial-gradient(circle at top right, var(--color-hero-tint), transparent 42%),
+    linear-gradient(to bottom, var(--color-surface), var(--color-surface-subtle));
   --spacing-control: var(--space-3);
   --spacing-section: var(--space-8);
   --container-max: 75rem;
+  --content-measure: 42rem;
+  --hero-min-height: 44rem;
+  --hero-column-min: 28rem;
+  --workflow-column-min: 16rem;
+  --form-column-min: 25rem;
+  --breakpoint-md: 48rem;
 
   /* Components */
   --button-primary-bg: var(--color-primary);
@@ -77,9 +96,14 @@
 }
 
 @media (min-width: 48rem) {
-  :root { --spacing-section: var(--space-12); }
+  :root {
+    --spacing-section: var(--space-12);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :root { --dur-fast: 0ms; --dur-normal: 0ms; }
+  :root {
+    --dur-fast: 0ms;
+    --dur-normal: 0ms;
+  }
 }
