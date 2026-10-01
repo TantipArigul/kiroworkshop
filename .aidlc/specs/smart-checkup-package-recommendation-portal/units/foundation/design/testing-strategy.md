@@ -3,7 +3,7 @@
 ## Overview
 - **Approach**: hybrid test-after with contract-first API tests.
 - **Goal**: all security/lifecycle invariants and critical contracts are covered; no numeric coverage target was selected in D3.
-- **Pyramid**: unit tests for pure policies and schemas; integration tests for Express/Prisma; property tests for invariants. Browser E2E framework is `[TBD - not decided in D3]`.
+- **Pyramid**: unit tests for pure policies and schemas; integration tests for Express/Prisma; property tests for invariants. Browser E2E is explicitly deferred by D4 and does not block Foundation baseline.
 
 ## Frameworks
 | Level | Tool | Scope |

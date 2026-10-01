@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-01T07:32:57Z"
+updated: "2026-10-01T09:35:50Z"
 state:
   status: "active"
   scope: "new"
@@ -55,6 +55,16 @@ versions:
     vitest: "5.0.3"
     supertest: "7.3.0"
     fast-check: "4.10.2"
+    express-session: "1.19.0"
+    csrf-csrf: "4.0.3"
+    express-rate-limit: "8.7.0"
+    pino: "10.3.1"
+    pino-http: "11.0.0"
+    caddy: "2.11.4"
+    prisma-adapter-better-sqlite3: "7.10.0"
+    better-sqlite3: "12.6.0"
+    csrf-sync: "4.2.1"
+    cookie-parser: "not used with csrf-sync"
 context-summary:
   type: "Greenfield"
   scope: "new"
@@ -110,10 +120,18 @@ steering:
       - "design"
 units:
   - name: "foundation"
-    status: "in-progress"
-    phase: "tasks"
+    status: "completed"
+    phase: "complete"
     completedPhases:
       - "design"
+      - "tasks"
+      - "implement"
+    implementationMode: "standard"
+    implementation:
+      totalTasks: 15
+      completedTasks: 15
+      currentTask: null
+      currentWave: null
     owner: "Developer 1"
     dependencies: []
     decisions:
@@ -132,6 +150,15 @@ units:
         ux: "Light clinical research workspace"
         tokens: "Three-layer CSS variable tokens"
         cicd: "GitHub Actions quality/security/integrity gates"
+        addOn: "Encrypted host volumes, Caddy TLS, Prisma better-sqlite3 adapter, csrf-sync stateful CSRF, pinned security packages, pagination/rate limits approved 2026-10-01"
+      tasks:
+        strategy: "Component/dependency-first"
+        testing: "Test-after scaffold; property-first invariants"
+        priority: "Workspace/security -> contracts/data -> API -> tokens -> tests/CI/container"
+        blockers: "Resolve/document before dependent config; no deploy or real data until complete"
+        scope: "Unit, API integration, property-based, token validation; E2E deferred"
+        granularity: "Single concern, 1-2 days, ownership and validation"
+        parallelism: "Sequential shared baseline; parallel non-overlapping work only"
     artifacts:
       design:
         status: "approved"
@@ -147,6 +174,12 @@ units:
           - "design/testing-strategy.md"
           - "design/correctness.md"
           - "design/nfr.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-01T07:56:55Z"
+        totalTasks: 15
+        files:
+          - "tasks.md"
   - name: "identity-access"
     status: "pending"
     phase: "design"

@@ -10,9 +10,9 @@
 ## Conventions
 - JSON success: `{ "data": <payload>, "meta": { "requestId": "..." } }`
 - JSON error: `{ "error": { "code": "MACHINE_CODE", "message": "safe message", "details": [] }, "meta": { "requestId": "..." } }`
-- Pagination: `page`/`limit`, default/maximum `[TBD - not decided in D3]`.
+- Pagination: `page`/`limit`; default `20`, maximum `100`.
 - Request ID: preserve inbound `X-Request-ID` or create a UUID; echo it in the response.
-- Rate limit: route-based policy; exact limits `[TBD - not decided in D3]`.
+- Rate limit: route-based policy; login `5`/15 minutes/IP, authenticated API `120`/minute/session, submission `10`/hour/user.
 - CORS: same-origin in deployment; explicit local development origin allowlist only.
 - Public error responses never include stack trace, filesystem location, secrets, account-existence hints or raw input.
 
@@ -65,3 +65,11 @@ The following endpoints are owned/refined by later units but must use this envel
 3. Run authentication before domain resource lookup, then owner/permission checks.
 4. Convert expected domain failures to documented 4xx codes; unexpected failures to `500 INTERNAL_ERROR` with a safe message.
 5. Audit authentication, authorization denial, submit, status change, download, deletion and privileged actions through the audit interface.
+
+## Add-on — CSRF Token Bootstrap
+
+### `GET /api/v1/auth/csrf-token`
+- **Auth**: none; establishes/uses an anonymous server-side session with `saveUninitialized: false` only after the token is generated.
+- **Response 200**: `{ "data": { "csrfToken": "..." }, "meta": { "requestId": "uuid" } }`.
+- **Rules**: token is stored only in encrypted server-side session data; browser sends it in `X-CSRF-Token` for POST/PUT/PATCH/DELETE. It is never logged or rendered into a third-party context.
+- **Traceability**: US-001, US-013, D3 security decision.

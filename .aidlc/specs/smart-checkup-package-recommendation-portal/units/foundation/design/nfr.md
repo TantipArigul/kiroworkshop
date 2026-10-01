@@ -9,8 +9,8 @@
 ## Security and Privacy
 - **Authentication**: server-side session cookie with Argon2 password hashing.
 - **Authorization**: RBAC plus owner/explicit permission check at each protected resource boundary.
-- **Transport**: HTTPS on port 443, TLS 1.2+; HTTP redirect to HTTPS.
-- **Storage**: SQLite/private file volume encryption-at-rest and key management are `[TBD - not decided in D3]`; production or real-data deployment is prohibited until resolved.
+- **TLS**: HTTPS on port 443 via Caddy 2.11.4 using TLS 1.2+; HTTP redirect to HTTPS; ACME auto-renewal for public hostname and internal CA only for development.
+- **Storage**: SQLite/private file volume uses FileVault on macOS development hosts or LUKS on Linux deployment hosts; app code does not handle volume keys; real data remains out of scope.
 - **Secrets**: environment injection locally; no source/image secrets. AWS deployment, if introduced, must use IAM roles and Secrets Manager/Parameter Store—not long-lived access keys.
 - **Logging**: redacted structured events; general users cannot alter or query protected audit logs.
 - **Data classification**: MVP accepts only synthetic/de-identified input. Job/input/result are private/restricted by default.
@@ -41,3 +41,14 @@
 - Responsive mobile-first layout, WCAG 2.2 AA contrast/focus/labels, keyboard access and 44px minimum targets.
 - Light mode default; `prefers-reduced-motion` disables nonessential motion.
 - Components reference only design tokens; no emoji icons, third-party logos or tracking cookies.
+
+## Add-on — Resolved Encryption and TLS Controls
+- **At rest**: FileVault encrypts macOS development host volumes; LUKS encrypts Linux deployment host volumes holding SQLite, private artifacts and backups. The application never implements cryptography or stores keys.
+- **In transit**: Caddy 2.11.4 terminates TLS 1.2+ on port 443, redirects HTTP and renews ACME certificates for public hostnames. Caddy internal CA is development-only.
+- **Deployment verification**: release verification must confirm encrypted volume mount, certificate renewal, no public SQLite/API port and environment-injected secrets before exposure.
+
+## Add-on — Persistent Session Store
+- Server-side sessions and database readiness use Prisma 7 with the approved better-sqlite3 adapter. Memory-based session storage is prohibited because it loses session state on restart and does not meet the persistence baseline.
+
+## Add-on — CSRF Refinement
+- `csrf-sync` 4.2.1 replaces csrf-csrf for the stateful synchronizer-token pattern used with server-side sessions. State-changing requests supply the synchronizer token in the dedicated `X-CSRF-Token` header; cookie-parser is not required by csrf-sync.

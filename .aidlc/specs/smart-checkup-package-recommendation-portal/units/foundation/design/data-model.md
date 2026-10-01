@@ -4,7 +4,7 @@
 - **Database**: SQLite
 - **ORM/Migration**: Prisma 7.10.0 and Prisma Migrate
 - **Ownership**: Foundation establishes identifiers, audit/session conventions and migration workflow. Identity, Job Lifecycle and Results units own business rules for their respective tables.
-- **Encryption-at-rest**: `[TBD - not decided in D3]`; deployment is blocked from handling anything beyond synthetic data until storage encryption/key management is selected and verified.
+- **Encryption-at-rest**: SQLite, private artifacts and backups use FileVault (macOS development) or LUKS (Linux deployment) encrypted host volumes; application code does not manage volume keys and remains synthetic-data-only.
 
 ## Entities
 
@@ -90,4 +90,12 @@ User 1 ───< Job 1 ─── 1 JobInput
 - Job status is changed only through allowed transitions enforced by the Job aggregate.
 - Result and recommendation records are unavailable/deleted with their Job.
 - Repositories use transactions for creation, state changes and deletion.
-- Backups and SQLite/file storage encryption, retention and destruction mechanism are `[TBD - not decided in D3]` and must be selected before deployment.
+- Backups and SQLite/file storage use the approved encrypted host-volume controls; retention and destruction are enforced by the Job Lifecycle unit.
+
+## Add-on — Persistent Session Payload
+- `Session.dataJson` stores serialized server-side session state. It remains in the encrypted SQLite volume, is never returned by APIs/logs and is deleted when the session is revoked or expires.
+- The Prisma generated client is produced under `apps/api/src/generated/prisma` for TypeScript compilation but excluded from lint, formatting and Git ownership; it is regenerated from the pinned schema.
+
+## Add-on — Anonymous CSRF Session
+- `Session.userId` is nullable only before authentication so `dataJson` can store the synchronizer token for `GET /api/v1/auth/csrf-token`.
+- After successful login, the same session is bound to User. Protected resource authorization still requires an authenticated `userId`; anonymous sessions confer no resource access.

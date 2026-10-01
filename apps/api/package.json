@@ -1,0 +1,39 @@
+{
+  "name": "@portal/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.config.ts",
+    "test:properties": "vitest run tests/properties",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "prisma:generate": "prisma generate --config ../../prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --config ../../prisma.config.ts"
+  },
+  "dependencies": {
+    "@portal/shared": "workspace:*",
+    "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "argon2": "0.45.1",
+    "better-sqlite3": "12.6.0",
+    "csrf-sync": "4.2.1",
+    "express": "5.2.1",
+    "express-rate-limit": "8.7.0",
+    "express-session": "1.19.0",
+    "helmet": "8.3.0",
+    "pino": "10.3.1",
+    "pino-http": "11.0.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.12",
+    "@types/express": "5.0.6",
+    "@types/express-session": "1.18.0",
+    "@types/supertest": "7.2.1"
+  }
+}

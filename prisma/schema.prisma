@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../apps/api/src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String       @id @default(cuid())
+  username     String       @unique
+  passwordHash String
+  role         String       @default("USER")
+  createdAt    DateTime     @default(now())
+  disabledAt   DateTime?
+  sessions     Session[]
+  jobs         Job[]
+  auditEvents  AuditEvent[] @relation("AuditActor")
+
+  @@index([role, disabledAt])
+}
+
+model Session {
+  id        String    @id
+  userId    String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  dataJson  String
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model AuditEvent {
+  id           String    @id @default(cuid())
+  occurredAt   DateTime  @default(now())
+  actorId      String?
+  eventType    String
+  resourceType String
+  resourceId   String?
+  outcome      String
+  requestId    String
+  metadataJson String
+  actor        User?     @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([actorId])
+  @@index([eventType])
+  @@index([requestId])
+}
+
+model Job {
+  id             String                  @id @default(cuid())
+  ownerId        String
+  status         String                  @default("QUEUED")
+  idempotencyKey String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  expiresAt      DateTime
+  owner          User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  input          JobInput?
+  statusEvents   JobStatusEvent[]
+  resultArtifacts ResultArtifact[]
+  recommendation PackageRecommendation?
+
+  @@unique([ownerId, idempotencyKey])
+  @@index([ownerId, updatedAt])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model JobInput {
+  id               String @id @default(cuid())
+  jobId            String @unique
+  parametersJson   String
+  fileMetadataJson String
+  storageKey       String
+  job              Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}
+
+model JobStatusEvent {
+  id          String   @id @default(cuid())
+  jobId       String
+  status      String
+  safeSummary String?
+  occurredAt  DateTime @default(now())
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, occurredAt])
+}
+
+model ResultArtifact {
+  id            String    @id @default(cuid())
+  jobId         String
+  storageKey    String    @unique
+  fileName      String
+  contentType   String
+  createdAt     DateTime  @default(now())
+  deletedAt     DateTime?
+  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model PackageRecommendation {
+  id              String   @id @default(cuid())
+  jobId           String   @unique
+  packageLabel    String
+  ruleIdentifier  String
+  ruleVersion     String
+  matchedFactors  String
+  disclaimer      String
+  createdAt       DateTime @default(now())
+  job             Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+}

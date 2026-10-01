@@ -74,3 +74,48 @@
 - **Action**: approval
 - **Artifacts**: `.aidlc/specs/smart-checkup-package-recommendation-portal/units/foundation/design.md`
 - **Outcome**: Foundation design ได้รับอนุมัติและเป็น shared convention สำหรับ units ถัดไป
+### [2026-10-01T07:32:57Z] Tasks: Foundation D4
+- **Phase**: tasks
+- **Action**: decision-gate
+- **Artifacts**: `.aidlc/workflow/smart-checkup-package-recommendation-portal/units/foundation/decisions-tasks.md`
+- **Outcome**: สร้าง Foundation D4 และรอการตัดสินใจ
+### [2026-10-01T07:51:17Z] Tasks: Foundation Generated
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `.aidlc/specs/smart-checkup-package-recommendation-portal/units/foundation/tasks.md`
+- **Outcome**: สร้าง Foundation tasks draft จำนวน 15 tasks พร้อม waves และ ownership
+### [2026-10-01T07:56:55Z] Tasks: Foundation Approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `.aidlc/specs/smart-checkup-package-recommendation-portal/units/foundation/tasks.md`
+- **Outcome**: Foundation tasks ได้รับอนุมัติ
+### [2026-10-01T08:07:46Z] Implementation: Foundation Task 1.1 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: Foundation D3/design/tech blueprint/task checklist
+- **Outcome**: ปิด deployment-blocking decisions และ validation ผ่าน
+### [2026-10-01T08:28:00Z] Implementation: Foundation Task 2.1 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: pnpm monorepo scaffold and lockfile
+- **Outcome**: workspace validation passed
+### [2026-10-01T08:32:15Z] Implementation: Foundation Task 2.2 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: API runtime configuration and unit tests
+- **Outcome**: validation passed
+### [2026-10-01T08:35:31Z] Implementation: Foundation Task 2.3 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: shared contracts and OpenAPI source
+- **Outcome**: validation passed
+### [2026-10-01T08:44:35Z] Implementation: Foundation Task 3.1 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: Prisma schema, migration and persistence helpers
+- **Outcome**: validation passed
+### [2026-10-01T09:00:47Z] Implementation: Foundation Task 3.2 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: Prisma session adapter and security middleware contracts
+- **Outcome**: validation passed; CSRF design refined to csrf-sync for server-side sessions

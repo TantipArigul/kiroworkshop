@@ -47,8 +47,8 @@
 | Vitest | 5.0.3 | npm registry |
 | Supertest | 7.3.0 | npm registry |
 | fast-check | 4.10.2 | npm registry |
-| Session/CSRF/rate-limit/logging package | `[TBD - not decided in D3]` | must be selected before implementation; use maintained ecosystem package and pin exact version |
-| TLS reverse proxy/certificate tool | `[TBD - not decided in D3]` | must support automatic renewal and TLS 1.2+ |
+| Session/security packages | express-session 1.19.0, csrf-csrf 4.0.3, express-rate-limit 8.7.0, pino 10.3.1, pino-http 11.0.0 |
+| TLS reverse proxy/certificate tool | Caddy 2.11.4; ACME public hostname or internal CA development |
 
 ## Development Setup
 **Prerequisites**: Node.js 24 LTS, pnpm 12.8.1, Docker Compose.
@@ -90,3 +90,34 @@ pnpm build
 - Type check: `pnpm typecheck`
 - Build: `pnpm build`
 - CI: non-watch commands only; no test watcher in automation.
+
+## Add-on — Resolved Dependencies and Deployment Controls
+| Tool | Pinned version / control |
+|---|---|
+| express-session | 1.19.0 |
+| csrf-sync | 4.2.1 |
+| express-rate-limit | 8.7.0 |
+| pino | 10.3.1 |
+| pino-http | 11.0.0 |
+| Caddy | 2.11.4 container image; ACME for public hostname, internal CA only for development |
+
+- SQLite/private artifacts/backups must use FileVault (macOS development) or LUKS (Linux deployment) encrypted host volumes. Application code cannot access/manage volume keys.
+- `PAGE_SIZE_DEFAULT=20`, `PAGE_SIZE_MAX=100`, `LOGIN_RATE_LIMIT_MAX=5`, `AUTH_RATE_LIMIT_MAX=120`, `SUBMIT_RATE_LIMIT_MAX=10`; windows are 15 minutes, 1 minute and 1 hour respectively.
+- Caddy, encrypted volume validation and certificate renewal validation are deployment gates; do not deploy/handle real data if any is absent.
+
+## Add-on — Lint and Format
+| Tool | Version | Use |
+|---|---:|---|
+| ESLint | 10.11.0 | TypeScript lint via flat config |
+| Prettier | 3.9.9 | repository format check/write |
+
+Corepack provisions pnpm 12.8.1. CI order is format-check → lint → type-check → tests → build.
+
+## Add-on — Prisma Client Driver
+| Tool | Version | Use |
+|---|---:|---|
+| @prisma/adapter-better-sqlite3 | 7.10.0 | Prisma 7 SQLite driver adapter |
+| better-sqlite3 | 12.6.0 | SQLite driver for persistent sessions/readiness |
+| @types/better-sqlite3 | 7.6.12 | compatible TypeScript declarations |
+
+The driver is an explicitly approved native build dependency. Do not fall back to an in-memory session store.

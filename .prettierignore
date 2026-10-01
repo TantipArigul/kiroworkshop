@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.pnpm-store/
+.tools/
+.corepack/
+apps/api/src/generated/
+apps/api/src/generated/**
+**/generated/**
+.aidlc/
+.kiro/
+initial-requirements/
+pnpm-lock.yaml
+*.lock
