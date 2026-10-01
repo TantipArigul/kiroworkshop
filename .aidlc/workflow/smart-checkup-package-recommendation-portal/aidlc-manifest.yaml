@@ -1,0 +1,173 @@
+version: "1.0.0"
+feature: "smart-checkup-package-recommendation-portal"
+language: "th"
+platform: "kiro"
+created: "2026-10-01T06:54:58Z"
+updated: "2026-10-01T07:32:57Z"
+state:
+  status: "active"
+  scope: "new"
+  sharedPhases:
+    - "context"
+    - "requirements"
+    - "decomposition"
+  mode: "incremental"
+  foundationSkipped: false
+  implementationMode: null
+  quickPath: false
+artifacts:
+  context:
+    status: "approved"
+    timestamp: "2026-10-01T07:02:12Z"
+    files:
+      - "context.md"
+  requirements:
+    status: "approved"
+    timestamp: "2026-10-01T07:11:39Z"
+    files:
+      - "requirements.md"
+      - "personas.md"
+  decomposition:
+    status: "approved"
+    timestamp: "2026-10-01T07:16:38Z"
+    files:
+      - "units.md"
+implementation:
+  totalTasks: 0
+  completedTasks: 0
+  currentTask: null
+  currentWave: null
+versions:
+  resolved_at: "2026-10-01T07:23:33Z"
+  source: "web-search"
+  map:
+    node: "24.x LTS"
+    pnpm: "12.8.1"
+    express: "5.2.1"
+    react: "19.3.0"
+    vite: "8.3.1"
+    react-router: "8.4.0"
+    zod: "4.6.5"
+    prisma: "7.10.0"
+    prisma-client: "7.10.0"
+    argon2: "0.45.1"
+    helmet: "8.3.0"
+    vitest: "5.0.3"
+    supertest: "7.3.0"
+    fast-check: "4.10.2"
+context-summary:
+  type: "Greenfield"
+  scope: "new"
+  stack: "React + TypeScript; Node.js LTS + Express; SQLite + Prisma"
+  architecture: "Modular monolith"
+  feature: "Web Portal สำหรับส่งและติดตามงานวิเคราะห์ พร้อมเข้าถึงผลลัพธ์ในบริบท Smart Checkup Package Recommendation"
+  impact: "New standalone"
+  complexity: "High"
+  teamSize: 3
+  recommendations:
+    personas: true
+    units: true
+    nfr: true
+decisions:
+  requirements:
+    productScope: "Single Smart Checkup pipeline portal with transparent mock rules and non-medical disclaimer"
+    access: "Minimal authentication, owner-only authorization, least-privilege Admin"
+    personas: "Three personas"
+    teamSize: "Small team (2-3 developers)"
+    mvp: "FR-01 through FR-03 plus sample, bookmarkable URL, help, rich results, licence"
+    input: "Structured form, parameters, sample auto-fill, validated mock upload"
+    entities: "User, Job, JobInput, JobStatusEvent, ResultArtifact, AuditEvent, PackageRecommendation"
+    integration: "Simulated local executor without outbound calls"
+    monitoring: "REST polling, manual refresh, last-updated time"
+    results: "Summary, labels, visualization, references, download, interpretation guidance"
+    jobRules: "Unique ID, validated submission, owner-only access, controlled transitions, safe visibility"
+    privacy: "Synthetic/de-identified data, private by default, redacted logs, deletion, seven-day retention"
+    cookiesAndEmail: "Secure session cookie only; no tracking or permanent cookies; no email"
+    deployment: "Local Docker Compose/Linux, HTTPS port 443, certificate automation"
+    outOfScope: "Real medical/genomic processing, diagnosis, AI training, patient data, email, multi-pipeline, HA, large scale, analytics"
+    priority: "Security/foundation, frontend mock, backend and executor, polish, verification"
+    licence: "MIT License"
+  decomposition:
+    need: "Foundation and domain units"
+    architecture: "Modular monolith"
+    strategy: "Domain-Driven"
+    foundation: "Shared scaffold, config, auth/session boundary, contracts, error/logging, migrations, security defaults"
+    units: "Foundation; Identity & Access; Submission & Job Lifecycle; Results & Guidance"
+    contracts: "Shared contracts and REST boundary with owner checks"
+    sequence: "Foundation -> Identity & Access -> Submission & Job Lifecycle -> Results & Guidance -> Integration verification"
+    ownership: "Developer 1 foundation/identity; Developer 2 jobs; Developer 3 results/guidance"
+steering:
+  updatedBy:
+    product:
+      - "context"
+      - "requirements"
+    tech:
+      - "context"
+      - "design"
+    structure:
+      - "context"
+      - "decomposition"
+      - "design"
+units:
+  - name: "foundation"
+    status: "in-progress"
+    phase: "tasks"
+    completedPhases:
+      - "design"
+    owner: "Developer 1"
+    dependencies: []
+    decisions:
+      design:
+        backend: "Node.js LTS + Express"
+        repository: "pnpm workspace monorepo"
+        frontend: "React SPA + Vite + React Router"
+        api: "REST + OpenAPI + Zod + structured error envelope"
+        data: "SQLite + Prisma + Prisma Migrate"
+        auth: "Server-side sessions + Argon2 + RBAC + CSRF"
+        security: "Security headers, origin allowlist CORS, size limits, rate limiting"
+        testing: "Vitest + Supertest + fast-check"
+        observability: "Minimal structured logging + health endpoint"
+        lifecycle: "Health + readiness + graceful shutdown"
+        deployment: "Docker Compose + TLS reverse proxy + certificate automation"
+        ux: "Light clinical research workspace"
+        tokens: "Three-layer CSS variable tokens"
+        cicd: "GitHub Actions quality/security/integrity gates"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-01T07:32:57Z"
+        files:
+          - "design.md"
+          - "design/components.md"
+          - "design/data-model.md"
+          - "design/api-spec.md"
+          - "design/integration.md"
+          - "design/implementation.md"
+          - "design/operations.md"
+          - "design/testing-strategy.md"
+          - "design/correctness.md"
+          - "design/nfr.md"
+  - name: "identity-access"
+    status: "pending"
+    phase: "design"
+    owner: "Developer 1"
+    dependencies:
+      - "foundation"
+    artifacts: {}
+  - name: "submission-job-lifecycle"
+    status: "pending"
+    phase: "design"
+    owner: "Developer 2"
+    dependencies:
+      - "foundation"
+      - "identity-access"
+    artifacts: {}
+  - name: "results-guidance"
+    status: "pending"
+    phase: "design"
+    owner: "Developer 3"
+    dependencies:
+      - "foundation"
+      - "identity-access"
+      - "submission-job-lifecycle"
+    artifacts: {}

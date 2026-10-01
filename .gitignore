@@ -1,0 +1,28 @@
+# Operating system
+.DS_Store
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime data and logs
+*.log
+data/
+storage/
+uploads/
+results/
+tmp/
+
+# Tool caches
+.vite/
+.nyc_output/
