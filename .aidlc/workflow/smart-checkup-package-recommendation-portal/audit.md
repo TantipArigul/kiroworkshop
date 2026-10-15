@@ -119,3 +119,63 @@
 - **Action**: standard task completed
 - **Artifacts**: Prisma session adapter and security middleware contracts
 - **Outcome**: validation passed; CSRF design refined to csrf-sync for server-side sessions
+### [2026-10-15T02:53:33Z] Design: Identity & Access Decision Gate D3
+- **Phase**: design
+- **Action**: decision-gate
+- **Artifacts**: `units/identity-access/decisions-design.md`
+- **Outcome**: เริ่ม unit identity-access และสร้าง D3 15 ข้อ รอคำตอบจากผู้ใช้
+### [2026-10-15T03:35:00Z] Design: Identity & Access Approved
+- **Phase**: design
+- **Action**: approval
+- **Artifacts**: `units/identity-access/design.md`, requirements Add-on, blueprints tech/structure Add-on
+- **Outcome**: identity-access design approved; next phase tasks
+### [2026-10-15T03:40:00Z] Tasks: Identity & Access Decision Gate D4
+- **Phase**: tasks
+- **Action**: decision-gate
+- **Artifacts**: `units/identity-access/decisions-tasks.md`
+- **Outcome**: สร้าง D4 8 ข้อ รอคำตอบจากผู้ใช้
+### [2026-10-15T03:50:00Z] Tasks: Identity & Access Generated
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `units/identity-access/tasks.md`
+- **Outcome**: D4 ใช้ค่าแนะนำ; 19 tasks / 5 waves; status draft รออนุมัติ
+### [2026-10-15T03:55:00Z] Tasks: Identity & Access Approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `units/identity-access/tasks.md`
+- **Outcome**: identity-access tasks approved; next phase implement
+### [2026-10-15T04:15:00Z] Implementation: Identity & Access Task 1.1 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: design Add-on, stale generated Prisma client removed
+- **Outcome**: open items resolved; 1/19
+### [2026-10-15T07:25:00Z] Implementation: Foundation Add-on 4.2b Complete
+- **Phase**: implementation
+- **Action**: add-on task completed
+- **Artifacts**: `apps/web/src/{app.css,App.tsx}`, foundation tasks Add-on, design-system steering Add-on
+- **Outcome**: UI base defects fixed; font loading pending user decision
+### [2026-10-15T07:40:00Z] Implementation: Foundation Add-on 4.2c Complete
+- **Phase**: implementation
+- **Action**: add-on task completed
+- **Artifacts**: Fontsource dependencies, `apps/web/src/main.tsx`
+- **Outcome**: brand fonts self-hosted; checks pass
+### [2026-10-15T08:52:00Z] Implementation: Identity & Access Task 1.2 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: shared auth/audit contracts and OpenAPI
+- **Outcome**: validation passed; 2/19
+### [2026-10-15T09:20:00Z] Implementation: Identity & Access Task 1.3 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: Prisma schema + `identity_access` migration with append-only audit triggers
+- **Outcome**: validation passed; 3/19
+### [2026-10-15T09:40:00Z] Implementation: Identity & Access Task 1.4 / Wave 1 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: config, session idle timeout, redaction
+- **Outcome**: validation passed; 4/19; waiting for Wave 2 confirmation
+### [2026-10-15T10:45:00Z] Implementation: Identity & Access Wave 2 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: web auth infrastructure, Sign in, Change password, Audit viewer (mock mode)
+- **Outcome**: validation passed; 7/19; waiting for UI review and Add-on confirmation

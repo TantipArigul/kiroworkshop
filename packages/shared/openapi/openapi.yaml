@@ -29,6 +29,11 @@ paths:
   /auth/login:
     post:
       summary: Start a server-side session
+      description: >-
+        Regenerates the session ID and returns a new CSRF token. Every failure (unknown account,
+        wrong password, locked or disabled account) returns the same 401 response.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -38,10 +43,16 @@ paths:
       responses:
         '200':
           description: Authenticated session and CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/AuthenticationError'
+        '403':
+          $ref: '#/components/responses/CsrfError'
         '429':
           $ref: '#/components/responses/RateLimitError'
   /auth/logout:
@@ -49,9 +60,15 @@ paths:
       summary: Revoke the current session
       security:
         - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
       responses:
         '204':
           description: Session revoked
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfError'
   /auth/me:
     get:
       summary: Return the authenticated user
@@ -59,13 +76,91 @@ paths:
         - sessionCookie: []
       responses:
         '200':
-          description: Current user
+          description: Current user without credential or session internals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+  /auth/password:
+    post:
+      summary: Change the current user's password
+      description: >-
+        Applies the server-side password policy, clears the forced-change flag and revokes the
+        user's other sessions.
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '403':
+          $ref: '#/components/responses/CsrfError'
+  /audit-events:
+    get:
+      summary: List audit events (requires AUDIT_READ)
+      description: Read-only, newest first. Metadata is redacted and never contains e-mail addresses.
+      security:
+        - sessionCookie: []
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: eventType, in: query, schema: { $ref: '#/components/schemas/AuditEventType' } }
+        - { name: outcome, in: query, schema: { $ref: '#/components/schemas/AuditOutcome' } }
+        - { name: actorId, in: query, schema: { type: string, maxLength: 128 } }
+        - {
+            name: resourceType,
+            in: query,
+            schema: { $ref: '#/components/schemas/AuditResourceType' },
+          }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+      responses:
+        '200':
+          description: Page of audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          description: Missing AUDIT_READ (recorded as AUTHORIZATION_DENIED) or password change required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
 components:
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: portal_session
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
   schemas:
     RequestMeta:
       type: object
@@ -74,17 +169,163 @@ components:
         requestId:
           type: string
           format: uuid
+    UserRole:
+      type: string
+      enum: [USER, AUDITOR, ADMIN]
+    Permission:
+      type: string
+      enum: [AUDIT_READ, USER_MANAGE]
+    AuthenticatedUser:
+      type: object
+      additionalProperties: false
+      required: [id, email, role, permissions, passwordChangeRequired]
+      properties:
+        id:
+          type: string
+          maxLength: 128
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role:
+          $ref: '#/components/schemas/UserRole'
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+        passwordChangeRequired:
+          type: boolean
     LoginRequest:
       type: object
       additionalProperties: false
-      required: [username, password]
+      required: [email, password]
       properties:
-        username:
+        email:
           type: string
-          maxLength: 64
+          format: email
+          maxLength: 254
         password:
           type: string
+          maxLength: 1024
           writeOnly: true
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [user, csrfToken]
+          properties:
+            user:
+              $ref: '#/components/schemas/AuthenticatedUser'
+            csrfToken:
+              type: string
+        meta:
+          $ref: '#/components/schemas/RequestMeta'
+    CurrentUserResponse:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/AuthenticatedUser'
+        meta:
+          $ref: '#/components/schemas/RequestMeta'
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          maxLength: 1024
+          writeOnly: true
+        newPassword:
+          type: string
+          maxLength: 1024
+          writeOnly: true
+    AuditEventType:
+      type: string
+      enum:
+        - LOGIN_SUCCESS
+        - LOGIN_FAILURE
+        - ACCOUNT_LOCKED
+        - LOGOUT
+        - AUTHORIZATION_DENIED
+        - PASSWORD_CHANGED
+        - PASSWORD_RESET
+        - USER_CREATED
+        - USER_DISABLED
+        - USER_ENABLED
+        - USER_ROLE_CHANGED
+        - USER_ANONYMIZED
+        - AUDIT_QUERIED
+        - AUDIT_RETENTION_CLEANUP
+        - JOB_SUBMITTED
+        - JOB_STATUS_CHANGED
+        - JOB_DELETED
+        - RESULT_DOWNLOADED
+    AuditOutcome:
+      type: string
+      enum: [SUCCESS, DENIED, FAILURE]
+    AuditResourceType:
+      type: string
+      enum: [USER, SESSION, AUDIT, JOB, RESULT]
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required:
+        [id, occurredAt, actorId, eventType, resourceType, resourceId, outcome, requestId, metadata]
+      properties:
+        id:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        actorId:
+          type: [string, 'null']
+        eventType:
+          $ref: '#/components/schemas/AuditEventType'
+        resourceType:
+          $ref: '#/components/schemas/AuditResourceType'
+        resourceId:
+          type: [string, 'null']
+        outcome:
+          $ref: '#/components/schemas/AuditOutcome'
+        requestId:
+          type: string
+          maxLength: 128
+        metadata:
+          type: object
+    AuditEventListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [items, page, limit, total]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/AuditEvent'
+            page:
+              type: integer
+              minimum: 1
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            total:
+              type: integer
+              minimum: 0
+        meta:
+          $ref: '#/components/schemas/RequestMeta'
     ApiError:
       type: object
       additionalProperties: false
@@ -97,6 +338,17 @@ components:
           properties:
             code:
               type: string
+              enum:
+                - AUTHENTICATION_FAILED
+                - AUTHENTICATION_REQUIRED
+                - AUTHORIZATION_DENIED
+                - CSRF_INVALID
+                - INTERNAL_ERROR
+                - NOT_FOUND
+                - NOT_IMPLEMENTED
+                - PASSWORD_CHANGE_REQUIRED
+                - RATE_LIMITED
+                - VALIDATION_FAILED
             message:
               type: string
             details:
@@ -120,6 +372,18 @@ components:
             $ref: '#/components/schemas/ApiError'
     AuthenticationError:
       description: Authentication failed without account-existence disclosure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    AuthenticationRequired:
+      description: No valid authenticated session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    CsrfError:
+      description: Missing or invalid X-CSRF-Token
       content:
         application/json:
           schema:

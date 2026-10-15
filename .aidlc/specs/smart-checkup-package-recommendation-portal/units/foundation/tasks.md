@@ -218,3 +218,21 @@ Foundation เป็น baseline ร่วมสำหรับทุก domain 
   - Retain the existing privacy/training scope and routing. Recompose only the landing into an original light hero, original SVG sequence field, primary/secondary analysis actions, and dark rounded workflow narrative using CSS variables exclusively.
   - **Files**: `apps/web/src/{App.tsx,app.css,styles/tokens.css}`.
   - **Acceptance**: responsive layout has no page-level horizontal scroll; no external assets or copied reference content are introduced; focus/reduced-motion behavior and non-medical notice remain present; token validation, lint, typecheck and production build pass.
+
+## Add-on — Foundation UI Base Refinement (approved 2026-10-15)
+- [x] 4.2b Fix base styles and layout defects found in the browser review of 2026-10-15
+  - **Deps**: 4.1, 4.2, 4.2a | **Ref**: `.kiro/steering/design-system.md` — Add-on: Base Document Styles; design-system-policies §4.1 Visual Quality Bar, §9 Responsive
+  - Add document base styles: `box-sizing: border-box` for all elements, `body` margin reset, `--color-page` background, `--color-text` colour, `--font-body` family and readable line-height; links use `--color-primary`/`--color-primary-hover` with visible focus.
+  - Separate page headings from their lead paragraph on Sign in and Workspace pages using spacing tokens.
+  - Prevent the dark research panel from overflowing narrow viewports (content-box width + padding).
+  - Remove the decorative `Queued` status badge from the Workspace empty state; status badges appear only for real Job data.
+  - Font loading (`Atkinson Hyperlegible`, `Crimson Pro`) is a separate decision that requires user confirmation before adding font files or dependencies.
+  - **Files**: `apps/web/src/{app.css,App.tsx}`.
+  - **Acceptance**: no default 8px page margin; body text uses `--font-body`; no page-level horizontal overflow at 500px and 1440px; heading and lead text do not touch; empty state shows no fake status; token validation, lint, typecheck and build pass.
+- [x] 4.2c Self-host the approved brand fonts with Fontsource (approved 2026-10-15, option B)
+  - **Deps**: 4.2b | **Ref**: `.kiro/steering/design-system.md` — Token Map (Typography), Add-on: Brand Font Loading
+  - Add pinned dependencies `@fontsource/atkinson-hyperlegible` `5.3.0` and `@fontsource/crimson-pro` `5.3.0` (both OFL-1.1) to `apps/web` and update the lockfile.
+  - Import only the weights the token scale uses: Atkinson Hyperlegible 400/700 (body; `--fw-semibold` renders with the nearest available weight) and Crimson Pro 600/700 (headings/brand).
+  - Fonts are bundled by Vite and served from the application origin; no third-party font CDN or runtime outbound request.
+  - **Files**: `apps/web/package.json`, `pnpm-lock.yaml`, `apps/web/src/main.tsx`.
+  - **Acceptance**: built CSS contains the Fontsource `@font-face` rules and bundled `.woff2` assets; body/headings render in the brand fonts; token validation, lint, typecheck and build pass.

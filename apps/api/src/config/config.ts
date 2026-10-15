@@ -20,7 +20,18 @@ export type AppConfig = {
   loginRateLimitMax: number;
   authRateLimitMax: number;
   submitRateLimitMax: number;
+  sessionIdleTimeoutMs: number;
+  sessionAbsoluteTimeoutMs: number;
+  loginLockoutThreshold: number;
+  loginLockoutWindowMs: number;
+  loginLockoutDurationMs: number;
+  auditRetentionDays: number;
 };
+
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+// Must not be lower than the retention window enforced by the AuditEvent delete trigger.
+const AUDIT_RETENTION_DAYS_MIN = 90;
 
 export class ConfigValidationError extends Error {
   public readonly fields: readonly string[];
@@ -47,8 +58,30 @@ const rawConfigSchema = z
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(5),
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(120),
     SUBMIT_RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(10),
+    SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().int().min(5).max(1440).default(30),
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: z.coerce.number().int().min(1).max(24).default(8),
+    LOGIN_LOCKOUT_THRESHOLD: z.coerce.number().int().min(1).max(100).default(5),
+    LOGIN_LOCKOUT_WINDOW_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    LOGIN_LOCKOUT_DURATION_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+    AUDIT_RETENTION_DAYS: z.coerce
+      .number()
+      .int()
+      .min(AUDIT_RETENTION_DAYS_MIN)
+      .max(3650)
+      .default(90),
   })
   .superRefine((value, context) => {
+    if (
+      value.SESSION_IDLE_TIMEOUT_MINUTES * MINUTE_MS >
+      value.SESSION_ABSOLUTE_TIMEOUT_HOURS * HOUR_MS
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must not exceed the absolute session timeout.',
+        path: ['SESSION_IDLE_TIMEOUT_MINUTES'],
+      });
+    }
+
     if (!isAbsolute(value.STORAGE_ROOT)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -98,6 +131,12 @@ export function loadConfig(environment: Environment): AppConfig {
     loginRateLimitMax: parsedConfig.data.LOGIN_RATE_LIMIT_MAX,
     authRateLimitMax: parsedConfig.data.AUTH_RATE_LIMIT_MAX,
     submitRateLimitMax: parsedConfig.data.SUBMIT_RATE_LIMIT_MAX,
+    sessionIdleTimeoutMs: parsedConfig.data.SESSION_IDLE_TIMEOUT_MINUTES * MINUTE_MS,
+    sessionAbsoluteTimeoutMs: parsedConfig.data.SESSION_ABSOLUTE_TIMEOUT_HOURS * HOUR_MS,
+    loginLockoutThreshold: parsedConfig.data.LOGIN_LOCKOUT_THRESHOLD,
+    loginLockoutWindowMs: parsedConfig.data.LOGIN_LOCKOUT_WINDOW_MINUTES * MINUTE_MS,
+    loginLockoutDurationMs: parsedConfig.data.LOGIN_LOCKOUT_DURATION_MINUTES * MINUTE_MS,
+    auditRetentionDays: parsedConfig.data.AUDIT_RETENTION_DAYS,
   };
 }
 

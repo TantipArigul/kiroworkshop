@@ -18,6 +18,12 @@ describe('HTTP security middleware contracts', () => {
       shutdownTimeoutMs: 30000,
       storageRoot: '/tmp/portal-private',
       submitRateLimitMax: 10,
+      sessionIdleTimeoutMs: 30 * 60_000,
+      sessionAbsoluteTimeoutMs: 8 * 60 * 60_000,
+      loginLockoutThreshold: 5,
+      loginLockoutWindowMs: 15 * 60_000,
+      loginLockoutDurationMs: 15 * 60_000,
+      auditRetentionDays: 90,
     });
 
     expect(rateLimiters.login).not.toBe(rateLimiters.authenticatedApi);

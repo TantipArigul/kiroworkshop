@@ -46,4 +46,18 @@ describe('security contracts', () => {
       nested: { csrfToken: '[REDACTED]', requestId: 'req_1' },
     });
   });
+
+  it('redacts personal identifiers so audit rows reference actors by internal ID only', () => {
+    expect(
+      redactAuditMetadata({
+        actorId: 'usr_1',
+        email: 'user@example.test',
+        attempts: [{ username: 'legacy-name', reason: 'INVALID_PASSWORD' }],
+      }),
+    ).toEqual({
+      actorId: 'usr_1',
+      email: '[REDACTED]',
+      attempts: [{ username: '[REDACTED]', reason: 'INVALID_PASSWORD' }],
+    });
+  });
 });

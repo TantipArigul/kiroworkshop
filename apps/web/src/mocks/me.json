@@ -1,0 +1,32 @@
+{
+  "accounts": [
+    {
+      "id": "usr_mock_user",
+      "email": "user@example.test",
+      "role": "USER",
+      "permissions": [],
+      "passwordChangeRequired": false
+    },
+    {
+      "id": "usr_mock_auditor",
+      "email": "auditor@example.test",
+      "role": "AUDITOR",
+      "permissions": ["AUDIT_READ"],
+      "passwordChangeRequired": false
+    },
+    {
+      "id": "usr_mock_admin",
+      "email": "admin@example.test",
+      "role": "ADMIN",
+      "permissions": ["AUDIT_READ", "USER_MANAGE"],
+      "passwordChangeRequired": false
+    },
+    {
+      "id": "usr_mock_new",
+      "email": "new@example.test",
+      "role": "USER",
+      "permissions": [],
+      "passwordChangeRequired": true
+    }
+  ]
+}

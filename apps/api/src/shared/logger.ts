@@ -9,7 +9,10 @@ const REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
   'req.headers.x-csrf-token',
+  'req.body.email',
   'req.body.password',
+  'req.body.currentPassword',
+  'req.body.newPassword',
   'req.body.csrfToken',
   'res.headers.set-cookie',
 ];

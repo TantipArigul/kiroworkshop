@@ -64,3 +64,16 @@ apps/web/src/styles/tokens.css  # runtime token source of truth
 - `apps/web` จัดตาม feature และใช้ token CSS เท่านั้น ห้าม hardcode style values ใน component
 - Tests อยู่ใต้ `apps/api/tests/{unit,integration,properties}`; property tests ครอบคลุม authorization isolation, lifecycle, idempotency, redaction และ retention
 - Foundation merge เข้า `main` ก่อน branch ของ `identity-access`, `submission-job-lifecycle` และ `results-guidance`
+
+## Add-on — Identity & Access Structure (draft 2026-10-15)
+
+```text
+apps/api/src/modules/identity/   # routes, service, password policy, permissions, session guard
+apps/api/src/modules/audit/      # AuditService.record(), GET /api/v1/audit-events
+apps/api/src/cli/identity.ts     # one-off admin process (user/audit/session commands)
+apps/web/src/features/auth/      # AuthProvider, apiClient, RequireAuth, SignInPage, ChangePasswordPage
+apps/web/src/features/audit/     # AuditPage (AUDIT_READ only)
+```
+
+- Unit อื่นใช้ identity ผ่าน `requireAuthenticated`, `passwordChangeGate`, `requirePermission`, `assertOwnedResourceAccess` และ `AuditService.record()` เท่านั้น — ห้าม query `User`/`Session`/`AuditEvent` ผ่าน Prisma โดยตรง
+- Tests: `apps/api/tests/{unit,integration}/identity/` และ `apps/api/tests/properties/identity-access.test.ts`

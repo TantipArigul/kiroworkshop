@@ -33,9 +33,12 @@ export function createSessionMiddleware(config: AppConfig, store: session.Store)
     resave: false,
     saveUninitialized: false,
     unset: 'destroy',
+    // Idle timeout: every response extends the cookie and store expiry. The absolute
+    // timeout is enforced separately from `authenticatedAt` by the identity session guard.
+    rolling: true,
     cookie: {
       httpOnly: true,
-      maxAge: 8 * 60 * 60 * 1000,
+      maxAge: config.sessionIdleTimeoutMs,
       sameSite: 'strict',
       secure: config.appEnvironment !== 'test',
     },

@@ -1,21 +1,40 @@
 import { z } from 'zod';
 
+import { PASSWORD_MAX_LENGTH, PERMISSIONS, USER_ROLES } from '../constants.js';
 import { apiMetaSchema } from './common.js';
 
-export const userRoleSchema = z.enum(['USER', 'ADMIN']);
+export { PASSWORD_MAX_LENGTH, PERMISSIONS, USER_ROLES };
+const EMAIL_MAX_LENGTH = 254;
+
+export const userRoleSchema = z.enum(USER_ROLES);
+export const permissionSchema = z.enum(PERMISSIONS);
+
+// Trim and lowercase before validating so the stored identifier is canonical.
+export const emailSchema = z.string().trim().toLowerCase().max(EMAIL_MAX_LENGTH).pipe(z.email());
+
+const passwordInputSchema = z.string().min(1).max(PASSWORD_MAX_LENGTH);
 
 export const authenticatedUserSchema = z
   .object({
     id: z.string().min(1).max(128),
-    username: z.string().min(1).max(64),
+    email: emailSchema,
     role: userRoleSchema,
+    permissions: z.array(permissionSchema).max(PERMISSIONS.length),
+    passwordChangeRequired: z.boolean(),
   })
   .strict();
 
 export const loginRequestSchema = z
   .object({
-    username: z.string().trim().min(1).max(64),
-    password: z.string().min(1).max(1024),
+    email: emailSchema,
+    password: passwordInputSchema,
+  })
+  .strict();
+
+export const changePasswordRequestSchema = z
+  .object({
+    currentPassword: passwordInputSchema,
+    newPassword: passwordInputSchema,
   })
   .strict();
 

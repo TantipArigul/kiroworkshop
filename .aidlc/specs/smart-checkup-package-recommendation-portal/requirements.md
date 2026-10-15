@@ -389,3 +389,14 @@
 | [B-Star Web Server](https://webserver.helix-star.com/) | US-003, US-009, US-012 | ใช้เป็น UX context สำหรับ web-based analysis/sample interpretation เท่านั้น |
 
 > เนื้อหาจากเว็บไซต์ภายนอกได้รับการเรียบเรียงใหม่เพื่อให้เป็นไปตามข้อจำกัดด้านลิขสิทธิ์ Requirements เชิงบังคับยึดเอกสารหลักและ D1 decisions เป็น source of truth
+
+## Add-on — Identity & Access Design Refinement (approved 2026-10-15)
+
+แหล่งที่มา: Identity & Access D3-1, D3-2, D3-11 และการ resolve conflict ที่ผู้ใช้อนุมัติ (`units/identity-access/decisions-design.md`)
+
+- **E-mail เป็น login identifier**: ผู้ใช้ login ด้วย e-mail address และรหัสผ่าน; บัญชีถูกสร้างโดย Admin ผ่าน one-off CLI เท่านั้น ไม่มี self-registration
+- **ยังไม่มีการส่ง e-mail**: ระบบ SHALL NOT ส่ง e-mail หรือเรียก SMTP/outbound service ใด ๆ; ข้อ "no email" ใน out-of-scope ยังมีผลกับการส่ง e-mail, verification และ notification
+- **Privacy ของ e-mail**: e-mail เป็นข้อมูลส่วนบุคคลของผู้ใช้ระบบ SHALL เก็บเฉพาะใน `User` บน encrypted SQLite volume, SHALL NOT ปรากฏใน audit metadata, application log หรือ error response (audit อ้างอิง actor ด้วย internal user ID เท่านั้น ตาม NFR-005) และ SHALL ถูกลบเมื่อลบบัญชี
+- **Forced password change**: WHEN Admin reset รหัสผ่านผ่าน CLI THEN ระบบ SHALL revoke ทุก session ของผู้ใช้นั้น และ SHALL บังคับให้ผู้ใช้เปลี่ยนรหัสผ่านก่อนเข้าถึง protected page/API อื่นในการ login ครั้งถัดไป
+- **Audit viewer**: ผู้มีสิทธิ์ audit (`AUDITOR`/`ADMIN`) SHALL ตรวจ audit events ผ่านหน้า web ได้โดยไม่ใช้ Command Line ตาม NFR-001
+- **Traceability**: US-001, US-002, US-015, NFR-001, NFR-005

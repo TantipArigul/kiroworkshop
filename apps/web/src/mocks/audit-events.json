@@ -1,0 +1,324 @@
+{
+  "events": [
+    {
+      "id": "aud_mock_025",
+      "occurredAt": "2026-10-15T11:48:00.000+00:00",
+      "actorId": null,
+      "eventType": "USER_ROLE_CHANGED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_auditor",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_025",
+      "metadata": {
+        "channel": "CLI",
+        "from": "USER",
+        "to": "AUDITOR"
+      }
+    },
+    {
+      "id": "aud_mock_024",
+      "occurredAt": "2026-10-15T11:41:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "LOGOUT",
+      "resourceType": "SESSION",
+      "resourceId": null,
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_024",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_023",
+      "occurredAt": "2026-10-15T11:34:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "JOB_DELETED",
+      "resourceType": "JOB",
+      "resourceId": "job_mock_001",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_023",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_022",
+      "occurredAt": "2026-10-15T11:27:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "AUTHORIZATION_DENIED",
+      "resourceType": "AUDIT",
+      "resourceId": null,
+      "outcome": "DENIED",
+      "requestId": "req_mock_022",
+      "metadata": {
+        "permission": "AUDIT_READ"
+      }
+    },
+    {
+      "id": "aud_mock_021",
+      "occurredAt": "2026-10-15T11:20:00.000+00:00",
+      "actorId": null,
+      "eventType": "PASSWORD_RESET",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_021",
+      "metadata": {
+        "channel": "CLI",
+        "sessionsRevoked": 1
+      }
+    },
+    {
+      "id": "aud_mock_020",
+      "occurredAt": "2026-10-15T11:13:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "ACCOUNT_LOCKED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_020",
+      "metadata": {
+        "lockMinutes": 15
+      }
+    },
+    {
+      "id": "aud_mock_019",
+      "occurredAt": "2026-10-15T11:06:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_019",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_018",
+      "occurredAt": "2026-10-15T10:59:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_018",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_017",
+      "occurredAt": "2026-10-15T10:52:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_017",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_016",
+      "occurredAt": "2026-10-15T10:45:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_016",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_015",
+      "occurredAt": "2026-10-15T10:38:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_015",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_014",
+      "occurredAt": "2026-10-15T10:31:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "RESULT_DOWNLOADED",
+      "resourceType": "RESULT",
+      "resourceId": "res_mock_001",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_014",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_013",
+      "occurredAt": "2026-10-15T10:24:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "JOB_STATUS_CHANGED",
+      "resourceType": "JOB",
+      "resourceId": "job_mock_001",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_013",
+      "metadata": {
+        "to": "COMPLETED"
+      }
+    },
+    {
+      "id": "aud_mock_012",
+      "occurredAt": "2026-10-15T10:17:00.000+00:00",
+      "actorId": "usr_mock_new",
+      "eventType": "AUTHORIZATION_DENIED",
+      "resourceType": "JOB",
+      "resourceId": "job_mock_001",
+      "outcome": "DENIED",
+      "requestId": "req_mock_012",
+      "metadata": {
+        "permission": "OWNER"
+      }
+    },
+    {
+      "id": "aud_mock_011",
+      "occurredAt": "2026-10-15T10:10:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "JOB_STATUS_CHANGED",
+      "resourceType": "JOB",
+      "resourceId": "job_mock_001",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_011",
+      "metadata": {
+        "to": "RUNNING"
+      }
+    },
+    {
+      "id": "aud_mock_010",
+      "occurredAt": "2026-10-15T10:03:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "JOB_SUBMITTED",
+      "resourceType": "JOB",
+      "resourceId": "job_mock_001",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_010",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_009",
+      "occurredAt": "2026-10-15T09:56:00.000+00:00",
+      "actorId": "usr_mock_auditor",
+      "eventType": "AUDIT_QUERIED",
+      "resourceType": "AUDIT",
+      "resourceId": null,
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_009",
+      "metadata": {
+        "filters": ["eventType"],
+        "page": 1
+      }
+    },
+    {
+      "id": "aud_mock_008",
+      "occurredAt": "2026-10-15T09:49:00.000+00:00",
+      "actorId": "usr_mock_auditor",
+      "eventType": "LOGIN_SUCCESS",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_auditor",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_008",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_007",
+      "occurredAt": "2026-10-15T09:42:00.000+00:00",
+      "actorId": "usr_mock_auditor",
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_auditor",
+      "outcome": "FAILURE",
+      "requestId": "req_mock_007",
+      "metadata": {
+        "reason": "INVALID_PASSWORD"
+      }
+    },
+    {
+      "id": "aud_mock_006",
+      "occurredAt": "2026-10-15T09:35:00.000+00:00",
+      "actorId": null,
+      "eventType": "LOGIN_FAILURE",
+      "resourceType": "USER",
+      "resourceId": null,
+      "outcome": "FAILURE",
+      "requestId": "req_mock_006",
+      "metadata": {
+        "reason": "UNKNOWN_ACCOUNT"
+      }
+    },
+    {
+      "id": "aud_mock_005",
+      "occurredAt": "2026-10-15T09:28:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "PASSWORD_CHANGED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_user",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_005",
+      "metadata": {
+        "otherSessionsRevoked": 0
+      }
+    },
+    {
+      "id": "aud_mock_004",
+      "occurredAt": "2026-10-15T09:21:00.000+00:00",
+      "actorId": "usr_mock_user",
+      "eventType": "LOGIN_SUCCESS",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_user",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_004",
+      "metadata": {}
+    },
+    {
+      "id": "aud_mock_003",
+      "occurredAt": "2026-10-15T09:14:00.000+00:00",
+      "actorId": null,
+      "eventType": "USER_CREATED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_new",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_003",
+      "metadata": {
+        "channel": "CLI",
+        "role": "USER"
+      }
+    },
+    {
+      "id": "aud_mock_002",
+      "occurredAt": "2026-10-15T09:07:00.000+00:00",
+      "actorId": null,
+      "eventType": "USER_CREATED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_auditor",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_002",
+      "metadata": {
+        "channel": "CLI",
+        "role": "AUDITOR"
+      }
+    },
+    {
+      "id": "aud_mock_001",
+      "occurredAt": "2026-10-15T09:00:00.000+00:00",
+      "actorId": null,
+      "eventType": "USER_CREATED",
+      "resourceType": "USER",
+      "resourceId": "usr_mock_user",
+      "outcome": "SUCCESS",
+      "requestId": "req_mock_001",
+      "metadata": {
+        "channel": "CLI",
+        "role": "USER"
+      }
+    }
+  ]
+}

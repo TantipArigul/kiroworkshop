@@ -55,3 +55,21 @@ Tokens follow three layers: primitive values → semantic aliases → component 
 - **Workflow treatment**: Show Prepare → Track → Review inside the dark research panel as an original three-step narrative. Use labelled step numbers and explanatory text; do not rely on color alone.
 - **Landing token additions**: `--color-research-surface`, `--color-research-surface-muted`, `--color-on-research`, `--color-on-research-muted`, `--color-hero-tint`, `--fs-display`, `--radius-xl`, `--shadow-lg`, `--hero-column-min`, `--workflow-column-min`, and `--form-column-min` are the source-of-truth values for this composition. Implementations must use these tokens rather than raw visual values.
 - **Responsive/accessibility**: Preserve a single-column reading order below `--breakpoint-md`, constrain decorative SVG to its container, keep 44px CTA targets and visible focus states, and remove decorative transitions when reduced motion is requested.
+
+## Add-on — Base Document Styles
+- All elements use `box-sizing: border-box` so padded full-width sections never exceed their container.
+- `body` has no default margin and uses `--color-page`, `--color-text`, `--font-body` and a reading line-height of 1.5; headings use `--font-heading`.
+- Links use `--color-primary` (hover `--color-primary-hover`) with the shared `:focus-visible` outline; browser-default link colours are not used.
+- Page headings and their lead paragraph are separated by spacing tokens, never by relying on default margins.
+- Status badges represent real data only; empty states must not show a placeholder status.
+
+## Add-on — Brand Font Loading
+- `Atkinson Hyperlegible` (body, weights 400/700) and `Crimson Pro` (headings/brand, weights 600/700) are self-hosted through the pinned OFL-1.1 packages `@fontsource/atkinson-hyperlegible` 5.3.0 and `@fontsource/crimson-pro` 5.3.0, imported once in `apps/web/src/main.tsx`.
+- Fonts are bundled and served from the application origin; third-party font CDNs are not used.
+- `Noto Sans Thai` remains a fallback name only and is not bundled until Thai UI copy is approved.
+
+## Add-on — Identity UI Tokens (2026-10-15)
+- **Contrast fix**: new primitive `--color-green-700` (`#15803d`); `--color-success` now maps to it because `--color-green-600` on white is below WCAG 2.2 AA for small text. `--color-accent` stays `--color-green-600` for decorative SVG strokes only.
+- **`--border-hairline`** (`1px`): row separators inside data tables.
+- **`--font-mono`**: system monospace stack for identifiers (actor/resource/request IDs) in the audit table; no font files are added.
+- **Identity screens**: Sign in, Change password and Audit viewer reuse `Button`, `Input`, `Select`, `FeedbackMessage` and the shared status pattern (label + SVG icon + colour). Loading states use tokenized skeletons; tables scroll horizontally only inside their own focusable region.

@@ -128,14 +128,13 @@ export function createApiApp(
         return;
       }
 
-      response
-        .status(200)
-        .json(
-          createSuccessResponse(
-            { id: user.id, role: user.role, username: user.username },
-            getRequestId(response),
-          ),
-        );
+      response.status(200).json(
+        createSuccessResponse(
+          // Interim response; task 3.4 replaces this route with the full AuthenticatedUser contract.
+          { email: user.email, id: user.id, role: user.role },
+          getRequestId(response),
+        ),
+      );
     } catch (error) {
       next(error);
     }

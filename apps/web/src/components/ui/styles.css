@@ -18,6 +18,13 @@
 .ui-button:hover:not(:disabled) {
   background: var(--button-primary-hover-bg);
 }
+a.ui-button {
+  text-decoration: none;
+}
+.ui-button--primary,
+.ui-button--primary:hover {
+  color: var(--button-primary-fg);
+}
 .ui-button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -59,6 +66,28 @@
   font: inherit;
   min-height: var(--button-min-height);
   padding: var(--spacing-control);
+}
+.ui-select {
+  cursor: pointer;
+}
+.ui-input-group {
+  align-items: center;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.ui-input-reveal {
+  font-size: var(--fs-sm);
+  /* Fixed width so toggling Show/Hide does not resize the input. */
+  min-inline-size: calc(var(--space-12) + var(--space-6));
+}
+.visually-hidden {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
 }
 .ui-field__hint {
   color: var(--color-text-muted);

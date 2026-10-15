@@ -1,34 +1,133 @@
-import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router';
 
-import { Button, FeedbackMessage, Input, StatusBadge } from './components/ui';
+import { Button, FeedbackMessage } from './components/ui';
+import { AuditPage } from './features/audit/AuditPage';
+import { AuthProvider } from './features/auth/AuthProvider';
+import { useAuth } from './features/auth/authContext';
+import { ChangePasswordPage } from './features/auth/ChangePasswordPage';
+import { CHANGE_PASSWORD_PATH, RequireAuth } from './features/auth/RequireAuth';
+import { SignInPage } from './features/auth/SignInPage';
 
 export function App() {
   return (
     <BrowserRouter>
-      <div className="site-shell">
-        <header className="site-header">
-          <Link className="brand" to="/">
-            <Mark />
-            <span>
-              SamNoh<span className="brand-accent">server</span>
-            </span>
-          </Link>
-          <nav aria-label="Primary navigation" className="site-nav">
-            <NavLink to="/jobs">Workspace</NavLink>
-            <NavLink to="/help">Guide</NavLink>
-            <NavLink to="/sign-in">Sign in</NavLink>
-          </nav>
-        </header>
-        <main>
-          <Routes>
-            <Route element={<Landing />} path="/" />
-            <Route element={<SignIn />} path="/sign-in" />
-            <Route element={<Workspace />} path="/jobs" />
-            <Route element={<Guide />} path="/help" />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <div className="site-shell">
+          <a className="skip-link" href="#main">
+            Skip to main content
+          </a>
+          <SiteHeader />
+          <RouteFocus />
+          <main id="main" tabIndex={-1}>
+            <Routes>
+              <Route element={<Landing />} path="/" />
+              <Route element={<SignInPage />} path="/sign-in" />
+              <Route
+                element={
+                  <RequireAuth allowPendingPasswordChange>
+                    <ChangePasswordPage />
+                  </RequireAuth>
+                }
+                path={CHANGE_PASSWORD_PATH}
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <Workspace />
+                  </RequireAuth>
+                }
+                path="/jobs"
+              />
+              <Route
+                element={
+                  <RequireAuth permission="AUDIT_READ">
+                    <AuditPage />
+                  </RequireAuth>
+                }
+                path="/audit"
+              />
+              <Route element={<Guide />} path="/help" />
+            </Routes>
+          </main>
+        </div>
+      </AuthProvider>
     </BrowserRouter>
+  );
+}
+
+/** Moves focus to the main region after client-side navigation so screen readers announce the new page. */
+function RouteFocus() {
+  const { pathname } = useLocation();
+  const previousPath = useRef(pathname);
+
+  useEffect(() => {
+    if (previousPath.current === pathname) {
+      return;
+    }
+
+    previousPath.current = pathname;
+    document.getElementById('main')?.focus();
+  }, [pathname]);
+
+  return null;
+}
+
+function SiteHeader() {
+  const { hasPermission, signOut, status, user } = useAuth();
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
+  const signedIn = status === 'authenticated' && user;
+
+  async function handleSignOut() {
+    setSigningOut(true);
+
+    try {
+      await signOut();
+    } finally {
+      setSigningOut(false);
+      navigate('/sign-in', { replace: true });
+    }
+  }
+
+  return (
+    <header className="site-header">
+      <Link className="brand" to="/">
+        <Mark />
+        <span>
+          SamNoh<span className="brand-accent">server</span>
+        </span>
+      </Link>
+      <nav aria-label="Primary navigation" className="site-nav">
+        <NavLink to="/jobs">Workspace</NavLink>
+        <NavLink to="/help">Guide</NavLink>
+        {signedIn && hasPermission('AUDIT_READ') ? <NavLink to="/audit">Audit</NavLink> : null}
+        {signedIn ? (
+          <div className="site-account">
+            <NavLink
+              aria-label={`Account settings for ${user.email}`}
+              className="site-account__email"
+              to={CHANGE_PASSWORD_PATH}
+            >
+              {user.email}
+            </NavLink>
+            <Button disabled={signingOut} onClick={() => void handleSignOut()} variant="secondary">
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Button>
+          </div>
+        ) : (
+          <NavLink to="/sign-in">Sign in</NavLink>
+        )}
+      </nav>
+    </header>
   );
 }
 
@@ -58,11 +157,11 @@ function Landing() {
             following their progress, and reviewing interpretable outputs.
           </p>
           <div className="hero-actions">
-            <Link to="/sign-in">
-              <Button>Start analysis</Button>
+            <Link className="ui-button ui-button--primary" to="/jobs">
+              Start analysis
             </Link>
-            <Link to="/help">
-              <Button variant="ghost">Explore the workflow</Button>
+            <Link className="ui-button ui-button--ghost" to="/help">
+              Explore the workflow
             </Link>
           </div>
           <small>Training output only — not medical diagnosis or treatment advice.</small>
@@ -159,33 +258,6 @@ function Step({ number, text, title }: { number: string; text: string; title: st
   );
 }
 
-function SignIn() {
-  return (
-    <section className="form-page">
-      <div>
-        <p className="eyebrow">Protected workspace</p>
-        <h1>Sign in to continue.</h1>
-        <p>Identity access is being prepared for this training environment.</p>
-      </div>
-      <form className="sign-in-form">
-        <Input
-          disabled
-          hint="Training access will be enabled with the Identity unit."
-          label="Username"
-          name="username"
-        />
-        <Input disabled label="Password" name="password" type="password" />
-        <Button disabled type="submit">
-          Sign in
-        </Button>
-        <FeedbackMessage tone="info">
-          Sessions are server-side. No permanent tracking cookies are used.
-        </FeedbackMessage>
-      </form>
-    </section>
-  );
-}
-
 function Workspace() {
   return (
     <section className="workspace">
@@ -195,17 +267,19 @@ function Workspace() {
           <h1>Analysis jobs</h1>
           <p>Monitor submitted analysis and return to the same secure result link later.</p>
         </div>
-        <Link to="/sign-in">
-          <Button>New analysis</Button>
-        </Link>
+        <Button aria-describedby="new-analysis-hint" disabled>
+          New analysis
+        </Button>
       </div>
       <div className="job-surface">
         <div>
           <h2>No jobs yet</h2>
-          <p>Sign in to load a sample input or submit a validated synthetic file.</p>
+          <p id="new-analysis-hint">
+            Job submission arrives with the Submission &amp; Job Lifecycle unit. Until then, review
+            the guide to prepare a synthetic input.
+          </p>
           <Link to="/help">Open the submission guide</Link>
         </div>
-        <StatusBadge status="queued" />
       </div>
     </section>
   );
