@@ -132,17 +132,24 @@ export function AuditPage() {
         </div>
       </form>
 
-      <AuditResults onPageChange={goToPage} onRetry={() => void load()} state={state} />
+      <AuditResults
+        onPageChange={goToPage}
+        onReset={resetFilters}
+        onRetry={() => void load()}
+        state={state}
+      />
     </section>
   );
 }
 
 function AuditResults({
   onPageChange,
+  onReset,
   onRetry,
   state,
 }: {
   onPageChange: (page: number) => void;
+  onReset: () => void;
   onRetry: () => void;
   state: LoadState;
 }) {
@@ -174,6 +181,9 @@ function AuditResults({
       <div className="audit-state audit-state--empty">
         <h2>No audit events match these filters</h2>
         <p>Widen the time range or reset the filters to see more activity.</p>
+        <Button onClick={onReset} variant="secondary">
+          Reset filters
+        </Button>
       </div>
     );
   }

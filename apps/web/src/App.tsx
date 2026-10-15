@@ -1,5 +1,13 @@
-import { useState } from 'react';
-import { BrowserRouter, Link, NavLink, Route, Routes, useNavigate } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  BrowserRouter,
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router';
 
 import { Button, FeedbackMessage } from './components/ui';
 import { AuditPage } from './features/audit/AuditPage';
@@ -14,8 +22,12 @@ export function App() {
     <BrowserRouter>
       <AuthProvider>
         <div className="site-shell">
+          <a className="skip-link" href="#main">
+            Skip to main content
+          </a>
           <SiteHeader />
-          <main>
+          <RouteFocus />
+          <main id="main" tabIndex={-1}>
             <Routes>
               <Route element={<Landing />} path="/" />
               <Route element={<SignInPage />} path="/sign-in" />
@@ -50,6 +62,23 @@ export function App() {
       </AuthProvider>
     </BrowserRouter>
   );
+}
+
+/** Moves focus to the main region after client-side navigation so screen readers announce the new page. */
+function RouteFocus() {
+  const { pathname } = useLocation();
+  const previousPath = useRef(pathname);
+
+  useEffect(() => {
+    if (previousPath.current === pathname) {
+      return;
+    }
+
+    previousPath.current = pathname;
+    document.getElementById('main')?.focus();
+  }, [pathname]);
+
+  return null;
 }
 
 function SiteHeader() {

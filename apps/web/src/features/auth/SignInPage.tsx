@@ -40,6 +40,7 @@ export function SignInPage() {
     setFormError(null);
 
     if (errors.email || errors.password) {
+      focusField(errors.email ? 'sign-in-email' : 'sign-in-password');
       return;
     }
 
@@ -54,6 +55,7 @@ export function SignInPage() {
       setFormError(describeSignInError(error));
       setPassword('');
       setSubmitting(false);
+      focusField('sign-in-password');
     }
   }
 
@@ -105,6 +107,7 @@ export function SignInPage() {
           name="password"
           onChange={(event) => setPassword(event.target.value)}
           required
+          revealable
           type="password"
           value={password}
         />
@@ -124,6 +127,11 @@ export function SignInPage() {
       </form>
     </section>
   );
+}
+
+function focusField(id: string) {
+  // Wait for React to render the error before moving focus to the field.
+  requestAnimationFrame(() => document.getElementById(id)?.focus());
 }
 
 function validate(email: string, password: string): FieldErrors {

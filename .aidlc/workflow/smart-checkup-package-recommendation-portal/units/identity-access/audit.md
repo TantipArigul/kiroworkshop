@@ -109,3 +109,8 @@
 - **Action**: wave-complete
 - **Artifacts**: tasks 2.1–2.3, tasks.md Add-on (Wave 2 refinements)
 - **Outcome**: browser verification ผ่าน Chrome DevTools Protocol 14 screens (1440px และ 390px device emulation): ทุก flow นำทางถูก, ไม่มี page-level horizontal overflow, ตาราง audit พอดี container ที่ 1440px; format/lint/typecheck/tokens/build ผ่าน, tests shared 10 + API 24 passed / 3 skipped; ยังไม่ได้รัน skill `ui-ux-pro-max` polish pass และยังไม่ได้ทดสอบ screen reader จริง; 7/19 tasks (37%); รอผู้ใช้ตรวจ UI และยืนยัน Add-on
+### [2026-10-15T11:20:00Z] Implementation: Wave 2 UX Review (ui-ux-pro-max)
+- **Phase**: implementation
+- **Action**: polish pass (design-system policy §5)
+- **Artifacts**: `apps/web/src/{App.tsx,app.css}`, `apps/web/src/components/ui/{Input.tsx,styles.css}`, `apps/web/src/features/auth/{SignInPage,ChangePasswordPage}.tsx`, `apps/web/src/features/audit/AuditPage.tsx`, tasks.md Add-on
+- **Outcome**: แก้ 6 ข้อ (skip link, route focus, first-invalid focus, password reveal, empty-state action, wordmark touch target); ตรวจใน headless Chrome: Tab แรก = skip link, focus หลัง submit/route ถูกที่, Show/Hide ไม่ทำ input เปลี่ยนขนาด (392 → 392px), Reset ใน empty state คืน 20 แถว, ไม่มี interactive element ที่ต่ำกว่า 44px; format/lint/typecheck/tokens/tests/build ผ่าน; ยังไม่ได้ทดสอบ screen reader จริง

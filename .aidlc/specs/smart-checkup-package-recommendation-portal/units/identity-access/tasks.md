@@ -284,3 +284,15 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - **Contrast fix**: `--color-success` เปลี่ยนจาก green-600 (3.30:1 บนขาว — ไม่ผ่าน AA) เป็น `--color-green-700` ใหม่ (5.02:1); เพิ่ม `--border-hairline`, `--font-mono` — sync กับ design-system steering แล้ว
 - **Bundle size**: เพิ่ม entry `@portal/shared/constants` (ไม่มี Zod) เพื่อให้ web ไม่ bundle Zod — JS ลดจาก 548 kB เป็น 286 kB (gzip 174 → 90 kB)
 - **Nested interactive fix**: ปุ่มใน landing ที่เป็น `<a><button>` เปลี่ยนเป็น `<a class="ui-button">`; ปุ่ม New analysis ใน Workspace ปิดไว้พร้อมคำอธิบายจนกว่า Submission unit จะเสร็จ; `/jobs` อยู่หลัง `RequireAuth`
+
+## Add-on — Wave 2 UX Review (ui-ux-pro-max polish pass, user requested 2026-10-15)
+ตรวจด้วย `ui-ux-pro-max` (`--domain ux`: forms, focus, keyboard, loading/empty/error, tables, touch targets, password inputs) และแก้ทุกข้อที่ไม่ผ่าน:
+- **Skip link** "Skip to main content" เป็น focus แรกของหน้า (Severity Medium — Skip Links)
+- **Focus หลังเปลี่ยน route** ย้ายไปที่ `<main>` เพื่อให้ screen reader รับรู้หน้าใหม่ (High — Keyboard Navigation)
+- **Focus field แรกที่ผิด** เมื่อ submit ไม่ผ่านใน Sign in/Change password และ focus ช่องรหัสผ่านหลัง sign-in ล้มเหลว (High — Error Messages/Submit Feedback)
+- **Show/Hide password** ทุกช่องรหัสผ่าน (`aria-pressed`, `aria-controls`, ชื่อปุ่มระบุช่อง) ความกว้างคงที่ ไม่ทำให้ input เปลี่ยนขนาด (Medium — Password Visibility)
+- **Empty state ของ audit มีปุ่ม Reset filters** (Medium — Empty States: helpful message + action)
+- **Touch target**: wordmark ลิงก์หน้าแรกสูง 36px → ≥ 44px (High — Touch Target Size)
+- `Input` เปลี่ยนจาก `<label>` ครอบ input เป็น `<div>` + `<label htmlFor>` เพื่อวางปุ่ม Show/Hide นอก label
+- **ผ่านอยู่แล้ว**: focus ring, `role=alert` ของ error, loading/success feedback, active nav (`aria-current`), deep-link filters ใน URL, table scroll ใน container, disabled state พร้อมคำอธิบาย, heading hierarchy, back-button (`replace`)
+- **ยังไม่ได้ตรวจ**: screen reader จริง (VoiceOver/NVDA), Dynamic Type/zoom 200%, landscape บนอุปกรณ์จริง

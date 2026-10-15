@@ -64,6 +64,7 @@ export function ChangePasswordPage() {
     setFormError(null);
 
     if (Object.keys(errors).length > 0) {
+      focusFirstInvalid(errors);
       return;
     }
 
@@ -73,7 +74,7 @@ export function ChangePasswordPage() {
       await changePassword(currentPassword, newPassword);
       setCompleted(true);
     } catch (error) {
-      applyServerError(error, setFieldErrors, setFormError);
+      focusFirstInvalid(applyServerError(error, setFieldErrors, setFormError));
       setSubmitting(false);
     }
   }
@@ -105,6 +106,7 @@ export function ChangePasswordPage() {
           name="currentPassword"
           onChange={(event) => setCurrentPassword(event.target.value)}
           required
+          revealable
           type="password"
           value={currentPassword}
         />
@@ -117,6 +119,7 @@ export function ChangePasswordPage() {
           name="newPassword"
           onChange={(event) => setNewPassword(event.target.value)}
           required
+          revealable
           type="password"
           value={newPassword}
         />
@@ -145,6 +148,7 @@ export function ChangePasswordPage() {
           name="confirmPassword"
           onChange={(event) => setConfirmPassword(event.target.value)}
           required
+          revealable
           type="password"
           value={confirmPassword}
         />
@@ -154,6 +158,21 @@ export function ChangePasswordPage() {
       </form>
     </section>
   );
+}
+
+const FIELD_IDS: Record<keyof FieldErrors, string> = {
+  currentPassword: 'current-password',
+  newPassword: 'new-password',
+  confirmPassword: 'confirm-password',
+};
+
+function focusFirstInvalid(errors: FieldErrors) {
+  const firstInvalid = (Object.keys(FIELD_IDS) as (keyof FieldErrors)[]).find((key) => errors[key]);
+
+  if (firstInvalid) {
+    // Wait for React to render the error before moving focus to the field.
+    requestAnimationFrame(() => document.getElementById(FIELD_IDS[firstInvalid])?.focus());
+  }
 }
 
 function matchesIdentifier(password: string, email: string): boolean {
@@ -194,19 +213,22 @@ function applyServerError(
   error: unknown,
   setFieldErrors: (errors: FieldErrors) => void,
   setFormError: (message: string | null) => void,
-) {
+): FieldErrors {
   if (error instanceof ApiRequestError) {
     if (error.code === 'AUTHENTICATION_FAILED') {
-      setFieldErrors({ currentPassword: 'The current password is incorrect.' });
-      return;
+      const errors = { currentPassword: 'The current password is incorrect.' };
+      setFieldErrors(errors);
+      return errors;
     }
 
     if (error.code === 'VALIDATION_FAILED') {
       const message = error.details.find((detail) => detail.field === 'newPassword')?.message;
-      setFieldErrors({ newPassword: message ?? 'Choose a different password.' });
-      return;
+      const errors = { newPassword: message ?? 'Choose a different password.' };
+      setFieldErrors(errors);
+      return errors;
     }
   }
 
   setFormError('Your password could not be changed. Please try again.');
+  return {};
 }
