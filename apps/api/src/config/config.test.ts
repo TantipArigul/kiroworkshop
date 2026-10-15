@@ -55,4 +55,34 @@ describe('loadConfig', () => {
 
     expect(() => loadConfig(invalidEnvironment)).toThrow(ConfigValidationError);
   });
+
+  it('applies identity session, lockout and audit retention defaults', () => {
+    const config = loadConfig(validEnvironment);
+
+    expect(config.sessionIdleTimeoutMs).toBe(30 * 60_000);
+    expect(config.sessionAbsoluteTimeoutMs).toBe(8 * 60 * 60_000);
+    expect(config.loginLockoutThreshold).toBe(5);
+    expect(config.loginLockoutWindowMs).toBe(15 * 60_000);
+    expect(config.loginLockoutDurationMs).toBe(15 * 60_000);
+    expect(config.auditRetentionDays).toBe(90);
+  });
+
+  it('rejects an idle timeout longer than the absolute timeout', () => {
+    expect(() =>
+      loadConfig({
+        ...validEnvironment,
+        SESSION_IDLE_TIMEOUT_MINUTES: '120',
+        SESSION_ABSOLUTE_TIMEOUT_HOURS: '1',
+      }),
+    ).toThrow(ConfigValidationError);
+  });
+
+  it('rejects an audit retention shorter than the database trigger window', () => {
+    try {
+      loadConfig({ ...validEnvironment, AUDIT_RETENTION_DAYS: '30' });
+      expect.unreachable();
+    } catch (error) {
+      expect((error as ConfigValidationError).fields).toEqual(['AUDIT_RETENTION_DAYS']);
+    }
+  });
 });

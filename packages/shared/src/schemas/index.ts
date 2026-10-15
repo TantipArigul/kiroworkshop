@@ -1,9 +1,24 @@
 export {
+  AUDIT_EVENT_TYPES,
+  AUDIT_RESOURCE_TYPES,
+  auditEventListResponseSchema,
+  auditEventQuerySchema,
+  auditEventSchema,
+  auditEventTypeSchema,
+  auditResourceTypeSchema,
+} from './audit.js';
+export {
+  PASSWORD_MAX_LENGTH,
+  PERMISSIONS,
+  USER_ROLES,
   authenticatedUserSchema,
+  changePasswordRequestSchema,
   csrfTokenResponseSchema,
   currentUserResponseSchema,
+  emailSchema,
   loginRequestSchema,
   loginResponseSchema,
+  permissionSchema,
   userRoleSchema,
 } from './auth.js';
 export {
@@ -12,6 +27,7 @@ export {
   apiMetaSchema,
   auditNotificationSchema,
   auditOutcomeSchema,
+  ERROR_CODES,
   errorCodeSchema,
   jobStatusSchema,
   paginationSchema,

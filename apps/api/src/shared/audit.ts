@@ -1,5 +1,6 @@
+// E-mail and username identify a person (NFR-005); audit rows reference actors by internal ID only.
 const SENSITIVE_KEY_PATTERN =
-  /authorization|cookie|csrf|password|path|secret|session|storage|token/i;
+  /authorization|cookie|csrf|email|password|path|secret|session|storage|token|username/i;
 
 export function redactAuditMetadata(value: unknown): unknown {
   if (Array.isArray(value)) {
