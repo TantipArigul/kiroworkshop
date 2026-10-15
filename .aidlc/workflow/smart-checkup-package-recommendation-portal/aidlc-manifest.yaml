@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-01T09:35:50Z"
+updated: "2026-10-15T02:53:33Z"
 state:
   status: "active"
   scope: "new"
@@ -181,12 +181,60 @@ units:
         files:
           - "tasks.md"
   - name: "identity-access"
-    status: "pending"
-    phase: "design"
+    status: "in-progress"
+    phase: "implement"
+    completedPhases:
+      - "design"
+      - "tasks"
+    implementationMode: "standard"
+    implementation:
+      totalTasks: 19
+      completedTasks: 1
+      currentTask: "1.2"
+      currentWave: null
     owner: "Developer 1"
     dependencies:
       - "foundation"
-    artifacts: {}
+    decisions:
+      design:
+        provisioning: "E-mail login identifier; admin one-off CLI provisioning; no e-mail sending, outbound call or self-registration"
+        passwordReset: "Admin CLI temporary password + revoke all sessions + audit PASSWORD_RESET + forced change on next login"
+        passwordPolicy: "NIST-based: 12-1024 chars, not equal to identifier, common-password denylist, no composition or periodic expiry; min 12 is user-accepted deviation from SP 800-63B-4 (15)"
+        bruteForce: "Per-account lockout 5 failures/15 minutes for 15 minutes + generic error + dummy Argon2 hash + audit LOGIN_FAILURE"
+        session: "Regenerate on login, absolute 8h, idle 30m, logout revokes current, reset/disable revokes all"
+        roles: "Fixed USER/AUDITOR/ADMIN in User.role + static role-permission map (AUDIT_READ, USER_MANAGE)"
+        adminScope: "Account management via CLI + audit read; no access to other users' Job/Input/Result; privileged actions audited"
+        auditWrite: "Synchronous redacted AuditService.record in SQLite; no update/delete API; triggers block UPDATE/DELETE except retention cleanup"
+        auditQuery: "GET /api/v1/audit-events read-only, AUDIT_READ, filters, newest first, pagination 20/100, 403 + AUTHORIZATION_DENIED"
+        auditRetention: "90 days + scheduled one-off cleanup"
+        frontend: "Login, auth context bootstrap, route guard, safe return path, session-expired notice, logout, forced change-password page, audit viewer"
+        correctness: "fast-check: owner isolation, no implicit privileged access, uniform login failure, revoked sessions rejected, recursive redaction, least-privilege permission map"
+        observability: "Minimal — Foundation redacted logging + health + security event types"
+        errorTracking: "Log-based only"
+        lifecycle: "Foundation health + readiness + graceful shutdown; cleanup as one-off process"
+        addOn: "E-mail identifier, forced password change and audit viewer approved 2026-10-15; requirements Add-on recorded"
+      tasks:
+        strategy: "Component/dependency-first"
+        waveOrder: "Setup -> Frontend + mock json -> Backend + CLI + wire -> Cleanup/operations -> Tests/Verify; stop per wave"
+        testing: "Test-after; security integration tests and PBT P1-P6 mandatory before unit close (NFR-006)"
+        scope: "API unit/integration (+triggers)/PBT; web typecheck + returnTo unit; E2E deferred"
+        openItems: "Resolve first in Wave 1 with Add-on; ask before deleting files or adding data files"
+        granularity: "Single concern, 0.5-2 days, ownership, acceptance and validation"
+        parallelism: "Sequential waves; non-overlapping parallel within wave only"
+        devAccounts: "Synthetic accounts via CLI prompt; README steps without passwords"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-15T03:35:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-15T03:55:00Z"
+        totalTasks: 19
+        files:
+          - "tasks.md"
   - name: "submission-job-lifecycle"
     status: "pending"
     phase: "design"
