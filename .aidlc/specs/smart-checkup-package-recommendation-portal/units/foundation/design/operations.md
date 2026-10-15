@@ -4,7 +4,7 @@
 - **Observability Level**: Minimal
 - **Error Tracking**: Log-based structured redacted logs
 - **Lifecycle Management**: health + readiness + graceful shutdown
-- **Logging Library**: `[TBD - not decided in D3]`; implementation must select a maintained structured JSON Node.js logger and pin it
+- **Logging Library**: pino 10.3.1 + pino-http 11.0.0 with redaction configuration
 
 ## Logging
 - Emit structured JSON to stdout/stderr; Docker runtime collects the event stream.
@@ -48,3 +48,8 @@ Readiness database check has a 2-second cap. No health response exposes database
 - 5xx: safe `INTERNAL_ERROR`, structured redacted error log, no stack trace to client.
 - Startup critical dependency failure: exit before serving.
 - No metrics/trace/alerting are included because D3 selected Minimal; future production/SLA needs a D3 refinement.
+
+## Add-on — Resolved Runtime Controls
+- **Logger**: pino 10.3.1 plus pino-http 11.0.0, with request IDs and redact configuration for authorization/cookie headers, session identifiers, CSRF tokens, passwords, synthetic health-like inputs and internal paths.
+- **Rate limits**: login 5/15 minutes/IP; authenticated API 120/minute/session; submissions 10/hour/user. Responses use the standard `429 RATE_LIMITED` safe error envelope.
+- **Pagination**: default 20, maximum 100; invalid/excessive values are rejected by Zod validation.

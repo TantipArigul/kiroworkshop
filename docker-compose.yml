@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: ${ENV_FILE:-.env}
+    expose:
+      - '3000'
+    volumes:
+      - ${ENCRYPTED_DATA_ROOT:?Set ENCRYPTED_DATA_ROOT}:/var/lib/portal-private
+    restart: unless-stopped
+  caddy:
+    image: caddy:2.11.4
+    depends_on:
+      - api
+    ports:
+      - '443:443'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apps/web/dist:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:

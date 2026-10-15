@@ -202,3 +202,39 @@ Foundation เป็น unit แรกของ incremental modular monolith ส
 ---
 
 **สถานะ**: ใช้ตัวเลือกแนะนำครบทุกข้อเมื่อ 2026-10-01T07:23:33Z
+
+## Add-on — Approved Foundation Security and Operations Details (2026-10-01)
+- **Storage encryption**: SQLite database, private artifact volume and backups must reside on an encrypted host volume — FileVault for macOS development and LUKS for Linux deployment. The application does not implement encryption or handle volume keys.
+- **Key management**: encryption keys remain in OS/volume management; keys must not be present in source, `.env`, images, logs or application storage. This MVP remains synthetic-data-only.
+- **TLS**: Caddy `2.11.4` is the Docker Compose TLS-terminating reverse proxy. It uses ACME automatic issuance/renewal for a public hostname and Caddy internal CA only for local development; redirect HTTP to HTTPS.
+- **Session/security packages**: `express-session` `1.19.0`, `csrf-sync` `4.2.1`, `express-rate-limit` `8.7.0`, `pino` `10.3.1`, `pino-http` `11.0.0`; exact versions are pinned in the lockfile.
+- **Limits**: pagination default `20`, maximum `100`; login `5` requests/15 minutes/IP; authenticated API `120` requests/minute/session; job submission `10` requests/hour/user.
+- **Guardrail**: deployment is prohibited until encrypted host volume, HTTPS certificate renewal and secret injection have been verified.
+
+**Registry sources**: [express-session](https://registry.npmjs.org/express-session/latest), [csrf-csrf](https://registry.npmjs.org/csrf-csrf/latest), [express-rate-limit](https://registry.npmjs.org/express-rate-limit/latest), [pino](https://registry.npmjs.org/pino/latest), [pino-http](https://registry.npmjs.org/pino-http/latest), [Caddy release](https://api.github.com/repos/caddyserver/caddy/releases/latest). Package metadata was summarized for compliance with licensing restrictions.
+
+## Add-on — Approved Lint and Format Tooling (2026-10-01)
+- **Lint**: ESLint `10.11.0` using flat config for the TypeScript workspace.
+- **Format**: Prettier `3.9.9` with repository-level configuration.
+- **Runtime setup**: pnpm `12.8.1` is provisioned through Corepack; exact development dependencies will be pinned in the workspace lockfile.
+- **CI**: lint and format-check run before type-check/tests/build.
+
+**Registry sources**: [ESLint](https://registry.npmjs.org/eslint/latest), [Prettier](https://registry.npmjs.org/prettier/latest). Package metadata was summarized for compliance with licensing restrictions.
+
+## Add-on — Approved Prisma SQLite Driver Adapter (2026-10-01)
+- **Prisma client driver**: `@prisma/adapter-better-sqlite3` `7.10.0` plus `better-sqlite3` `12.6.0` and `@types/better-sqlite3` `7.6.12`.
+- **Purpose**: create Prisma 7 SQLite client for persistent server-side session storage, readiness queries and transaction-safe repositories; in-memory session storage is prohibited.
+- **Native build allowlist**: `better-sqlite3` is explicitly permitted alongside the previously approved Prisma/Argon2 builds.
+- **CSRF**: use `csrf-csrf` token from a request header; no cookie-parser dependency is required for this design.
+
+**Registry sources**: [Prisma adapter](https://registry.npmjs.org/@prisma/adapter-better-sqlite3/latest), [better-sqlite3](https://registry.npmjs.org/better-sqlite3/latest), [type declarations](https://registry.npmjs.org/@types/better-sqlite3/latest). Package metadata was summarized for compliance with licensing restrictions.
+
+## Add-on — Approved Stateful CSRF and Session Persistence (2026-10-01)
+- `csrf-sync` 4.2.1 replaces csrf-csrf because this workload uses server-side sessions; cookie-parser 1.4.7 is registered after express-session and before CSRF middleware.
+- Session persistence uses `Session.dataJson` in the encrypted SQLite database; serialized session data is not exposed through APIs or logs.
+- Prisma client uses the approved better-sqlite3 driver adapter; MemoryStore is prohibited.
+
+## Add-on — Approved CSRF Token Bootstrap Endpoint (2026-10-01)
+- Add `GET /api/v1/auth/csrf-token` to create/read a stateful synchronizer token before login or any state-changing request.
+- `Session.userId` is optional so the encrypted server-side store can persist an anonymous pre-auth session containing only the CSRF token and cookie metadata. Login binds the session to a user later; API/log output never exposes `dataJson` or CSRF token.
+- POST login/logout and all later state-changing API routes require `X-CSRF-Token` validation.

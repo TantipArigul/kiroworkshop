@@ -77,8 +77,8 @@ No external pipeline/API/SOAP call in MVP.
 
 | # | Question/Risk | Impact | Status |
 |---|---|---|---|
-| 1 | SQLite database/file encryption-at-rest mechanism and key storage are not selected in D3 | High | Open — must be resolved before deployment or real data handling |
-| 2 | TLS reverse proxy, hostname and certificate provider are not selected | High | Open — must be selected before external HTTPS deployment |
+| 1 | Storage encryption/key management resolved: FileVault development and LUKS Linux deployment host volumes; application does not handle keys | High | Controlled — verify encrypted volume before deployment |
+| 2 | TLS resolved: Caddy 2.11.4 with ACME public-host renewal or internal CA development mode | High | Controlled — verify hostname/renewal before deployment |
 | 3 | User provisioning/password reset flow is unspecified | Medium | Open — Identity unit must decide before implementation |
 | 4 | Package versions must be rechecked before dependency installation | Medium | Mitigated by pinned lockfile and CI scan |
 
@@ -112,3 +112,17 @@ No external pipeline/API/SOAP call in MVP.
 | [npm registry: fast-check](https://registry.npmjs.org/fast-check/latest) | Package registry | correctness.md |
 
 > Version registry content was summarized for compliance with licensing restrictions.
+
+## Add-on — Approved Deployment and Dependency Controls
+- **Encrypted storage**: all SQLite/private-artifact/backup paths run only on FileVault-encrypted macOS development volumes or LUKS-encrypted Linux deployment volumes. Application code never owns encryption keys; real data remains prohibited.
+- **TLS**: Caddy `2.11.4` terminates TLS, redirects HTTP to HTTPS, uses ACME auto-renewal for public hostnames and Caddy internal CA for development.
+- **Pinned security packages**: express-session `1.19.0`, csrf-sync `4.2.1`, cookie-parser `1.4.7`, express-rate-limit `8.7.0`, pino `10.3.1`, pino-http `11.0.0`.
+- **Limits**: pagination `20` default/`100` max; login `5`/15 minutes/IP; authenticated API `120`/minute/session; submission `10`/hour/user.
+- **Release gate**: verify encrypted volumes, certificate renewal and environment-injected secrets before deployment; otherwise run local synthetic-data development only.
+
+## Add-on — Approved Lint and Format Tooling
+- ESLint `10.11.0` flat configuration and Prettier `3.9.9` become pinned development dependencies for the pnpm workspace.
+- CI runs lint and format-check before type-check, tests and build.
+
+## Add-on — Approved Prisma SQLite Adapter
+- Prisma 7 client uses `@prisma/adapter-better-sqlite3` 7.10.0 with `better-sqlite3` 12.6.0 and its pinned types. This enables SQLite-backed persistent sessions and readiness checks; MemoryStore is prohibited.

@@ -1,0 +1,7 @@
+{$DOMAIN:localhost} {
+  tls internal
+  reverse_proxy /api/* api:3000
+  reverse_proxy /health* api:3000
+  root * /srv
+  file_server
+}

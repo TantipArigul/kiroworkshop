@@ -73,3 +73,16 @@ Stack ที่ผู้ใช้กำหนดเป็น React + TypeScript,
 - **Deployment**: Docker Compose หลัง TLS-terminating reverse proxy, HTTPS redirect และ certificate automation; proxy/certificate tool เป็น `[TBD - not decided in D3]`
 - **Data protection gap**: encryption-at-rest และ key-management mechanism ของ SQLite/file volume ยังไม่ได้ตัดสินใจ จึงห้าม deploy สำหรับ real/sensitive data จนกว่าจะมี design ที่อนุมัติ
 - **CI/CD**: GitHub Actions สำหรับ install, lint, type-check, test, dependency/secret scan, build และ artifact integrity; PR review อย่างน้อย 1 คน
+
+## Add-on — Foundation deployment controls approved
+- Host-volume encryption: FileVault for macOS development and LUKS for Linux deployment protect SQLite/private artifacts/backups; application code does not own keys.
+- Caddy 2.11.4 is the TLS reverse proxy, with ACME auto-renewal for public hostnames and internal CA only for local development.
+- Approved pinned security/operations dependencies: express-session 1.19.0, csrf-sync 4.2.1, express-rate-limit 8.7.0, pino 10.3.1, pino-http 11.0.0.
+- Pagination: default 20/max 100. Rate limits: login 5/15m/IP, authenticated API 120/m/session, job submission 10/h/user.
+
+## Add-on — Lint/Format approved
+- ESLint 10.11.0 flat config and Prettier 3.9.9 are pinned workspace development dependencies.
+- pnpm 12.8.1 is provisioned with Corepack; CI runs format-check and lint before type-check/test/build.
+
+## Add-on — Prisma SQLite adapter approved
+- Prisma client uses `@prisma/adapter-better-sqlite3` 7.10.0, `better-sqlite3` 12.6.0 and `@types/better-sqlite3` 7.6.12 for persistent SQLite sessions/readiness. `better-sqlite3` is an explicitly allowlisted native build.
