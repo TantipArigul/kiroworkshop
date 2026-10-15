@@ -1,6 +1,6 @@
 import { BrowserRouter, Link, NavLink, Route, Routes } from 'react-router';
 
-import { Button, FeedbackMessage, Input, StatusBadge } from './components/ui';
+import { Button, FeedbackMessage, Input } from './components/ui';
 
 export function App() {
   return (
@@ -205,7 +205,6 @@ function Workspace() {
           <p>Sign in to load a sample input or submit a validated synthetic file.</p>
           <Link to="/help">Open the submission guide</Link>
         </div>
-        <StatusBadge status="queued" />
       </div>
     </section>
   );

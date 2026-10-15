@@ -86,3 +86,15 @@ Stack ที่ผู้ใช้กำหนดเป็น React + TypeScript,
 
 ## Add-on — Prisma SQLite adapter approved
 - Prisma client uses `@prisma/adapter-better-sqlite3` 7.10.0, `better-sqlite3` 12.6.0 and `@types/better-sqlite3` 7.6.12 for persistent SQLite sessions/readiness. `better-sqlite3` is an explicitly allowlisted native build.
+
+## Add-on — Identity & Access Design (draft 2026-10-15)
+- **Login identifier**: e-mail (lowercase, unique) แทน `username`; ไม่มีการส่ง e-mail/SMTP หรือ outbound identity provider
+- **Provisioning/reset**: one-off admin CLI `apps/api/src/cli/identity.ts` (Node.js `parseArgs`/`readline`); รหัสผ่านรับจาก hidden prompt หรือ `IDENTITY_CLI_PASSWORD` ที่ inject ตอนรัน; forced password change หลัง create/reset
+- **Session**: regenerate on login, idle 30 นาที (`rolling` cookie), absolute 8 ชั่วโมง (`authenticatedAt`), revoke ทั้งหมดเมื่อ reset/disable/role change
+- **Brute-force**: per-account lockout 5 ครั้ง/15 นาที → 15 นาที เพิ่มจาก IP limiter ของ Foundation; dummy Argon2 hash เมื่อไม่พบบัญชี
+- **Authorization**: fixed roles `USER`/`AUDITOR`/`ADMIN` + static permission map (`AUDIT_READ`, `USER_MANAGE`); ไม่มี role ใดเข้าถึง Job/Input/Result ของผู้อื่น
+- **Audit**: `AuditService.record()` synchronous + redaction; SQLite triggers ทำให้ `AuditEvent` append-only; retention 90 วันผ่าน `audit:cleanup`
+- **Dependencies**: ไม่มี package ใหม่
+
+## Add-on — Brand fonts approved (2026-10-15)
+- `@fontsource/atkinson-hyperlegible` 5.3.0 and `@fontsource/crimson-pro` 5.3.0 (OFL-1.1) are pinned `apps/web` dependencies; fonts are self-hosted via the Vite bundle with no third-party CDN.

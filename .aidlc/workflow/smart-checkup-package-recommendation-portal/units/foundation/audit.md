@@ -87,3 +87,18 @@
 - **Action**: landing visual refinement
 - **Artifacts**: `apps/web/src/{App.tsx,app.css,styles/tokens.css}`, `.kiro/steering/design-system.md`, `tasks.md`
 - **Outcome**: Replaced the basic landing with an original token-driven scientific composition: light research hero, accessible sequence SVG, analysis/workflow actions, and a dark rounded workflow narrative. No route, API, auth, cookie, analytics, data, or external-asset behavior changed. Web typecheck, lint, token validation, production build, Prettier and `git diff --check` passed. The Vite build retains its pre-existing React Router `use client` directive warning while succeeding.
+### [2026-10-15T07:10:00Z] Implementation: Add-on Task 4.2b — UI Base Refinement Approved
+- **Phase**: implementation
+- **Action**: add-on (refine spec first)
+- **Artifacts**: `units/foundation/tasks.md` (Add-on 4.2b), `.kiro/steering/design-system.md` (Add-on: Base Document Styles)
+- **Outcome**: ผู้ใช้สั่ง "แก้ UI" หลัง browser review พบ body margin/font default, heading spacing ชิด, dark panel ล้นจอแคบ และ badge Queued ปลอมใน empty state; font loading แยกเป็นการตัดสินใจที่รอผู้ใช้
+### [2026-10-15T07:25:00Z] Implementation: Add-on Task 4.2b Complete
+- **Phase**: implementation
+- **Action**: add-on task completed
+- **Artifacts**: `apps/web/src/app.css`, `apps/web/src/App.tsx`
+- **Outcome**: pass — เพิ่ม box-sizing/body/link base styles, แยกระยะหัวข้อกับย่อหน้า (`align-content: start` กัน grid ยืด), ลบ badge Queued ใน empty state; token validation, lint, typecheck, prettier และ build ผ่าน; ตรวจ screenshot ที่ 500px และ 1440px ไม่มี horizontal overflow; font loading ยังรอผู้ใช้ตัดสินใจ
+### [2026-10-15T07:40:00Z] Implementation: Add-on Task 4.2c Complete — Brand Fonts
+- **Phase**: implementation
+- **Action**: add-on task completed
+- **Artifacts**: `apps/web/package.json`, `pnpm-lock.yaml`, `apps/web/src/main.tsx`, design-system steering Add-on, tech blueprint Add-on
+- **Outcome**: pass — ผู้ใช้เลือก B; ติดตั้ง `@fontsource/atkinson-hyperlegible` 5.3.0 และ `@fontsource/crimson-pro` 5.3.0 (OFL-1.1, pinned exact); import เฉพาะ 400/700 และ 600/700; build bundle `.woff2` จาก origin เดียวกัน ไม่มี CDN reference; token validation, lint, typecheck, prettier และ build ผ่าน; screenshot ยืนยันว่าฟอนต์แบรนด์แสดงผล
