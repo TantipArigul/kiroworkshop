@@ -159,3 +159,23 @@
 - **Action**: add-on task completed
 - **Artifacts**: Fontsource dependencies, `apps/web/src/main.tsx`
 - **Outcome**: brand fonts self-hosted; checks pass
+### [2026-10-15T08:52:00Z] Implementation: Identity & Access Task 1.2 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: shared auth/audit contracts and OpenAPI
+- **Outcome**: validation passed; 2/19
+### [2026-10-15T09:20:00Z] Implementation: Identity & Access Task 1.3 Complete
+- **Phase**: implementation
+- **Action**: standard task completed
+- **Artifacts**: Prisma schema + `identity_access` migration with append-only audit triggers
+- **Outcome**: validation passed; 3/19
+### [2026-10-15T09:40:00Z] Implementation: Identity & Access Task 1.4 / Wave 1 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: config, session idle timeout, redaction
+- **Outcome**: validation passed; 4/19; waiting for Wave 2 confirmation
+### [2026-10-15T10:45:00Z] Implementation: Identity & Access Wave 2 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: web auth infrastructure, Sign in, Change password, Audit viewer (mock mode)
+- **Outcome**: validation passed; 7/19; waiting for UI review and Add-on confirmation

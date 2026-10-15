@@ -67,3 +67,9 @@ Tokens follow three layers: primitive values → semantic aliases → component 
 - `Atkinson Hyperlegible` (body, weights 400/700) and `Crimson Pro` (headings/brand, weights 600/700) are self-hosted through the pinned OFL-1.1 packages `@fontsource/atkinson-hyperlegible` 5.3.0 and `@fontsource/crimson-pro` 5.3.0, imported once in `apps/web/src/main.tsx`.
 - Fonts are bundled and served from the application origin; third-party font CDNs are not used.
 - `Noto Sans Thai` remains a fallback name only and is not bundled until Thai UI copy is approved.
+
+## Add-on — Identity UI Tokens (2026-10-15)
+- **Contrast fix**: new primitive `--color-green-700` (`#15803d`); `--color-success` now maps to it because `--color-green-600` on white is below WCAG 2.2 AA for small text. `--color-accent` stays `--color-green-600` for decorative SVG strokes only.
+- **`--border-hairline`** (`1px`): row separators inside data tables.
+- **`--font-mono`**: system monospace stack for identifiers (actor/resource/request IDs) in the audit table; no font files are added.
+- **Identity screens**: Sign in, Change password and Audit viewer reuse `Button`, `Input`, `Select`, `FeedbackMessage` and the shared status pattern (label + SVG icon + colour). Loading states use tokenized skeletons; tables scroll horizontally only inside their own focusable region.

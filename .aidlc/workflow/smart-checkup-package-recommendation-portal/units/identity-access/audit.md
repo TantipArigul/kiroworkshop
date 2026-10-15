@@ -64,3 +64,48 @@
 - **Action**: task 1.1 implemented (standard mode)
 - **Artifacts**: `units/identity-access/design.md` (Add-on Task 1.1), ลบ `apps/api/generated/prisma/**` (16 ไฟล์, ผู้ใช้อนุมัติ)
 - **Outcome**: pass — DateTime เป็น ISO 8601 ใช้ `julianday()` ใน trigger; denylist = SecLists NCSC 100k (MIT) กรอง ≥ 12 (ผู้ใช้เลือก A); API typecheck ผ่านหลังลบไฟล์ค้าง; 1/19 tasks (5%)
+### [2026-10-15T08:52:00Z] Task Complete: 1.2 — อัปเดต shared contracts และ OpenAPI
+- **Phase**: implementation
+- **Action**: task 1.2 implemented (standard mode)
+- **Artifacts**: `packages/shared/src/schemas/{auth,audit,common,index}.ts`, `packages/shared/src/{index,types/api}.ts`, `packages/shared/src/contracts.test.ts`, `packages/shared/openapi/openapi.yaml`, `apps/api/src/http/app.ts` (interim `/auth/me` mapping)
+- **Outcome**: pass — roles `USER`/`AUDITOR`/`ADMIN`, permissions, canonical e-mail login schema (trim+lowercase ก่อน validate), `PASSWORD_CHANGE_REQUIRED`, change-password และ audit query/event/list schemas; audit `requestId` รับ string ≤ 128 เพราะ Foundation เก็บ inbound `X-Request-ID` ที่ไม่ใช่ UUID ได้; shared 10 tests ผ่าน, API 20 passed / 3 skipped (scaffold เดิมของ Foundation), lint/typecheck/prettier ผ่าน; 2/19 tasks (11%)
+### [2026-10-15T09:10:00Z] Decision: Registration Approach Confirmed
+- **Phase**: implementation
+- **Action**: clarification
+- **Artifacts**: None
+- **Outcome**: ผู้ใช้ถามเรื่องจุดลงทะเบียน; ยืนยันตัวเลือก A — คง admin CLI provisioning ไม่มี self-registration ตาม requirements Add-on เดิม
+### [2026-10-15T09:20:00Z] Task Complete: 1.3 — Prisma migration `identity_access`
+- **Phase**: implementation
+- **Action**: task 1.3 implemented (standard mode)
+- **Artifacts**: `prisma/schema.prisma`, `prisma/migrations/20261015090000_identity_access/migration.sql`, `apps/api/src/http/app.ts` (interim `/auth/me` ใช้ `user.email`)
+- **Outcome**: pass — migration เขียนเองเพื่อ rename `username` → `email` แบบไม่ลบตาราง (drop/recreate unique index ให้ชื่อตรง Prisma) และเพิ่ม 5 fields; trigger append-only ของ `AuditEvent`; ตรวจบน temp DB: `migrate diff` ไม่มี drift, UPDATE ถูกปฏิเสธ, DELETE แถวใหม่/timestamp อ่านไม่ได้ถูกปฏิเสธ, DELETE แถว > 90 วันทั้ง ISO และ `CURRENT_TIMESTAMP` สำเร็จ, ลบ `User` ที่มี audit ถูกปฏิเสธ (ยืนยันว่าต้อง anonymize); apply กับ dev DB (0 users) และ regenerate client; API typecheck/lint/test 20 passed / 3 skipped; 3/19 tasks (16%)
+### [2026-10-15T09:40:00Z] Task Complete: 1.4 — ขยาย configuration, session และ redaction
+- **Phase**: implementation
+- **Action**: task 1.4 implemented (standard mode)
+- **Artifacts**: `apps/api/src/config/{config.ts,config.test.ts}`, `.env.example`, `apps/api/src/http/{security.ts,security.test.ts}`, `apps/api/src/shared/{session.d.ts,audit.ts,logger.ts,security.test.ts}`
+- **Outcome**: pass — env ใหม่ 6 ตัวพร้อม default; idle timeout ต้องไม่เกิน absolute timeout; `AUDIT_RETENTION_DAYS` ต่ำสุด 90 ให้ตรงกับ DB trigger; session cookie `rolling` + `maxAge` = idle timeout; `SessionData.authenticatedAt`; redaction ครอบคลุม `email`/`username` และ log paths ของ `email`/`currentPassword`/`newPassword`; workspace typecheck/lint/format/build ผ่าน, API 24 passed / 3 skipped, shared 10 passed; 4/19 tasks (21%)
+### [2026-10-15T09:40:00Z] Implementation: Wave 1 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: tasks 1.1–1.4
+- **Outcome**: Setup wave เสร็จ; หยุดรอผู้ใช้ยืนยันก่อน Wave 2 ตาม hands-on policy
+### [2026-10-15T10:45:00Z] Task Complete: 2.1 — Web auth infrastructure + mock adapter
+- **Phase**: implementation
+- **Action**: task 2.1 implemented (standard mode)
+- **Artifacts**: `apps/web/src/features/auth/{apiClient.ts,authContext.ts,AuthProvider.tsx,RequireAuth.tsx,returnTo.ts}`, `apps/web/src/mocks/{me.json,audit-events.json,mockTransport.ts}`, `apps/web/src/vite-env.d.ts`, `apps/web/src/App.tsx`, `apps/web/package.json` (`@portal/shared` workspace dep)
+- **Outcome**: pass — AuthProvider ใช้ Context + useReducer, CSRF token ใน memory เท่านั้น, route guard + safe `returnTo`, mock adapter โหลดแบบ dynamic import เฉพาะ `VITE_API_MOCK=true` (ตรวจแล้วไม่อยู่ใน production bundle); fixture ไม่มี e-mail/รหัสผ่าน
+### [2026-10-15T10:45:00Z] Task Complete: 2.2 — Sign in และ Change password pages
+- **Phase**: implementation
+- **Action**: task 2.2 implemented (standard mode)
+- **Artifacts**: `apps/web/src/features/auth/{SignInPage.tsx,ChangePasswordPage.tsx}`, `apps/web/src/app.css`, `apps/web/src/components/ui/{Input.tsx,styles.css}`
+- **Outcome**: pass — inline validation, generic error, session-expired notice, rate-limit message, forced-change flow, live password rules, success state; Input `aria-describedby` merge fix
+### [2026-10-15T10:45:00Z] Task Complete: 2.3 — Audit viewer page
+- **Phase**: implementation
+- **Action**: task 2.3 implemented (standard mode)
+- **Artifacts**: `apps/web/src/features/audit/AuditPage.tsx`, `apps/web/src/components/ui/Select.tsx`, `apps/web/src/app.css`, `apps/web/src/styles/tokens.css`, `.kiro/steering/design-system.md`, `packages/shared/{src/constants.ts,package.json}`
+- **Outcome**: pass — filters ใน URL (bookmarkable), loading skeleton/empty/error/success, pagination, outcome = label + SVG + สี, access-denied page สำหรับผู้ไม่มี `AUDIT_READ`; `--color-success` แก้ contrast เป็น 5.02:1; shared `./constants` ลด bundle 548 → 286 kB
+### [2026-10-15T10:45:00Z] Implementation: Wave 2 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: tasks 2.1–2.3, tasks.md Add-on (Wave 2 refinements)
+- **Outcome**: browser verification ผ่าน Chrome DevTools Protocol 14 screens (1440px และ 390px device emulation): ทุก flow นำทางถูก, ไม่มี page-level horizontal overflow, ตาราง audit พอดี container ที่ 1440px; format/lint/typecheck/tokens/build ผ่าน, tests shared 10 + API 24 passed / 3 skipped; ยังไม่ได้รัน skill `ui-ux-pro-max` polish pass และยังไม่ได้ทดสอบ screen reader จริง; 7/19 tasks (37%); รอผู้ใช้ตรวจ UI และยืนยัน Add-on

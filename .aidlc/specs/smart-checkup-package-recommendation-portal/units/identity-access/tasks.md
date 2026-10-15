@@ -16,7 +16,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 
 ---
 
-- [ ] 1. Setup — shared contracts, schema และ configuration
+- [x] 1. Setup — shared contracts, schema และ configuration
   - [x] 1.1 ตรวจและบันทึก open items ก่อนแก้ schema/policy
     - **Deps**: None | **Ref**: `design.md` — Open Questions & Risks (#1, #2, #4)
     - ตรวจรูปแบบการเก็บ `DateTime` ของ Prisma 7 + `@prisma/adapter-better-sqlite3` ใน SQLite จาก test database จริง เพื่อใช้เขียนเงื่อนไขเวลาใน trigger ของ `AuditEvent`
@@ -26,7 +26,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `units/identity-access/design.md` (Add-on เท่านั้น)
     - **Acceptance**: open items #1, #2, #4 มีผลสรุปที่ผู้ใช้ยืนยันแล้ว; ยังไม่มีการแก้ source code
     - **Validation**: ตรวจ Add-on และ audit entry
-  - [ ] 1.2 อัปเดต shared contracts และ OpenAPI
+  - [x] 1.2 อัปเดต shared contracts และ OpenAPI
     - **Deps**: 1.1 | **Ref**: `design.md` — API Specification (Shared contract changes)
     - `userRoleSchema` → `USER`/`AUDITOR`/`ADMIN`; `loginRequestSchema` → `{ email, password }`; `authenticatedUserSchema` → `{ id, email, role, permissions, passwordChangeRequired }`; เพิ่ม `PASSWORD_CHANGE_REQUIRED` ใน `ERROR_CODES`
     - เพิ่ม `changePasswordRequestSchema`, `auditEventQuerySchema`, `auditEventSchema`, `auditEventListResponseSchema` (`packages/shared/src/schemas/audit.ts`) และ export
@@ -34,7 +34,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `packages/shared/src/schemas/{auth,audit,common,index}.ts`, `packages/shared/src/index.ts`, `packages/shared/openapi/openapi.yaml`, `packages/shared/src/contracts.test.ts`
     - **Acceptance**: shared package typecheck/build ผ่าน; OpenAPI และ Zod ตรงกัน; ไม่มี import จาก application packages
     - **Validation**: `pnpm --filter @portal/shared typecheck && pnpm --filter @portal/shared test`
-  - [ ] 1.3 สร้าง Prisma migration `identity_access`
+  - [x] 1.3 สร้าง Prisma migration `identity_access`
     - **Deps**: 1.1, 1.2 | **Ref**: `design.md` — Data Model
     - Rename `User.username` → `email` ด้วย `ALTER TABLE ... RENAME COLUMN` (สร้างด้วย `--create-only` แล้วแก้ SQL); เพิ่ม `passwordChangeRequired`, `passwordChangedAt`, `failedLoginCount`, `failedLoginWindowStartedAt`, `lockedUntil`
     - เพิ่ม trigger `BEFORE UPDATE` และ `BEFORE DELETE` บน `AuditEvent` ตามรูปแบบ DateTime ที่ยืนยันใน 1.1 (retention 90 วัน)
@@ -42,7 +42,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `prisma/schema.prisma`, `prisma/migrations/{timestamp}_identity_access/migration.sql`
     - **Acceptance**: test database ใหม่ migrate ผ่าน; UPDATE `AuditEvent` ถูกปฏิเสธ; DELETE แถวที่อายุ < 90 วันถูกปฏิเสธ
     - **Validation**: `pnpm --filter @portal/api prisma:migrate` บน dev database + query ตรวจ trigger ด้วยมือ
-  - [ ] 1.4 ขยาย configuration, session และ redaction
+  - [x] 1.4 ขยาย configuration, session และ redaction
     - **Deps**: 1.2 | **Ref**: `design.md` — Implementation (Configuration), C3 Session Guard, Operations
     - เพิ่ม env `SESSION_IDLE_TIMEOUT_MINUTES`, `SESSION_ABSOLUTE_TIMEOUT_HOURS`, `LOGIN_LOCKOUT_THRESHOLD`, `LOGIN_LOCKOUT_WINDOW_MINUTES`, `LOGIN_LOCKOUT_DURATION_MINUTES`, `AUDIT_RETENTION_DAYS` ใน `config.ts` และ `.env.example` (ไม่มี `IDENTITY_CLI_PASSWORD`)
     - Session cookie `maxAge` = idle timeout + `rolling: true`; `SessionData.authenticatedAt`
@@ -51,8 +51,8 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Acceptance**: config ใหม่มี default และ validate; test เดิมของ Foundation ยังผ่าน
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test:unit`
 
-- [ ] 2. Frontend + mock `.json` — sign-in, change-password, audit viewer
-  - [ ] 2.1 สร้าง auth infrastructure ฝั่ง web พร้อม mock adapter
+- [x] 2. Frontend + mock `.json` — sign-in, change-password, audit viewer
+  - [x] 2.1 สร้าง auth infrastructure ฝั่ง web พร้อม mock adapter
     - **Deps**: 1.2 | **Ref**: `design.md` — C8 Web Auth & Audit UI
     - `apiClient` (same-origin, `credentials`, `X-CSRF-Token` สำหรับ mutation, จัดการ `401` → `/sign-in?reason=expired`, `403 PASSWORD_CHANGE_REQUIRED` → `/account/password`) พร้อม mock adapter ที่อ่าน `apps/web/src/mocks/*.json` เมื่อ `VITE_API_MOCK=true`
     - `AuthProvider` (CSRF token + user ใน memory เท่านั้น), `RequireAuth`, `returnTo.ts` (relative-path allowlist)
@@ -61,7 +61,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `apps/web/src/features/auth/{apiClient.ts,AuthProvider.tsx,RequireAuth.tsx,returnTo.ts}`, `apps/web/src/mocks/**`, `apps/web/src/App.tsx` (routes/header)
     - **Acceptance**: route guard พาไป `/sign-in?returnTo=...` และกลับหน้าเดิมได้; `returnTo` ภายนอก/`//` ถูกแทนด้วย `/jobs`; ไม่มีการใช้ `localStorage`/`sessionStorage`
     - **Validation**: `pnpm --filter @portal/web typecheck && pnpm --filter @portal/web build`
-  - [ ] 2.2 สร้างหน้า Sign in และ Change password
+  - [x] 2.2 สร้างหน้า Sign in และ Change password
     - **Deps**: 2.1 | **Ref**: `design.md` — C8 (routes table), C2 Password Policy; `.kiro/steering/design-system.md`
     - `/sign-in`: e-mail + password, submitting/disabled, generic error, session-expired notice, rate-limited message (แทน stub ใน `App.tsx`)
     - `/account/password`: current/new/confirm, แสดงกฎ (ขั้นต่ำ 12, ห้ามตรง e-mail, ห้ามรหัสที่พบบ่อย), forced-change notice, inline validation, success/error
@@ -69,7 +69,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `apps/web/src/features/auth/{SignInPage.tsx,ChangePasswordPage.tsx}`, `apps/web/src/app.css` (เฉพาะ class ใหม่ที่ใช้ token)
     - **Acceptance**: ทุก state แสดงได้ด้วย mock; ไม่มี hardcoded style value; token validation ผ่าน
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (mobile/tablet/desktop)
-  - [ ] 2.3 สร้างหน้า Audit viewer
+  - [x] 2.3 สร้างหน้า Audit viewer
     - **Deps**: 2.1 | **Ref**: `design.md` — C8 (`/audit`), API `GET /audit-events`
     - Filters (ช่วงเวลา, event type, outcome, actor ID, resource type), table ใน container ที่ scroll แนวนอน, pagination, outcome = label + SVG icon + สี
     - States: loading (skeleton), empty, error, success; ผู้ไม่มี `AUDIT_READ` เห็นข้อความไม่มีสิทธิ์และไม่มีลิงก์ในเมนู
@@ -276,3 +276,11 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - **Mock flag**: `VITE_API_MOCK` เป็น build-time config ของ Vite สำหรับ Wave 2 เท่านั้น; ค่า default ใน 3.7 คือปิด
 - **Technical debt**: ขั้นต่ำรหัสผ่าน 12 ต้องทบทวนเป็น 15 ก่อนใช้ข้อมูลจริง; browser E2E ยังไม่มี
 - **Future**: MFA, self-service password reset ผ่าน e-mail และ user-management UI อยู่นอก scope และต้องผ่าน requirements ใหม่
+
+## Add-on — Wave 2 Implementation Refinements (pending user confirmation, 2026-10-15)
+งานเพิ่มเติมที่ทำระหว่าง Wave 2 นอกเหนือรายละเอียด task เดิม — แจ้งผู้ใช้เมื่อจบ wave
+- **`Select` primitive** (`apps/web/src/components/ui/Select.tsx`): audit filters ต้องใช้ dropdown ที่มี label และ style เดียวกับ `Input`
+- **`Input` a11y fix**: รวม `aria-describedby` ของผู้เรียกกับ error/hint id (เดิมถูกเขียนทับ ทำให้ password rules ไม่ถูกประกาศโดย screen reader)
+- **Contrast fix**: `--color-success` เปลี่ยนจาก green-600 (3.30:1 บนขาว — ไม่ผ่าน AA) เป็น `--color-green-700` ใหม่ (5.02:1); เพิ่ม `--border-hairline`, `--font-mono` — sync กับ design-system steering แล้ว
+- **Bundle size**: เพิ่ม entry `@portal/shared/constants` (ไม่มี Zod) เพื่อให้ web ไม่ bundle Zod — JS ลดจาก 548 kB เป็น 286 kB (gzip 174 → 90 kB)
+- **Nested interactive fix**: ปุ่มใน landing ที่เป็น `<a><button>` เปลี่ยนเป็น `<a class="ui-button">`; ปุ่ม New analysis ใน Workspace ปิดไว้พร้อมคำอธิบายจนกว่า Submission unit จะเสร็จ; `/jobs` อยู่หลัง `RequireAuth`

@@ -6,16 +6,24 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
 };
 
-export function Input({ error, hint, id, label, ...props }: InputProps) {
+export function Input({
+  'aria-describedby': describedBy,
+  error,
+  hint,
+  id,
+  label,
+  ...props
+}: InputProps) {
   const inputId = id ?? `input-${label.toLowerCase().replaceAll(/\s+/g, '-')}`;
   const descriptionId = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
+  const ariaDescribedBy = [descriptionId, describedBy].filter(Boolean).join(' ') || undefined;
 
   return (
     <label className="ui-field" htmlFor={inputId}>
       <span className="ui-field__label">{label}</span>
       <input
         {...props}
-        aria-describedby={descriptionId}
+        aria-describedby={ariaDescribedBy}
         aria-invalid={Boolean(error)}
         className="ui-input"
         id={inputId}
