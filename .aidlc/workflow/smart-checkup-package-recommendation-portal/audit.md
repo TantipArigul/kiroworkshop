@@ -179,3 +179,22 @@
 - **Action**: wave-complete
 - **Artifacts**: web auth infrastructure, Sign in, Change password, Audit viewer (mock mode)
 - **Outcome**: validation passed; 7/19; waiting for UI review and Add-on confirmation
+### [2026-10-16T15:40:00Z] Implementation: Identity & Access Tasks 3.1–3.6 Complete
+- **Phase**: implementation
+- **Action**: standard tasks completed
+- **Artifacts**: identity/audit modules, routes, admin CLI
+- **Outcome**: validation passed, live smoke 30/30; 13/19; 3.7 waiting for dev-proxy decision
+### [2026-10-16T16:00:00Z] Implementation: Identity & Access Task 3.7 / Wave 3 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: Compose + Caddy wiring, `.dockerignore`, Dockerfile fix
+- **Outcome**: browser E2E over HTTPS passes; 14/19; waiting for Wave 4 confirmation
+### [2026-10-16T16:20:00Z] Implementation: Identity & Access Task 4.1 / Wave 4 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: retention cleanup commands, operations README
+- **Outcome**: validation passed; 15/19; waiting for Wave 5 confirmation
+### [2026-10-16T16:30:00Z] identity-access: Wave 5 Complete
+- **Action**: wave-complete
+- **Artifacts**: unit, integration and property tests; final verification
+- **Outcome**: all checks passed; 19/19; waiting for finalize/commit/PR confirmation

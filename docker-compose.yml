@@ -14,6 +14,8 @@ services:
     depends_on:
       - api
     ports:
+      # Port 80 only redirects to HTTPS (Caddy automatic HTTPS); content is served on 443.
+      - '80:80'
       - '443:443'
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro

@@ -1,7 +1,18 @@
 {$DOMAIN:localhost} {
-  tls internal
-  reverse_proxy /api/* api:3000
-  reverse_proxy /health* api:3000
-  root * /srv
-  file_server
+	tls internal
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle /health* {
+		reverse_proxy api:3000
+	}
+
+	# SPA: everything else is a static file, falling back to index.html for client-side routes.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
 }

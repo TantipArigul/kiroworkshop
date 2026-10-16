@@ -6,7 +6,9 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 RUN corepack enable && corepack prepare pnpm@12.8.1 --activate && pnpm install --frozen-lockfile
 COPY . .
-RUN DATABASE_URL=file:/workspace/data/portal.db pnpm --filter @portal/api prisma:generate && pnpm --filter @portal/api build
+RUN pnpm --filter @portal/shared build \
+  && DATABASE_URL=file:/workspace/data/portal.db pnpm --filter @portal/api prisma:generate \
+  && pnpm --filter @portal/api build
 
 FROM node:24-bookworm
 WORKDIR /workspace

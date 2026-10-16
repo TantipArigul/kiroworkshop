@@ -114,3 +114,61 @@
 - **Action**: polish pass (design-system policy §5)
 - **Artifacts**: `apps/web/src/{App.tsx,app.css}`, `apps/web/src/components/ui/{Input.tsx,styles.css}`, `apps/web/src/features/auth/{SignInPage,ChangePasswordPage}.tsx`, `apps/web/src/features/audit/AuditPage.tsx`, tasks.md Add-on
 - **Outcome**: แก้ 6 ข้อ (skip link, route focus, first-invalid focus, password reveal, empty-state action, wordmark touch target); ตรวจใน headless Chrome: Tab แรก = skip link, focus หลัง submit/route ถูกที่, Show/Hide ไม่ทำ input เปลี่ยนขนาด (392 → 392px), Reset ใน empty state คืน 20 แถว, ไม่มี interactive element ที่ต่ำกว่า 44px; format/lint/typecheck/tokens/tests/build ผ่าน; ยังไม่ได้ทดสอบ screen reader จริง
+### [2026-10-16T15:40:00Z] Task Complete: 3.1–3.6 — Backend services, routes and CLI
+- **Phase**: implementation
+- **Action**: tasks 3.1–3.6 implemented (standard mode, user said "next" after confirming Wave 2 Add-ons)
+- **Artifacts**: `apps/api/src/modules/identity/{permissions,password-policy,identity.service,session-guard,identity.routes}.ts`, `common-passwords.txt`, `apps/api/src/modules/audit/{audit.service,audit.routes}.ts`, `apps/api/src/cli/identity.ts`, `apps/api/src/http/{app,errors,security,app.test}.ts`, `apps/api/src/shared/{authorization.ts,express.d.ts}`, `apps/api/package.json`
+- **Outcome**: pass — workspace format/lint/typecheck/tokens/build ผ่าน, tests shared 10 + API 24 passed / 3 skipped; live smoke test บน temp DB ผ่าน 30/30 (uniform login failure, CSRF, session regeneration, forced change gate, password policy รวม reuse, USER 403 + audit, logout invalidation, AUDITOR list/filter/pagination/validation, ไม่มี e-mail ใน audit response, lockout/rate-limit, 404 envelope); CLI ตรวจ create/duplicate/unknown user/weak password/invalid role
+- **Incident**: ระหว่าง smoke test รอบแรก CLI เขียนบัญชี synthetic 3 บัญชี + `USER_CREATED` 3 แถวลง dev DB `data/portal.db` เพราะ shell ของ agent มี `DATABASE_URL=file:./data/portal.db` ค้างอยู่ (`--env-file` ไม่ override ค่าที่ตั้งไว้แล้ว); รอบถัดไป unset แล้วใช้ temp DB; dev DB เป็นข้อมูล synthetic ใน `data/` (gitignored) — รอผู้ใช้ตัดสินใจว่าจะเก็บหรือรีเซ็ต
+- **Blocked**: 3.7 ต้องแก้ `vite.config.ts` (dev proxy/HTTPS) ซึ่ง task ระบุให้แจ้งผู้ใช้ก่อน; 13/19 tasks (68%)
+### [2026-10-16T16:00:00Z] Task Complete: 3.7 — Frontend on the real API (Docker Compose + Caddy)
+- **Phase**: implementation
+- **Action**: task 3.7 implemented (standard mode, option B; encrypted volume option 1)
+- **Artifacts**: `docker/Caddyfile`, `.dockerignore` (new), `apps/api/Dockerfile`, tasks.md Add-on (Task 3.7 decision); local-only `.env` (gitignored, random `SESSION_SECRET`), DB at `/Volumes/PortalPrivate/portal-data/portal.db`
+- **Outcome**: pass — verified encrypted sparse bundle (`encrcdsa` header; APFS volume inside reports `Encrypted: No` because encryption is at the image layer); found and fixed 3 runtime defects: (1) no `.dockerignore`, so `.env`/host native binaries entered the build context, (2) shared package not built in the image, (3) Caddy `try_files` rewrote `/api/*` and `/health*` to `index.html`; `.env` confirmed absent from the runtime image; CLI in container created 4 synthetic accounts and rejected a non-TTY run without `IDENTITY_CLI_PASSWORD` (exit 2, no change); headless Chrome over `https://localhost` 18/19 — all flows pass, cookie `HttpOnly; Secure; SameSite=Strict` with 30-minute rolling expiry, no Web Storage, no mock code; the 19th check flagged only Chrome network-log entries for expected 401/400 responses (no JS exceptions); workspace format/lint/typecheck/tests pass; 14/19 tasks (74%)
+- **Observed, not changed**: Compose publishes only 443, so the Foundation HTTP→HTTPS redirect is not reachable on port 80; `apps/web/index.html` declares `lang="th"` while UI copy is English
+### [2026-10-16T16:00:00Z] Implementation: Wave 3 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: tasks 3.1–3.7
+- **Outcome**: waiting for user confirmation before Wave 4
+### [2026-10-16T16:20:00Z] Task Complete: 4.1 — Cleanup commands and operations docs
+- **Phase**: implementation
+- **Action**: task 4.1 implemented (standard mode)
+- **Artifacts**: `apps/api/src/modules/audit/audit.service.ts` (`deleteExpiredAuditEvents`, `deleteInactiveSessions`), `apps/api/src/cli/identity.ts` (`audit:cleanup`, `sessions:cleanup`), `docker/README.md`
+- **Outcome**: pass — temp-DB test covers both timestamp formats, 89-day edge, recent rows, expired/revoked/active sessions and an idempotent second run; container run on the encrypted volume deleted 4 sessions and recorded `AUDIT_RETENTION_CLEANUP`; workspace format/lint/typecheck/tests pass; 15/19 tasks (79%)
+### [2026-10-16T16:20:00Z] Implementation: Wave 4 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: task 4.1
+- **Outcome**: waiting for user confirmation before Wave 5 (tests/verify)
+### [2026-10-16T16:30:00Z] Task Complete: 5.1 — Unit tests
+- **Phase**: implementation
+- **Action**: task 5.1 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/unit/identity/policies.test.ts`, `apps/web/src/features/auth/returnTo.test.ts`
+- **Outcome**: pass — API 11, web 14
+### [2026-10-16T16:30:00Z] Task Complete: 5.2 — Integration tests
+- **Phase**: implementation
+- **Action**: task 5.2 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/integration/identity/{auth,audit}.test.ts`, `apps/api/tests/support/{identity-context,http-session}.ts`; metadata keys renamed to `signedOutCount`/`signedOutOtherCount` (redaction collision)
+- **Outcome**: pass — 42 tests (unit + integration) green on 9 consecutive runs; one earlier `TypeError` in the login helper could not be reproduced and now raises a clear error
+### [2026-10-16T16:30:00Z] Task Complete: 5.3 — Property-based tests P1–P6
+- **Phase**: implementation
+- **Action**: task 5.3 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/properties/identity-access.test.ts`
+- **Outcome**: pass — 9 properties, 100 runs each, shrinking on; mutation check on the redaction pattern failed P5 as expected and was reverted
+### [2026-10-16T16:30:00Z] Task Complete: 5.4 — Final verification
+- **Phase**: implementation
+- **Action**: task 5.4 verification
+- **Artifacts**: tasks.md (all `[x]`, Wave 5 Add-on), manifest
+- **Outcome**: pass — format/lint/typecheck/validate:tokens/build clean; `pnpm test` shared 10, web 14, api 75 (+3 Foundation scaffolds skipped); OpenAPI 8 operations match Express routes; browser recheck 29/30 at `https://localhost` across 375/768/1440 px after force-recreating a stale API container (the 1 miss is 2 pre-rename append-only rows still showing `[REDACTED]`; new rows verified in DB); screen reader and real-device checks not performed; 19/19 tasks (100%)
+### [2026-10-16T16:30:00Z] Implementation: Wave 5 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: tasks 5.1–5.4
+- **Outcome**: waiting for user confirmation before finalize/commit/PR
+### [2026-10-16T16:45:00Z] Change Request: post-Wave 5 open items
+- **Phase**: implementation
+- **Action**: user decisions applied after refining tasks.md (Add-on — Post-Wave 5 Change Requests)
+- **Artifacts**: `apps/web/index.html` (`lang="en"`), `docker-compose.yml` (publish `80:80`), `docker/README.md`; `data/portal.db` kept
+- **Outcome**: pass — `http://localhost/` and deep links return `308` to the same HTTPS URL, `https://localhost/` 200 with `lang="en"`, health 200, web build and `docker compose config` pass

@@ -57,15 +57,16 @@ describe('Foundation API runtime', () => {
     const csrfResponse = await agent.get('/api/v1/auth/csrf-token').expect(200);
     const csrfToken = csrfResponse.body.data.csrfToken as string;
     const csrfDeniedResponse = await agent.post('/api/v1/auth/login').expect(403);
-    const loginStubResponse = await agent
+    // Identity & Access replaced the 501 stub: a login without credentials is a validation error.
+    const loginWithoutBodyResponse = await agent
       .post('/api/v1/auth/login')
       .set('X-CSRF-Token', csrfToken)
-      .expect(501);
+      .expect(400);
     const currentUserResponse = await agent.get('/api/v1/auth/me').expect(401);
 
     expect(csrfToken).toHaveLength(256);
     expect(csrfDeniedResponse.body.error.code).toBe('CSRF_INVALID');
-    expect(loginStubResponse.body.error.code).toBe('NOT_IMPLEMENTED');
+    expect(loginWithoutBodyResponse.body.error.code).toBe('VALIDATION_FAILED');
     expect(currentUserResponse.body.error.code).toBe('AUTHENTICATION_REQUIRED');
     expect(currentUserResponse.body.error.message).not.toContain('session');
   });

@@ -1,6 +1,11 @@
+import type { Permission, UserRole } from '@portal/shared';
+
 export type ActorContext = {
   userId: string;
-  role: 'ADMIN' | 'USER';
+  role: UserRole;
+  /** Role permissions from the static map; they never grant access to owned resources. */
+  permissions?: readonly Permission[];
+  /** Explicit per-resource grants (none are issued in the MVP). */
   explicitPermissions?: readonly string[];
 };
 
