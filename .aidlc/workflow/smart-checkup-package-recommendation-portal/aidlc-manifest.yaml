@@ -189,8 +189,8 @@ units:
     implementationMode: "standard"
     implementation:
       totalTasks: 19
-      completedTasks: 7
-      currentTask: "3.1"
+      completedTasks: 14
+      currentTask: "4.1"
       currentWave: null
     owner: "Developer 1"
     dependencies:

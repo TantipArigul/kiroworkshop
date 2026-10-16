@@ -78,42 +78,42 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser
   - 🔲 **หยุดรอผู้ใช้ตรวจ UI/flow ก่อนเริ่ม Wave 3**
 
-- [ ] 3. Backend + เชื่อม API จริง
-  - [ ] 3.1 Implement Password Policy และ Permission Policy
+- [x] 3. Backend + เชื่อม API จริง
+  - [x] 3.1 Implement Password Policy และ Permission Policy
     - **Deps**: 1.1, 1.2 | **Ref**: `design.md` — C2, C4
     - `password-policy.ts`: 12–1024 code points, ไม่ตรง e-mail/local-part, denylist (ไฟล์ที่ยืนยันใน 1.1), คืน violation codes
     - `permissions.ts`: static map `USER` → [], `AUDITOR` → [`AUDIT_READ`], `ADMIN` → [`AUDIT_READ`, `USER_MANAGE`]; ขยาย `ActorContext.role` ใน `shared/authorization.ts`
     - **Files**: `apps/api/src/modules/identity/{password-policy.ts,common-passwords.txt,permissions.ts}`, `apps/api/src/shared/authorization.ts`
     - **Acceptance**: ไม่มี permission ใดให้สิทธิ์ต่อ owned resource ของผู้อื่น
     - **Validation**: `pnpm --filter @portal/api typecheck`
-  - [ ] 3.2 Implement Audit Service
+  - [x] 3.2 Implement Audit Service
     - **Deps**: 1.2, 1.3, 1.4 | **Ref**: `design.md` — C5
     - `record(event, tx?)`: Zod validate → `redactAuditMetadata` → metadata allowlist ต่อ event type → insert; failure policy ตาม design (rollback ใน transaction, log error กรณีไม่มี state change)
     - Event types ของ unit นี้ + event types จาก unit อื่นตาม `auditNotificationSchema`
     - **Files**: `apps/api/src/modules/audit/audit.service.ts`
     - **Acceptance**: ไม่มี code path อื่นเขียน `AuditEvent`; ไม่มี update/delete function
     - **Validation**: `pnpm --filter @portal/api typecheck`
-  - [ ] 3.3 Implement Identity Service
+  - [x] 3.3 Implement Identity Service
     - **Deps**: 1.3, 1.4, 3.1, 3.2 | **Ref**: `design.md` — C1
     - `authenticate` (normalize e-mail, dummy Argon2 hash, disabled/locked check, generic failure), lockout window/duration จาก config, `changePassword`, `resetPassword`, `createUser`, `setDisabled`, `setRole`, `anonymizeUser`, `revokeAllSessions(userId)`
     - ทุก state change เขียน audit ผ่าน `AuditService.record(event, tx)` ใน transaction เดียวกัน; clock inject ได้สำหรับ test
     - **Files**: `apps/api/src/modules/identity/identity.service.ts`
     - **Acceptance**: ทุก error path ใช้ try/catch และไม่ echo e-mail/รหัสผ่าน
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api lint`
-  - [ ] 3.4 Implement Session Guard และ identity routes
+  - [x] 3.4 Implement Session Guard และ identity routes
     - **Deps**: 3.3, 3.2 | **Ref**: `design.md` — C3, API Specification (login, logout, me, password)
     - `requireAuthenticated` (absolute timeout, reload user, disabled → destroy), `passwordChangeGate`, `requirePermission` (+ audit `AUTHORIZATION_DENIED`)
     - Routes: `POST /auth/login` (rate limiter เดิม, `session.regenerate`, ตั้ง `userId`/`authenticatedAt`, CSRF token ใหม่, audit `LOGIN_SUCCESS`/`LOGIN_FAILURE`/`ACCOUNT_LOCKED`), `POST /auth/logout` (audit `LOGOUT`), `GET /auth/me`, `POST /auth/password`; แทน stub `501` ใน `app.ts`
     - **Files**: `apps/api/src/modules/identity/{session-guard.ts,identity.routes.ts}`, `apps/api/src/http/app.ts`
     - **Acceptance**: login ล้มเหลวทุกกรณีได้ `401 AUTHENTICATION_FAILED` เดียวกัน; logout แล้ว `/auth/me` ได้ `401`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 3.5 Implement Audit Query API
+  - [x] 3.5 Implement Audit Query API
     - **Deps**: 3.2, 3.4 | **Ref**: `design.md` — C6, API `GET /audit-events`
     - Guard chain `requireAuthenticated` → `passwordChangeGate` → `requirePermission('AUDIT_READ')`; Zod query; filters; `occurredAt desc`; pagination 20/100; คืน metadata ที่ redact; audit `AUDIT_QUERIED`
     - **Files**: `apps/api/src/modules/audit/audit.routes.ts`, `apps/api/src/http/app.ts` (mount)
     - **Acceptance**: `USER` ได้ `403` และเกิด `AUTHORIZATION_DENIED`; response ผ่าน `auditEventListResponseSchema`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 3.6 Implement Identity Admin CLI — user commands
+  - [x] 3.6 Implement Identity Admin CLI — user commands
     - **Deps**: 3.3, 3.2 | **Ref**: `design.md` — C7
     - `user:create`, `user:reset-password`, `user:disable`, `user:enable`, `user:set-role`, `user:anonymize` ด้วย `node:util` `parseArgs`; รหัสผ่านจาก hidden `readline` prompt หรือ `IDENTITY_CLI_PASSWORD`; ห้ามรับรหัสผ่านทาง argument
     - Audit `actorId = null`, metadata `{ channel: "CLI" }`; ปิด Prisma ก่อน exit; exit code ≠ 0 เมื่อล้มเหลว
@@ -121,7 +121,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Files**: `apps/api/src/cli/identity.ts`, `apps/api/package.json` (scripts)
     - **Acceptance**: สร้าง/reset/disable/enable/set-role/anonymize ได้บน dev database และมี audit ครบ; ไม่มีรหัสผ่านใน log หรือ shell history
     - **Validation**: รันแต่ละคำสั่งบน dev database แล้วตรวจผลใน audit viewer
-  - [ ] 3.7 เชื่อม frontend กับ API จริงและตรวจ flow บน browser
+  - [x] 3.7 เชื่อม frontend กับ API จริงและตรวจ flow บน browser
     - **Deps**: 2.2, 2.3, 3.4, 3.5, 3.6 | **Ref**: `design.md` — C8, Integration Points
     - ปิด mock เป็นค่า default; ตรวจ flow จริง: sign in → forced change → jobs → audit (AUDITOR) → sign out → session expired notice
     - บัญชีทดสอบสร้างด้วย CLI (3.6) ตาม D4-8
@@ -277,7 +277,7 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - **Technical debt**: ขั้นต่ำรหัสผ่าน 12 ต้องทบทวนเป็น 15 ก่อนใช้ข้อมูลจริง; browser E2E ยังไม่มี
 - **Future**: MFA, self-service password reset ผ่าน e-mail และ user-management UI อยู่นอก scope และต้องผ่าน requirements ใหม่
 
-## Add-on — Wave 2 Implementation Refinements (pending user confirmation, 2026-10-15)
+## Add-on — Wave 2 Implementation Refinements (confirmed by user 2026-10-15)
 งานเพิ่มเติมที่ทำระหว่าง Wave 2 นอกเหนือรายละเอียด task เดิม — แจ้งผู้ใช้เมื่อจบ wave
 - **`Select` primitive** (`apps/web/src/components/ui/Select.tsx`): audit filters ต้องใช้ dropdown ที่มี label และ style เดียวกับ `Input`
 - **`Input` a11y fix**: รวม `aria-describedby` ของผู้เรียกกับ error/hint id (เดิมถูกเขียนทับ ทำให้ password rules ไม่ถูกประกาศโดย screen reader)
@@ -296,3 +296,21 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - `Input` เปลี่ยนจาก `<label>` ครอบ input เป็น `<div>` + `<label htmlFor>` เพื่อวางปุ่ม Show/Hide นอก label
 - **ผ่านอยู่แล้ว**: focus ring, `role=alert` ของ error, loading/success feedback, active nav (`aria-current`), deep-link filters ใน URL, table scroll ใน container, disabled state พร้อมคำอธิบาย, heading hierarchy, back-button (`replace`)
 - **ยังไม่ได้ตรวจ**: screen reader จริง (VoiceOver/NVDA), Dynamic Type/zoom 200%, landscape บนอุปกรณ์จริง
+
+## Add-on — Wave 3 Implementation Notes (2026-10-16)
+- **ActorContext**: role permissions อยู่ใน `permissions` แยกจาก `explicitPermissions` (per-resource grant) เพื่อไม่ให้ `AUDIT_READ` ถูกใช้เป็นสิทธิ์ต่อ owned resource โดยไม่ตั้งใจ
+- **`MATCHES_CURRENT`**: เปลี่ยน/รีเซ็ตรหัสผ่านเป็นค่าเดิมถูกปฏิเสธ (กัน forced change ที่ไม่เปลี่ยนจริง)
+- **Denylist**: 1,195 รายการหลัง lowercase/dedupe และตัด artifact `$hex[...]` 2 รายการ; build script คัดลอก `common-passwords.txt` ไป `dist/`
+- **Error envelope**: `HttpError` รองรับ `details`; malformed/oversized JSON → `400 VALIDATION_FAILED`; route ที่ไม่มีใต้ `/api/v1` → `404 NOT_FOUND` JSON; unhandled error ถูก log ก่อนตอบ 500
+- **Foundation test**: `app.test.ts` เปลี่ยนจากคาดหวัง stub `501` เป็น `400 VALIDATION_FAILED` เมื่อ login ไม่มี body
+- **CLI**: รันจาก repo root ด้วย `node --env-file=.env apps/api/dist/cli/identity.js` เพราะ `DATABASE_URL` แบบ relative อิงจาก working directory
+
+## Add-on — Task 3.7 Local Runtime Decision (approved 2026-10-16)
+- **Option B**: เชื่อม web กับ API จริงผ่าน Docker Compose + Caddy ที่ `https://localhost` (same-origin, `tls internal`) แทน Vite dev proxy — ไม่แก้ `vite.config.ts`
+- **Encrypted storage**: FileVault ปิดอยู่ ผู้ใช้เลือกสร้าง encrypted sparse bundle (AES-256, `~/PortalPrivate.sparsebundle`, mount ที่ `/Volumes/PortalPrivate`); passphrase อยู่กับผู้ใช้เท่านั้น; `ENCRYPTED_DATA_ROOT=/Volumes/PortalPrivate/portal-data`
+- **Caddyfile**: แยก `handle /api/*`, `handle /health*` และ `handle` (static + `try_files {path} /index.html`) เพื่อให้ refresh/deep link ของ SPA route (`/sign-in`, `/audit`) ไม่ 404 โดยไม่ rewrite request ของ API — `try_files` ทำงานก่อน `reverse_proxy` ตามลำดับ directive ของ Caddy จึงต้องแยก block
+- **`.dockerignore`** (ใหม่): กัน `.env`, `data/`, `*.db`, host `node_modules`/`dist` และ generated client ออกจาก build context — เดิมไม่มี ทำให้ `COPY . .` นำ `.env` และ native binary ของ macOS เข้า build stage
+- **Dockerfile**: build `@portal/shared` ก่อน API เพราะ `dist/` ของ shared ไม่อยู่ใน build context แล้ว
+- **Migrations**: runtime image ไม่มี `prisma/`; migrate จาก host ไปที่ DB บน encrypted volume ก่อน `docker compose up`
+- **Local `.env`**: สร้างจาก `.env.example` ด้วย `SESSION_SECRET` แบบสุ่ม, `NODE_ENV=production`, ไม่ commit
+- **ข้อจำกัด**: volume หลุดหลัง restart เครื่อง ต้อง `hdiutil attach` ก่อน `docker compose up`
