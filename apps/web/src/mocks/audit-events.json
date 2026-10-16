@@ -61,7 +61,7 @@
       "requestId": "req_mock_021",
       "metadata": {
         "channel": "CLI",
-        "sessionsRevoked": 1
+        "signedOutCount": 1
       }
     },
     {
@@ -264,7 +264,7 @@
       "outcome": "SUCCESS",
       "requestId": "req_mock_005",
       "metadata": {
-        "otherSessionsRevoked": 0
+        "signedOutOtherCount": 0
       }
     },
     {

@@ -215,12 +215,12 @@ export function createIdentityService({
         data: { passwordChangeRequired: false, passwordChangedAt: clock(), passwordHash },
         where: { id: user.id },
       });
-      const otherSessionsRevoked = await revokeSessions(tx, user.id, input.currentSessionId);
+      const signedOutOtherCount = await revokeSessions(tx, user.id, input.currentSessionId);
       await audit.record(
         {
           actorId: user.id,
           eventType: 'PASSWORD_CHANGED',
-          metadata: { otherSessionsRevoked },
+          metadata: { signedOutOtherCount },
           outcome: 'SUCCESS',
           requestId: input.requestId,
           resourceId: user.id,
@@ -317,12 +317,12 @@ export function createIdentityService({
         },
         where: { id: user.id },
       });
-      const sessionsRevoked = await revokeSessions(tx, user.id);
+      const signedOutCount = await revokeSessions(tx, user.id);
       await audit.record(
         {
           actorId: null,
           eventType: 'PASSWORD_RESET',
-          metadata: { ...CLI_CHANNEL, sessionsRevoked },
+          metadata: { ...CLI_CHANNEL, signedOutCount },
           outcome: 'SUCCESS',
           requestId: input.requestId,
           resourceId: user.id,
@@ -345,12 +345,12 @@ export function createIdentityService({
         data: { disabledAt: input.disabled ? clock() : null },
         where: { id: user.id },
       });
-      const sessionsRevoked = input.disabled ? await revokeSessions(tx, user.id) : 0;
+      const signedOutCount = input.disabled ? await revokeSessions(tx, user.id) : 0;
       await audit.record(
         {
           actorId: null,
           eventType: input.disabled ? 'USER_DISABLED' : 'USER_ENABLED',
-          metadata: input.disabled ? { ...CLI_CHANNEL, sessionsRevoked } : CLI_CHANNEL,
+          metadata: input.disabled ? { ...CLI_CHANNEL, signedOutCount } : CLI_CHANNEL,
           outcome: 'SUCCESS',
           requestId: input.requestId,
           resourceId: user.id,
@@ -367,12 +367,12 @@ export function createIdentityService({
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({ data: { role }, where: { id: user.id } });
-      const sessionsRevoked = await revokeSessions(tx, user.id);
+      const signedOutCount = await revokeSessions(tx, user.id);
       await audit.record(
         {
           actorId: null,
           eventType: 'USER_ROLE_CHANGED',
-          metadata: { ...CLI_CHANNEL, from: user.role, sessionsRevoked, to: role },
+          metadata: { ...CLI_CHANNEL, from: user.role, signedOutCount, to: role },
           outcome: 'SUCCESS',
           requestId: input.requestId,
           resourceId: user.id,
@@ -403,12 +403,12 @@ export function createIdentityService({
         },
         where: { id: user.id },
       });
-      const sessionsRevoked = await revokeSessions(tx, user.id);
+      const signedOutCount = await revokeSessions(tx, user.id);
       await audit.record(
         {
           actorId: null,
           eventType: 'USER_ANONYMIZED',
-          metadata: { ...CLI_CHANNEL, sessionsRevoked },
+          metadata: { ...CLI_CHANNEL, signedOutCount },
           outcome: 'SUCCESS',
           requestId: input.requestId,
           resourceId: user.id,

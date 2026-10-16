@@ -14,7 +14,12 @@ import { parseArgs } from 'node:util';
 
 import { ConfigValidationError, loadConfig } from '../config/index.js';
 import { createPrismaClient } from '../infrastructure/prisma.js';
-import { createAuditService } from '../modules/audit/audit.service.js';
+import {
+  createAuditService,
+  deleteExpiredAuditEvents,
+  deleteInactiveSessions,
+  type AuditService,
+} from '../modules/audit/audit.service.js';
 import {
   createIdentityService,
   IdentityOperationError,
@@ -38,7 +43,11 @@ User commands:
   user:set-role        --email <e-mail> --role <USER|AUDITOR|ADMIN>
   user:anonymize       --email <e-mail>
 
-Every command writes an audit event. Created and reset accounts must change their password
+Maintenance commands (schedule daily):
+  audit:cleanup        Delete audit events older than AUDIT_RETENTION_DAYS (default 90)
+  sessions:cleanup     Delete expired and revoked sessions
+
+Every user command writes an audit event. Created and reset accounts must change their password
 at the next sign-in. Set IDENTITY_CLI_PASSWORD only for non-interactive runs.`;
 
 class UsageError extends Error {}
@@ -48,6 +57,27 @@ type CommandContext = {
   email: string;
   role: string | undefined;
   requestId: string;
+};
+
+type MaintenanceContext = {
+  audit: AuditService;
+  config: ReturnType<typeof loadConfig>;
+  prisma: ReturnType<typeof createPrismaClient>;
+  requestId: string;
+};
+
+const maintenanceCommands: Record<string, (context: MaintenanceContext) => Promise<string>> = {
+  'audit:cleanup': async ({ audit, config, prisma, requestId }) => {
+    const deleted = await deleteExpiredAuditEvents(prisma, audit, {
+      requestId,
+      retentionDays: config.auditRetentionDays,
+    });
+    return `Deleted ${deleted} audit event(s) older than ${config.auditRetentionDays} days.`;
+  },
+  'sessions:cleanup': async ({ prisma }) => {
+    const deleted = await deleteInactiveSessions(prisma);
+    return `Deleted ${deleted} expired or revoked session(s).`;
+  },
 };
 
 const commands: Record<string, (context: CommandContext) => Promise<string>> = {
@@ -104,8 +134,9 @@ async function main(argv: readonly string[]): Promise<number> {
   }
 
   const run = commands[parsed.command];
+  const runMaintenance = maintenanceCommands[parsed.command];
 
-  if (!run) {
+  if (!run && !runMaintenance) {
     process.stderr.write(`Unknown command "${parsed.command}".\n\n${USAGE}\n`);
     return EXIT_USAGE;
   }
@@ -126,12 +157,15 @@ async function main(argv: readonly string[]): Promise<number> {
   const identity = createIdentityService({ audit, config, prisma });
 
   try {
-    const message = await run({
-      email: requireOption(parsed.email, '--email'),
-      identity,
-      requestId: randomUUID(),
-      role: parsed.role,
-    });
+    const requestId = randomUUID();
+    const message = runMaintenance
+      ? await runMaintenance({ audit, config, prisma, requestId })
+      : await run!({
+          email: requireOption(parsed.email, '--email'),
+          identity,
+          requestId,
+          role: parsed.role,
+        });
     process.stdout.write(`${message}\n`);
     return EXIT_OK;
   } catch (error) {

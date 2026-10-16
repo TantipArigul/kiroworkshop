@@ -37,13 +37,13 @@ const METADATA_ALLOWLIST: Readonly<Record<AuditEventType, readonly string[]>> = 
   ACCOUNT_LOCKED: ['lockMinutes'],
   LOGOUT: [],
   AUTHORIZATION_DENIED: ['permission', 'method', 'route'],
-  PASSWORD_CHANGED: ['otherSessionsRevoked'],
-  PASSWORD_RESET: ['channel', 'sessionsRevoked'],
+  PASSWORD_CHANGED: ['signedOutOtherCount'],
+  PASSWORD_RESET: ['channel', 'signedOutCount'],
   USER_CREATED: ['channel', 'role'],
-  USER_DISABLED: ['channel', 'sessionsRevoked'],
+  USER_DISABLED: ['channel', 'signedOutCount'],
   USER_ENABLED: ['channel'],
-  USER_ROLE_CHANGED: ['channel', 'from', 'to', 'sessionsRevoked'],
-  USER_ANONYMIZED: ['channel', 'sessionsRevoked'],
+  USER_ROLE_CHANGED: ['channel', 'from', 'to', 'signedOutCount'],
+  USER_ANONYMIZED: ['channel', 'signedOutCount'],
   AUDIT_QUERIED: ['filters', 'page'],
   AUDIT_RETENTION_CLEANUP: ['channel', 'deleted', 'retentionDays'],
   JOB_SUBMITTED: ['status'],
@@ -101,6 +101,48 @@ export function createAuditService(prisma: Pick<PrismaClient, 'auditEvent'>, log
   }
 
   return { record, recordSafely };
+}
+
+/**
+ * Deletes audit events older than the retention window (D3-10) and records the cleanup.
+ * Uses the same `julianday()` comparison as the AuditEvent delete trigger so both timestamp
+ * formats in SQLite are handled identically and the trigger never aborts the statement.
+ */
+export async function deleteExpiredAuditEvents(
+  prisma: PrismaClient,
+  audit: AuditService,
+  input: { retentionDays: number; requestId: string },
+): Promise<number> {
+  const modifier = `-${input.retentionDays} days`;
+
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.$executeRaw`
+      DELETE FROM "AuditEvent"
+      WHERE julianday("occurredAt") < julianday('now', ${modifier})`;
+    await audit.record(
+      {
+        actorId: null,
+        eventType: 'AUDIT_RETENTION_CLEANUP',
+        metadata: { channel: 'CLI', deleted, retentionDays: input.retentionDays },
+        outcome: 'SUCCESS',
+        requestId: input.requestId,
+        resourceId: null,
+        resourceType: 'AUDIT',
+      },
+      tx,
+    );
+
+    return deleted;
+  });
+}
+
+/** Deletes expired or revoked server-side sessions; they can no longer authenticate anyone. */
+export async function deleteInactiveSessions(prisma: PrismaClient, now = new Date()) {
+  const result = await prisma.session.deleteMany({
+    where: { OR: [{ expiresAt: { lt: now } }, { revokedAt: { not: null } }] },
+  });
+
+  return result.count;
 }
 
 function serializeMetadata(eventType: AuditEventType, metadata: Record<string, unknown>): string {

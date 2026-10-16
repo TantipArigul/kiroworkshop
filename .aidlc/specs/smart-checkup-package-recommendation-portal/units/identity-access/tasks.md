@@ -130,8 +130,8 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Validation**: dev server + browser check; `pnpm --filter @portal/web build`
   - 🔲 **หยุดรอผู้ใช้ยืนยันก่อนเริ่ม Wave 4**
 
-- [ ] 4. Cleanup และ operations
-  - [ ] 4.1 Implement cleanup commands และเอกสาร operations
+- [x] 4. Cleanup และ operations
+  - [x] 4.1 Implement cleanup commands และเอกสาร operations
     - **Deps**: 3.6 | **Ref**: `design.md` — C7 (cleanup), Operations, NFR (Data lifecycle)
     - `audit:cleanup` (> `AUDIT_RETENTION_DAYS`, audit `AUDIT_RETENTION_CLEANUP` พร้อมจำนวน) และ `sessions:cleanup`
     - เอกสาร: ขั้นตอนสร้างบัญชี synthetic สำหรับ dev (ไม่มีรหัสผ่าน), วิธีรัน CLI ใน Docker, ตัวอย่าง host scheduler วันละครั้ง, incident playbook
@@ -140,27 +140,27 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
     - **Validation**: รันบน dev database ที่มีข้อมูล synthetic เก่า/ใหม่
   - 🔲 **หยุดรอผู้ใช้ยืนยันก่อนเริ่ม Wave 5**
 
-- [ ] 5. Tests และ Verify (บังคับตาม NFR-006)
-  - [ ] 5.1 Unit tests
+- [x] 5. Tests และ Verify (บังคับตาม NFR-006)
+  - [x] 5.1 Unit tests
     - **Deps**: 2.1, 3.1, 3.3 | **Ref**: `design.md` — Testing Strategy
     - API: password policy (ทุก violation code, Unicode length), lockout window/duration ด้วย fake clock, permission map
     - Web: Vitest unit ของ `returnTo` (relative, `//`, `\`, absolute URL)
     - **Files**: `apps/api/tests/unit/identity/**`, `apps/web/src/features/auth/returnTo.test.ts`
     - **Acceptance**: ครอบคลุมทุก branch ของ policy/lockout/returnTo
     - **Validation**: `pnpm --filter @portal/api test:unit && pnpm --filter @portal/web test`
-  - [ ] 5.2 Integration tests (Supertest + SQLite test DB)
+  - [x] 5.2 Integration tests (Supertest + SQLite test DB)
     - **Deps**: 3.4, 3.5, 4.1 | **Ref**: `design.md` — Testing Strategy (Integration cases)
     - login สำเร็จ (session ID เปลี่ยน), 4 กรณีล้มเหลว response เดียวกัน, lockout, idle/absolute timeout, logout, forced change gate, `POST /auth/password` (policy/current ผิด), `/audit-events` (403 + audit, filters, pagination), trigger append-only, CSRF ของทุก mutation
     - **Files**: `apps/api/tests/integration/identity/**`
     - **Acceptance**: ทุก endpoint ของ unit มี integration coverage; ไม่มี response ที่เปิดเผย e-mail, stack trace หรือ secret
     - **Validation**: `pnpm --filter @portal/api test:integration`
-  - [ ] 5.3 Property-based tests P1–P6
+  - [x] 5.3 Property-based tests P1–P6
     - **Deps**: 3.1, 3.2, 3.4 | **Ref**: `design.md` — Correctness Properties
     - P1 owner isolation, P2 no implicit role access, P3 uniform login failure, P4 revoked/expired session rejected, P5 recursive redaction รวม `email`, P6 least-privilege permission map
     - **Files**: `apps/api/tests/properties/identity-access.test.ts`
     - **Acceptance**: ≥ 100 runs/property, shrinking เปิด, ไม่มี property ถูก skip
     - **Validation**: `pnpm --filter @portal/api test:properties`
-  - [ ] 5.4 Final verification
+  - [x] 5.4 Final verification
     - **Deps**: 5.1, 5.2, 5.3, 3.7 | **Ref**: Definition of Done
     - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm validate:tokens`, `pnpm build`; ตรวจ OpenAPI ตรงกับ routes; ตรวจ flow บน browser อีกครั้ง (mobile/tablet/desktop, keyboard)
     - อัปเดต `[x]` ใน tasks.md และสถานะ manifest
@@ -171,25 +171,25 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 
 | Task | Title | Dependencies | Status |
 |---|---|---|---|
-| 1.1 | ตรวจ open items | — | Pending |
-| 1.2 | Shared contracts + OpenAPI | 1.1 | Pending |
-| 1.3 | Prisma migration + triggers | 1.1, 1.2 | Pending |
-| 1.4 | Config/session/redaction | 1.2 | Pending |
-| 2.1 | Web auth infra + mock adapter | 1.2 | Pending |
-| 2.2 | Sign in + Change password pages | 2.1 | Pending |
-| 2.3 | Audit viewer page | 2.1 | Pending |
-| 3.1 | Password + Permission Policy | 1.1, 1.2 | Pending |
-| 3.2 | Audit Service | 1.2, 1.3, 1.4 | Pending |
-| 3.3 | Identity Service | 1.3, 1.4, 3.1, 3.2 | Pending |
-| 3.4 | Session Guard + identity routes | 3.3, 3.2 | Pending |
-| 3.5 | Audit Query API | 3.2, 3.4 | Pending |
-| 3.6 | CLI user commands | 3.3, 3.2 | Pending |
-| 3.7 | เชื่อม frontend กับ API จริง | 2.2, 2.3, 3.4, 3.5, 3.6 | Pending |
-| 4.1 | Cleanup commands + docs | 3.6 | Pending |
-| 5.1 | Unit tests | 2.1, 3.1, 3.3 | Pending |
-| 5.2 | Integration tests | 3.4, 3.5, 4.1 | Pending |
-| 5.3 | PBT P1–P6 | 3.1, 3.2, 3.4 | Pending |
-| 5.4 | Final verification | 3.7, 5.1–5.3 | Pending |
+| 1.1 | ตรวจ open items | — | Done |
+| 1.2 | Shared contracts + OpenAPI | 1.1 | Done |
+| 1.3 | Prisma migration + triggers | 1.1, 1.2 | Done |
+| 1.4 | Config/session/redaction | 1.2 | Done |
+| 2.1 | Web auth infra + mock adapter | 1.2 | Done |
+| 2.2 | Sign in + Change password pages | 2.1 | Done |
+| 2.3 | Audit viewer page | 2.1 | Done |
+| 3.1 | Password + Permission Policy | 1.1, 1.2 | Done |
+| 3.2 | Audit Service | 1.2, 1.3, 1.4 | Done |
+| 3.3 | Identity Service | 1.3, 1.4, 3.1, 3.2 | Done |
+| 3.4 | Session Guard + identity routes | 3.3, 3.2 | Done |
+| 3.5 | Audit Query API | 3.2, 3.4 | Done |
+| 3.6 | CLI user commands | 3.3, 3.2 | Done |
+| 3.7 | เชื่อม frontend กับ API จริง | 2.2, 2.3, 3.4, 3.5, 3.6 | Done |
+| 4.1 | Cleanup commands + docs | 3.6 | Done |
+| 5.1 | Unit tests | 2.1, 3.1, 3.3 | Done |
+| 5.2 | Integration tests | 3.4, 3.5, 4.1 | Done |
+| 5.3 | PBT P1–P6 | 3.1, 3.2, 3.4 | Done |
+| 5.4 | Final verification | 3.7, 5.1–5.3 | Done |
 
 > CLI user commands (3.6) อยู่ใน Wave 3 เพราะ 3.7 ต้องใช้บัญชีที่สร้างด้วย CLI เพื่อตรวจ flow จริง
 
@@ -239,12 +239,12 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - **Coverage summary**: 7/8 components มี automated test (C7 CLI ตรวจด้วยการรันจริงใน 3.6/4.1 และ audit ที่เกิดขึ้นถูกตรวจใน 5.2); 6/6 endpoints มี integration coverage
 
 ## Definition of Done
-- [ ] ทุก task เสร็จตามลำดับ dependency และแก้เฉพาะไฟล์ในขอบเขตที่ระบุ
-- [ ] Open items ใน 1.1 ได้รับการยืนยันและบันทึก Add-on
-- [ ] ไม่มี dependency ใหม่, ไม่มี outbound call, ไม่มี credential ใน repo/log/audit
-- [ ] Format, lint, typecheck, unit, integration, property tests, token validation และ build ผ่าน
-- [ ] ทุก flow หลักใช้งานได้จริงบน dev server (sign in, forced change, audit viewer, sign out, session expiry)
-- [ ] UI ผ่าน Visual Quality Bar ของ design-system policy และ responsive บน mobile/tablet/desktop
+- [x] ทุก task เสร็จตามลำดับ dependency และแก้เฉพาะไฟล์ในขอบเขตที่ระบุ (งานนอกขอบเขตบันทึกใน Add-on ทุกครั้ง)
+- [x] Open items ใน 1.1 ได้รับการยืนยันและบันทึก Add-on
+- [x] ไม่มี dependency ใหม่, ไม่มี outbound call, ไม่มี credential ใน repo/log/audit — ยกเว้นที่ผู้ใช้อนุมัติ: `@fontsource/atkinson-hyperlegible@5.3.0`, `@fontsource/crimson-pro@5.3.0` (Foundation Add-on 4.2c) และ workspace link `@portal/shared` ใน web
+- [x] Format, lint, typecheck, unit, integration, property tests, token validation และ build ผ่าน
+- [x] ทุก flow หลักใช้งานได้จริงบน runtime `https://localhost` (sign in, forced change, audit viewer, sign out, session expiry)
+- [x] UI ผ่าน Visual Quality Bar ของ design-system policy และ responsive บน mobile/tablet/desktop
 - [ ] PR เข้า `main` ผ่านรีวิวอย่างน้อย 1 คน
 
 ## Execution Waves
@@ -314,3 +314,25 @@ Wave 1 แก้ shared contracts, schema และ config ที่ทุกส
 - **Migrations**: runtime image ไม่มี `prisma/`; migrate จาก host ไปที่ DB บน encrypted volume ก่อน `docker compose up`
 - **Local `.env`**: สร้างจาก `.env.example` ด้วย `SESSION_SECRET` แบบสุ่ม, `NODE_ENV=production`, ไม่ commit
 - **ข้อจำกัด**: volume หลุดหลัง restart เครื่อง ต้อง `hdiutil attach` ก่อน `docker compose up`
+
+## Add-on — Wave 4 Notes (2026-10-16)
+- **`audit:cleanup`** ใช้ raw SQL `julianday("occurredAt") < julianday('now', '-N days')` แบบ parameterized ให้ตรงกับเงื่อนไขของ trigger — ถ้าใช้ Prisma `lt` แถวรูปแบบ `CURRENT_TIMESTAMP` (`YYYY-MM-DD HH:MM:SS`) จะถูกเทียบแบบ string ผิด และ trigger จะ abort ทั้ง statement
+- **ตรวจแล้ว**: temp DB — ลบแถวเก่าทั้งรูปแบบ ISO และ `CURRENT_TIMESTAMP`, เก็บแถวอายุ 89 วันและแถวใหม่, รันซ้ำลบ 0; container บน encrypted volume — `sessions:cleanup` ลบ 4, `audit:cleanup` ลบ 0 พร้อมบันทึก `AUDIT_RETENTION_CLEANUP`
+- **`docker/README.md`** เขียนใหม่: encrypted volume, การตั้งค่าและ migrate, คำสั่ง CLI, role, นโยบายรหัสผ่าน, บัญชี synthetic สำหรับ dev, cron ตัวอย่าง และ incident playbook
+
+## Add-on — Wave 5 Notes (2026-10-16)
+- **Audit metadata keys**: `sessionsRevoked` → `signedOutCount` และ `otherSessionsRevoked` → `signedOutOtherCount` เพราะ redaction pattern (`session`) แปลงค่าเป็น `[REDACTED]` จน audit viewer ไม่เห็นจำนวน session ที่ถูก sign out — แก้ใน `identity.service.ts`, `METADATA_ALLOWLIST`, mock `audit-events.json` และ integration test
+- **Trigger error shape**: Prisma (driver adapter) รายงาน `RAISE(ABORT, …)` ของ trigger เป็น `P2003` ข้อความ generic; ข้อความจริงอยู่ที่ `error.meta.driverAdapterError.cause.originalMessage` — integration test ตรวจที่ตำแหน่งนี้
+- **Login failure response**: login ที่ล้มเหลวส่ง cookie anonymous แบบ rolling กลับมา แต่ไม่ authenticate — test ตรวจว่า `/auth/me` ยังเป็น `401` แทนการตรวจว่าไม่มี `Set-Cookie`
+- **Test helper**: `createSession().login()` throw ข้อความชัดเจนเมื่อ `200` แต่ไม่มี CSRF token (เกิด `TypeError` 1 ครั้งจาก 10 รอบ reproduce ไม่ได้อีก)
+- **PBT**: P1–P6 รันละ 100 ครั้ง shrinking เปิด; P3/P4 รันผ่าน HTTP บน SQLite ชั่วคราว; mutation check (ลบ `email` จาก redaction pattern) ทำให้ P5 fail และ shrink เหลือ `{"items":[],"email":"S3CR3T-MARKER"}`
+- **Skipped 3 tests** ใน `job-lifecycle-scaffolds.test.ts` เป็นของ Foundation รอ Submission & Job Lifecycle unit — ไม่ใช่ property ของ unit นี้
+- **Stale image**: `docker compose up -d --build` ไม่ recreate container แม้โค้ดเปลี่ยน (container ยังรัน key เดิม) — ต้อง `docker compose build api && docker compose up -d --force-recreate api`; ตรวจซ้ำหลัง recreate
+- **Browser recheck 5.4** (หลัง recreate): 29/30 ผ่านบน `https://localhost` (mobile 375, tablet 768, desktop 1440: ไม่มี horizontal overflow; Tab แรกไป skip link พร้อม focus ring; generic error; forced change → `/jobs` → `/audit`; ไม่มี e-mail ในหน้า audit; sign out แล้ว `/jobs` redirect ไป sign-in; ไม่มี console error ที่ไม่คาดไว้) — reset รหัสผ่าน `auditor@example.test` (synthetic) ผ่าน CLI เพื่อทดสอบ และทิ้งรหัสผ่านหลังใช้
+- **ข้อที่ไม่ผ่าน (ไม่ใช่ bug ของโค้ดปัจจุบัน)**: หน้า audit ยังแสดง `PASSWORD_CHANGED` เก่า 2 แถว (`otherSessionsRevoked: [REDACTED]`) ที่ image เก่าเขียนไว้ก่อน recreate — ตาราง append-only จึงแก้ไม่ได้ และจะถูกลบโดย `audit:cleanup` เมื่อครบ 90 วัน; แถวใหม่ตรวจจาก DB แล้วเก็บ `{"signedOutOtherCount":0}` ถูกต้อง
+- **ยังไม่ได้ตรวจ**: screen reader จริง (VoiceOver/NVDA), zoom 200%, อุปกรณ์จริง — ต้องทดสอบด้วยคน
+
+## Add-on — Post-Wave 5 Change Requests (confirmed by user 2026-10-16)
+- **Dev DB**: เก็บ `data/portal.db` ไว้ตามเดิม (gitignored ผ่าน `data/`; มีเฉพาะบัญชี synthetic)
+- **Document language**: UI เป็นภาษาอังกฤษล้วน → `apps/web/index.html` ใช้ `lang="en"` เพื่อให้ screen reader อ่านออกเสียงถูกภาษา (WCAG 3.1.1 Language of Page)
+- **HTTP + HTTPS**: เปิดได้ทั้ง `http://localhost` และ `https://localhost` — Compose publish port `80` เพิ่มจาก `443`; Caddy redirect HTTP → HTTPS อัตโนมัติ (`308`) ตาม Foundation NFR "HTTP redirect to HTTPS" · ไม่ให้บริการเนื้อหาผ่าน HTTP ตรง ๆ เพราะ session cookie เป็น `Secure` (login ผ่าน HTTP ใช้ไม่ได้) และ policy encryption in transit

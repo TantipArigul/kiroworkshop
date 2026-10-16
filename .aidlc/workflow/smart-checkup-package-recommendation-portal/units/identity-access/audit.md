@@ -132,3 +132,43 @@
 - **Action**: wave-complete
 - **Artifacts**: tasks 3.1–3.7
 - **Outcome**: waiting for user confirmation before Wave 4
+### [2026-10-16T16:20:00Z] Task Complete: 4.1 — Cleanup commands and operations docs
+- **Phase**: implementation
+- **Action**: task 4.1 implemented (standard mode)
+- **Artifacts**: `apps/api/src/modules/audit/audit.service.ts` (`deleteExpiredAuditEvents`, `deleteInactiveSessions`), `apps/api/src/cli/identity.ts` (`audit:cleanup`, `sessions:cleanup`), `docker/README.md`
+- **Outcome**: pass — temp-DB test covers both timestamp formats, 89-day edge, recent rows, expired/revoked/active sessions and an idempotent second run; container run on the encrypted volume deleted 4 sessions and recorded `AUDIT_RETENTION_CLEANUP`; workspace format/lint/typecheck/tests pass; 15/19 tasks (79%)
+### [2026-10-16T16:20:00Z] Implementation: Wave 4 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: task 4.1
+- **Outcome**: waiting for user confirmation before Wave 5 (tests/verify)
+### [2026-10-16T16:30:00Z] Task Complete: 5.1 — Unit tests
+- **Phase**: implementation
+- **Action**: task 5.1 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/unit/identity/policies.test.ts`, `apps/web/src/features/auth/returnTo.test.ts`
+- **Outcome**: pass — API 11, web 14
+### [2026-10-16T16:30:00Z] Task Complete: 5.2 — Integration tests
+- **Phase**: implementation
+- **Action**: task 5.2 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/integration/identity/{auth,audit}.test.ts`, `apps/api/tests/support/{identity-context,http-session}.ts`; metadata keys renamed to `signedOutCount`/`signedOutOtherCount` (redaction collision)
+- **Outcome**: pass — 42 tests (unit + integration) green on 9 consecutive runs; one earlier `TypeError` in the login helper could not be reproduced and now raises a clear error
+### [2026-10-16T16:30:00Z] Task Complete: 5.3 — Property-based tests P1–P6
+- **Phase**: implementation
+- **Action**: task 5.3 implemented (standard mode)
+- **Artifacts**: `apps/api/tests/properties/identity-access.test.ts`
+- **Outcome**: pass — 9 properties, 100 runs each, shrinking on; mutation check on the redaction pattern failed P5 as expected and was reverted
+### [2026-10-16T16:30:00Z] Task Complete: 5.4 — Final verification
+- **Phase**: implementation
+- **Action**: task 5.4 verification
+- **Artifacts**: tasks.md (all `[x]`, Wave 5 Add-on), manifest
+- **Outcome**: pass — format/lint/typecheck/validate:tokens/build clean; `pnpm test` shared 10, web 14, api 75 (+3 Foundation scaffolds skipped); OpenAPI 8 operations match Express routes; browser recheck 29/30 at `https://localhost` across 375/768/1440 px after force-recreating a stale API container (the 1 miss is 2 pre-rename append-only rows still showing `[REDACTED]`; new rows verified in DB); screen reader and real-device checks not performed; 19/19 tasks (100%)
+### [2026-10-16T16:30:00Z] Implementation: Wave 5 Complete
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: tasks 5.1–5.4
+- **Outcome**: waiting for user confirmation before finalize/commit/PR
+### [2026-10-16T16:45:00Z] Change Request: post-Wave 5 open items
+- **Phase**: implementation
+- **Action**: user decisions applied after refining tasks.md (Add-on — Post-Wave 5 Change Requests)
+- **Artifacts**: `apps/web/index.html` (`lang="en"`), `docker-compose.yml` (publish `80:80`), `docker/README.md`; `data/portal.db` kept
+- **Outcome**: pass — `http://localhost/` and deep links return `308` to the same HTTPS URL, `https://localhost/` 200 with `lang="en"`, health 200, web build and `docker compose config` pass
