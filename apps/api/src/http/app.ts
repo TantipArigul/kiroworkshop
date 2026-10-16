@@ -5,6 +5,11 @@ import { createSuccessResponse } from '@portal/shared';
 import type { AppConfig } from '../config/index.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaSessionStore } from '../infrastructure/prisma-session-store.js';
+import { createAuditRouter } from '../modules/audit/audit.routes.js';
+import { createAuditService } from '../modules/audit/audit.service.js';
+import { createIdentityRouter } from '../modules/identity/identity.routes.js';
+import { createIdentityService } from '../modules/identity/identity.service.js';
+import { createSessionGuard } from '../modules/identity/session-guard.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -16,6 +21,7 @@ import {
   csrfProtection,
   generateCsrfToken,
   RateLimitError,
+  SESSION_COOKIE_NAME,
 } from './security.js';
 
 export type ApiRuntimeState = {
@@ -32,6 +38,9 @@ export function createApiApp(
   const logger = createLogger(config);
   const sessionStore = new PrismaSessionStore(prisma);
   const rateLimiters = createRateLimiters(config);
+  const audit = createAuditService(prisma, logger);
+  const identity = createIdentityService({ audit, config, prisma });
+  const guard = createSessionGuard({ audit, config, identity });
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -99,48 +108,23 @@ export function createApiApp(
   });
 
   app.use('/api/v1', csrfProtection);
-  app.post('/api/v1/auth/login', rateLimiters.login, (_request, _response, next) => {
-    next(new HttpError(501, 'NOT_IMPLEMENTED', 'Authentication is not available yet.'));
-  });
-  app.post('/api/v1/auth/logout', (request, response, next) => {
-    request.session.destroy((error) => {
-      if (error) {
-        next(error);
-        return;
-      }
-
-      response.status(204).end();
-    });
-  });
-  app.get('/api/v1/auth/me', async (request, response, next) => {
-    const userId = request.session.userId;
-
-    if (!userId) {
-      next(new HttpError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required.'));
-      return;
-    }
-
-    try {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-
-      if (!user || user.disabledAt) {
-        next(new HttpError(401, 'AUTHENTICATION_REQUIRED', 'Authentication is required.'));
-        return;
-      }
-
-      response.status(200).json(
-        createSuccessResponse(
-          // Interim response; task 3.4 replaces this route with the full AuthenticatedUser contract.
-          { email: user.email, id: user.id, role: user.role },
-          getRequestId(response),
-        ),
-      );
-    } catch (error) {
-      next(error);
-    }
+  app.use(
+    '/api/v1/auth',
+    createIdentityRouter({
+      audit,
+      generateCsrfToken,
+      guard,
+      identity,
+      loginRateLimiter: rateLimiters.login,
+      sessionCookieName: SESSION_COOKIE_NAME,
+    }),
+  );
+  app.use('/api/v1/audit-events', createAuditRouter({ audit, guard, prisma }));
+  app.use('/api/v1', (_request, _response, next) => {
+    next(new HttpError(404, 'NOT_FOUND', 'The requested resource is unavailable.'));
   });
 
-  app.use(createErrorMiddleware());
+  app.use(createErrorMiddleware(logger));
 
   return app;
 }
@@ -161,18 +145,24 @@ function createRequestIdMiddleware(): (
   };
 }
 
-function createErrorMiddleware(): (
-  error: unknown,
-  request: Request,
-  response: Response,
-  next: NextFunction,
-) => void {
+function createErrorMiddleware(
+  logger: ReturnType<typeof createLogger>,
+): (error: unknown, request: Request, response: Response, next: NextFunction) => void {
   return (error, _request, response, next) => {
     void next;
     const requestId = getRequestId(response);
 
     if (error instanceof HttpError) {
-      response.status(error.status).json(createErrorResponse(error.code, error.message, requestId));
+      response
+        .status(error.status)
+        .json(createErrorResponse(error.code, error.message, requestId, error.details));
+      return;
+    }
+
+    if (isBodyParseError(error)) {
+      response
+        .status(400)
+        .json(createErrorResponse('VALIDATION_FAILED', 'Request validation failed.', requestId));
       return;
     }
 
@@ -205,10 +195,21 @@ function createErrorMiddleware(): (
       return;
     }
 
+    logger.error({ err: error, requestId }, 'Unhandled request error');
     response
       .status(500)
       .json(createErrorResponse('INTERNAL_ERROR', 'Unable to complete the request.', requestId));
   };
+}
+
+/** Malformed JSON or an oversized body from `express.json()`. */
+function isBodyParseError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    ['entity.parse.failed', 'entity.too.large'].includes(String((error as { type: unknown }).type))
+  );
 }
 
 function getRequestId(response: Response): string {

@@ -25,9 +25,11 @@ const { csrfSynchronisedProtection, generateToken, invalidCsrfTokenError } = csr
   getTokenFromRequest: (request) => getHeaderValue(request, 'x-csrf-token'),
 });
 
+export const SESSION_COOKIE_NAME = 'portal_session';
+
 export function createSessionMiddleware(config: AppConfig, store: session.Store): RequestHandler {
   return session({
-    name: 'portal_session',
+    name: SESSION_COOKIE_NAME,
     secret: config.sessionSecret,
     store,
     resave: false,

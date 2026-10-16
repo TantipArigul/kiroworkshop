@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/modules/identity/common-passwords.txt','dist/modules/identity/common-passwords.txt')\"",
     "start": "node dist/main.js",
+    "identity": "node dist/cli/identity.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
