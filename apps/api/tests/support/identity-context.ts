@@ -1,22 +1,18 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import Database from 'better-sqlite3';
 import type { Express } from 'express';
 
 import { loadConfig, type AppConfig } from '../../src/config/index.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { createApiApp } from '../../src/http/app.js';
 import { createPrismaClient } from '../../src/infrastructure/prisma.js';
-import { createTestDatabaseContext } from '../../src/infrastructure/test-database.js';
+import {
+  applyTestMigrations,
+  createTestDatabaseContext,
+} from '../../src/infrastructure/test-database.js';
 import { createAuditService } from '../../src/modules/audit/audit.service.js';
 import {
   createIdentityService,
   type IdentityService,
 } from '../../src/modules/identity/identity.service.js';
-
-const MIGRATIONS_DIR = fileURLToPath(new URL('../../../../prisma/migrations/', import.meta.url));
 
 /** Synthetic password that satisfies the policy; never a real credential. */
 export const TEST_PASSWORD = 'synthetic-pass-for-tests-01';
@@ -36,27 +32,11 @@ export type IdentityTestContext = {
   cleanup: () => Promise<void>;
 };
 
-/** Applies every Prisma migration (including the AuditEvent triggers) to a fresh SQLite file. */
-function applyMigrations(databaseUrl: string) {
-  const database = new Database(databaseUrl.replace(/^file:/, ''));
-
-  try {
-    for (const entry of readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
-      .filter((item) => item.isDirectory())
-      .map((item) => item.name)
-      .sort()) {
-      database.exec(readFileSync(join(MIGRATIONS_DIR, entry, 'migration.sql'), 'utf8'));
-    }
-  } finally {
-    database.close();
-  }
-}
-
 export async function createIdentityTestContext(
   environment: Record<string, string> = {},
 ): Promise<IdentityTestContext> {
   const database = await createTestDatabaseContext();
-  applyMigrations(database.databaseUrl);
+  applyTestMigrations(database.databaseUrl);
 
   const config = loadConfig({
     ALLOWED_ORIGINS: 'https://localhost',

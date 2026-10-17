@@ -1,4 +1,5 @@
 import { access } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -13,8 +14,9 @@ afterEach(async () => {
 
 describe('persistence foundation', () => {
   it('resolves storage keys only within the private root', () => {
+    // `resolve` keeps the expectation platform-neutral (POSIX in CI, drive letters on Windows).
     expect(resolvePrivateStoragePath('/var/lib/portal-private', 'jobs/job_1/input.json')).toBe(
-      '/var/lib/portal-private/jobs/job_1/input.json',
+      resolve('/var/lib/portal-private/jobs/job_1/input.json'),
     );
     expect(() => resolvePrivateStoragePath('/var/lib/portal-private', '../outside.txt')).toThrow(
       StoragePathError,
