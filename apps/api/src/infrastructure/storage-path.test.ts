@@ -21,6 +21,11 @@ describe('persistence foundation', () => {
     expect(() => resolvePrivateStoragePath('/var/lib/portal-private', '../outside.txt')).toThrow(
       StoragePathError,
     );
+    if (process.platform === 'win32') {
+      // Cross-drive targets: `relative` returns an absolute path instead of `..`.
+      expect(() => resolvePrivateStoragePath('C:\\portal', 'D:\\x')).toThrow(StoragePathError);
+      expect(() => resolvePrivateStoragePath('C:\\portal', 'A:')).toThrow(StoragePathError);
+    }
   });
 
   it('creates and cleans an isolated SQLite test database context', async () => {

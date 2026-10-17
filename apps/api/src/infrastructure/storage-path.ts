@@ -1,4 +1,4 @@
-import { relative, resolve, sep } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 export class StoragePathError extends Error {
   public constructor() {
@@ -12,7 +12,13 @@ export function resolvePrivateStoragePath(storageRoot: string, storageKey: strin
   const resolvedPath = resolve(resolvedRoot, storageKey);
   const relativePath = relative(resolvedRoot, resolvedPath);
 
-  if (relativePath === '' || relativePath === '..' || relativePath.startsWith(`..${sep}`)) {
+  // `relative` returns an absolute path when the target is on another drive (Windows `A:`).
+  if (
+    relativePath === '' ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  ) {
     throw new StoragePathError();
   }
 
