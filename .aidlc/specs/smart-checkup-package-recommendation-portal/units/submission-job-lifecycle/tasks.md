@@ -93,8 +93,8 @@
     - **Acceptance**: ทุก flow หลักทำงานบน browser โดยไม่มี console error
     - **Validation**: smoke test บันทึกใน audit
 
-- [ ] 4. Retention, CLI และ operations
-  - [ ] 4.1 Retention Sweeper + `jobs:cleanup` CLI + docs
+- [x] 4. Retention, CLI และ operations
+  - [x] 4.1 Retention Sweeper + `jobs:cleanup` CLI + docs
     - **Deps**: 3.3, 3.4 | **Ref**: `design.md` — C7, Operations; US-014 AC2–3
     - Sweep รายชั่วโมงใน worker + orphan directories; CLI one-off; `docker/README.md` ขั้นตอน
     - **Files**: `apps/api/src/modules/jobs/retention.ts`, `apps/api/src/modules/jobs/job-worker.ts`, `apps/api/src/cli/jobs.ts`, `apps/api/package.json`, `docker/README.md`

@@ -41,3 +41,8 @@
 - **Artifacts**: `apps/api/src/modules/jobs/{input-validator,sample-input,job-storage,job.service,completion,job-worker,jobs.routes}.ts`, `apps/api/src/http/{app,security}.ts`, `apps/api/src/server.ts`, `app.test.ts`
 - **Outcome**: pass — workspace typecheck/lint/tests; real stack smoke (API + Caddy 2.11.4 `tls internal` with `skip_install_trust`, throwaway DB/storage under `.tools/tmp/smoke`, 2 synthetic CLI accounts) 24/24 browser checks over `https://localhost:8443` including persisted state after reload; `input.csv` + `result.json` written under `jobs/{id}/`; API log contains no marker values, CSV content or e-mail
 - **Design refinements (Add-on)**: submission limiter keyed by user ID (Open Question #4); readiness `checks.executor`; `createApiApp` options `completionHandler`/`isExecutorReady` (test hook + Results port)
+### [2026-10-17T05:00:00Z] Implementation: Wave 4 Complete (task 4.1)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: `apps/api/src/modules/jobs/retention.ts`, `apps/api/src/cli/jobs.ts`, `apps/api/src/http/app.ts` (sweep in worker), `apps/api/package.json` (`jobs` script), `docker/README.md`
+- **Outcome**: pass — smoke DB: expired job + `JobInput`/`JobStatusEvent` rows and its directory removed, orphan directory removed, audit `JOB_DELETED {reason: RETENTION}` recorded, exit 0; typecheck/lint/build clean

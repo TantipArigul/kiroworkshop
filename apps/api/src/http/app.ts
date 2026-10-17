@@ -15,6 +15,7 @@ import { createJobStorage } from '../modules/jobs/job-storage.js';
 import { createJobWorker, type JobWorker } from '../modules/jobs/job-worker.js';
 import { createJobService } from '../modules/jobs/job.service.js';
 import { createJobsRouter } from '../modules/jobs/jobs.routes.js';
+import { createRetentionSweeper } from '../modules/jobs/retention.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -63,6 +64,7 @@ export function createApiApp(
     prisma,
     storage,
   });
+  const sweepExpiredJobs = createRetentionSweeper({ audit, jobs, logger, prisma, storage });
   const worker = createJobWorker({
     completionHandler: options.completionHandler ?? writeResultSummary,
     config,
@@ -70,6 +72,13 @@ export function createApiApp(
     logger,
     prisma,
     storage,
+    sweep: async () => {
+      const result = await sweepExpiredJobs();
+
+      if (result.deleted + result.failed + result.orphansRemoved > 0) {
+        logger.info(result, 'Retention sweep completed');
+      }
+    },
   });
   // server.ts starts/stops the worker with the HTTP server; tests drive `tick()` directly.
   app.locals.jobWorker = worker;
@@ -123,17 +132,15 @@ export function createApiApp(
         ),
       );
     } catch {
-      response
-        .status(503)
-        .json(
-          createSuccessResponse(
-            {
-              checks: { database: 'failed', executor: executorReady() ? 'ok' : 'failed' },
-              status: 'not_ready',
-            },
-            getRequestId(response),
-          ),
-        );
+      response.status(503).json(
+        createSuccessResponse(
+          {
+            checks: { database: 'failed', executor: executorReady() ? 'ok' : 'failed' },
+            status: 'not_ready',
+          },
+          getRequestId(response),
+        ),
+      );
     }
   });
 
