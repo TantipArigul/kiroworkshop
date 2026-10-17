@@ -53,3 +53,8 @@
 - **Outcome**: pass — format:check, lint, typecheck, test (shared, web, api 14 files), test:properties, validate:tokens, build all clean; mutation check (owner check removed) fails P4 as expected and was reverted
 - **Defect found by PBT P5 and fixed**: `resolvePrivateStoragePath` accepted a cross-drive name such as `A:` on Windows because `path.relative` returns an absolute path there; the guard now also rejects absolute relative results (Foundation file, covered by a new Windows-only case in `storage-path.test.ts`)
 - **Not verified**: Docker Compose image build/run (Docker is not installed on this workstation), screen reader and real-device checks
+### [2026-10-17T07:10:00Z] Fix: CI typecheck on a clean checkout
+- **Phase**: implementation
+- **Action**: fix (user-reported CI failure on PR #4)
+- **Artifacts**: `.github/workflows/quality.yml`
+- **Outcome**: root cause — CI never built `packages/shared` (`@portal/shared` resolves to `dist/`) nor generated the gitignored Prisma client, so `tsc` reported 47 errors (missing modules plus knock-on implicit-any errors); added both steps after install, matching `apps/api/Dockerfile`; reproduced the 47 errors locally after deleting the generated folders, then replayed the full workflow sequence from that clean state with every step exiting 0
