@@ -1,0 +1,88 @@
+{
+  "_note": "Synthetic UI-review fixtures only (VITE_API_MOCK=true). No personal data.",
+  "sample": {
+    "parameters": {
+      "sampleLabel": "Workshop sample A",
+      "ageBand": "40-49",
+      "focusArea": "CARDIOMETABOLIC",
+      "lifestyleFactors": ["LOW_ACTIVITY"],
+      "simulateFailure": false
+    },
+    "file": {
+      "name": "smart-checkup-sample.csv",
+      "content": "marker,value,unit\nfasting_glucose,108,mg/dL\nhba1c,5.9,%\nldl_cholesterol,162,mg/dL\nhdl_cholesterol,41,mg/dL\ntriglycerides,188,mg/dL\nsystolic_bp,134,mmHg\ndiastolic_bp,86,mmHg\nbmi,27.4,kg/m2\nalt,32,U/L\ncreatinine,0.9,mg/dL\n"
+    }
+  },
+  "jobs": [
+    {
+      "id": "cmockjob0000000000000001",
+      "sampleLabel": "Baseline cardiometabolic",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-16T08:10:00.000+00:00",
+      "updatedAt": "2026-10-16T08:10:09.000+00:00",
+      "expiresAt": "2026-10-23T08:10:00.000+00:00",
+      "parameters": {
+        "sampleLabel": "Baseline cardiometabolic",
+        "ageBand": "40-49",
+        "focusArea": "CARDIOMETABOLIC",
+        "lifestyleFactors": ["LOW_ACTIVITY"],
+        "simulateFailure": false
+      },
+      "file": { "name": "baseline.csv", "sizeBytes": 252, "rowCount": 10 },
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-16T08:10:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-16T08:10:03.000+00:00",
+          "summary": "Simulated pipeline started."
+        },
+        {
+          "status": "COMPLETED",
+          "occurredAt": "2026-10-16T08:10:09.000+00:00",
+          "summary": "Analysis completed."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000001"
+    },
+    {
+      "id": "cmockjob0000000000000002",
+      "sampleLabel": "Failure walkthrough",
+      "status": "FAILED",
+      "createdAt": "2026-10-16T09:00:00.000+00:00",
+      "updatedAt": "2026-10-16T09:00:08.000+00:00",
+      "expiresAt": "2026-10-23T09:00:00.000+00:00",
+      "parameters": {
+        "sampleLabel": "Failure walkthrough",
+        "ageBand": "30-39",
+        "focusArea": "GENERAL",
+        "lifestyleFactors": [],
+        "simulateFailure": true
+      },
+      "file": { "name": "failure-demo.csv", "sizeBytes": 61, "rowCount": 2 },
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-16T09:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-16T09:00:03.000+00:00",
+          "summary": "Simulated pipeline started."
+        },
+        {
+          "status": "FAILED",
+          "occurredAt": "2026-10-16T09:00:08.000+00:00",
+          "summary": "Simulated pipeline failure requested by the training option. Submit again without it to complete."
+        }
+      ],
+      "failureSummary": "Simulated pipeline failure requested by the training option. Submit again without it to complete.",
+      "statusUrl": "/jobs/cmockjob0000000000000002"
+    }
+  ]
+}

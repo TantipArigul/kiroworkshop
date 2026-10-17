@@ -33,26 +33,26 @@
     - **Acceptance**: auth/audit pages เดิม compile และทำงานเหมือนเดิม
     - **Validation**: `pnpm --filter @portal/web typecheck && pnpm --filter @portal/web test`
 
-- [ ] 2. Frontend + mock `.json` — list, submit, detail
-  - [ ] 2.1 Jobs API client, polling hook, status badge และ mock adapter
+- [x] 2. Frontend + mock `.json` — list, submit, detail
+  - [x] 2.1 Jobs API client, polling hook, status badge และ mock adapter
     - **Deps**: 1.1, 1.3 | **Ref**: `design.md` — C9
     - `jobsApi.ts` (typed calls), `useJobPolling.ts` (3 s ขณะ `QUEUED`/`RUNNING`, หยุดเมื่อ terminal/hidden), `JobStatusBadge.tsx` (label + SVG + สี), `csvPreview.ts` (นับแถว/ตรวจ header ฝั่ง client เพื่อ preview เท่านั้น); `mocks/jobs.json` + routes `/jobs*` ใน `mockTransport.ts` (in-memory, จำลอง transition ตามเวลา)
     - **Files**: `apps/web/src/features/jobs/{jobsApi.ts,useJobPolling.ts,JobStatusBadge.tsx,csvPreview.ts}`, `apps/web/src/mocks/{jobs.json,mockTransport.ts}`
     - **Acceptance**: mock ไม่มีข้อมูลบุคคล; mock code ไม่อยู่ใน production bundle
     - **Validation**: `pnpm --filter @portal/web typecheck`
-  - [ ] 2.2 หน้า Job list (`/jobs`)
+  - [x] 2.2 หน้า Job list (`/jobs`)
     - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-006
     - แทน `Workspace` placeholder ใน `App.tsx`; ตาราง + pagination; empty state (New analysis + Load sample data); error + Retry; loading skeleton
     - **Files**: `apps/web/src/features/jobs/JobsListPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
     - **Acceptance**: US-006 AC1–AC4 ด้วย mock
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.3 หน้า New analysis (`/jobs/new`)
+  - [x] 2.3 หน้า New analysis (`/jobs/new`)
     - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-003, US-004, US-005
     - Form + Load sample data + input format box + file preview + synthetic-only notice + idempotency key; server error details → field/file; `503`; success → `/jobs/:id`
     - **Files**: `apps/web/src/features/jobs/NewJobPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`, `apps/web/src/components/ui/styles.css` (checkbox/file/textarea ถ้าจำเป็น)
     - **Acceptance**: sample โหลดได้และไม่ submit อัตโนมัติ; ทุก control มี label + focus-visible + ≥ 44px
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.4 หน้า Job detail (`/jobs/:jobId`)
+  - [x] 2.4 หน้า Job detail (`/jobs/:jobId`)
     - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-007, US-008, US-014
     - Status + history timeline + parameters + file metadata + failure summary + Last updated + Refresh + polling + Delete พร้อม `<dialog>` confirm + unavailable state + stale label
     - **Files**: `apps/web/src/features/jobs/JobDetailPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`

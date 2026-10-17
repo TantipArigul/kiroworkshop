@@ -1,7 +1,20 @@
-import type { AuditEvent, AuthenticatedUser } from '@portal/shared';
+import type {
+  AuditEvent,
+  AuthenticatedUser,
+  JobDetail,
+  JobSubmitRequest,
+  JobSummary,
+} from '@portal/shared';
+import {
+  INPUT_FILE_HEADER,
+  INPUT_FILE_MAX_BYTES,
+  INPUT_FILE_MAX_ROWS,
+  INPUT_MARKERS,
+} from '@portal/shared/constants';
 
 import type { Transport, TransportResponse } from '../features/auth/apiClient';
 import auditFixture from './audit-events.json';
+import jobsFixture from './jobs.json';
 import accountFixture from './me.json';
 
 /**
@@ -16,7 +29,7 @@ const auditEvents = auditFixture.events as AuditEvent[];
 
 let currentUser: AuthenticatedUser | null = null;
 
-export const mockTransport: Transport = async ({ method, path, body }) => {
+export const mockTransport: Transport = async ({ method, path, body, headers }) => {
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
 
   const url = new URL(path, 'https://mock.invalid');
@@ -37,9 +50,181 @@ export const mockTransport: Transport = async ({ method, path, body }) => {
     case 'GET /audit-events':
       return listAuditEvents(url.searchParams);
     default:
-      return fail(404, 'NOT_FOUND');
+      return routeJobs(method, url, body, headers['Idempotency-Key']);
   }
 };
+
+// ---------- Jobs (Submission & Job Lifecycle, Wave 2 mock) ----------
+
+type MockJob = JobDetail & { mockCreatedAtMs?: number };
+
+const QUEUED_MS = 3_000;
+const RUNNING_MS = 5_000;
+const jobs: MockJob[] = (jobsFixture.jobs as JobDetail[]).map((job) => ({ ...job }));
+const submittedKeys = new Map<string, string>();
+
+function routeJobs(
+  method: string,
+  url: URL,
+  body: unknown,
+  idempotencyKey: string | undefined,
+): TransportResponse {
+  if (!url.pathname.startsWith('/jobs')) {
+    return fail(404, 'NOT_FOUND');
+  }
+
+  if (!currentUser) {
+    return fail(401, 'AUTHENTICATION_REQUIRED');
+  }
+
+  if (currentUser.passwordChangeRequired) {
+    return fail(403, 'PASSWORD_CHANGE_REQUIRED', 'Change your password to continue.');
+  }
+
+  const jobId = url.pathname.split('/')[2];
+
+  if (method === 'GET' && url.pathname === '/jobs/sample-input') {
+    return ok({
+      ...jobsFixture.sample,
+      format: {
+        header: INPUT_FILE_HEADER,
+        maxBytes: INPUT_FILE_MAX_BYTES,
+        maxRows: INPUT_FILE_MAX_ROWS,
+        markers: INPUT_MARKERS,
+      },
+    });
+  }
+
+  if (method === 'GET' && url.pathname === '/jobs') {
+    const page = Number(url.searchParams.get('page') ?? '1');
+    const limit = Number(url.searchParams.get('limit') ?? '20');
+    const items = jobs
+      .map(advance)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+      .map(toSummary);
+
+    return ok({
+      items: items.slice((page - 1) * limit, page * limit),
+      page,
+      limit,
+      total: items.length,
+    });
+  }
+
+  if (method === 'POST' && url.pathname === '/jobs') {
+    return submitJob(body as JobSubmitRequest, idempotencyKey ?? crypto.randomUUID());
+  }
+
+  const job = jobs.find((candidate) => candidate.id === jobId);
+
+  if (!job) {
+    return fail(404, 'NOT_FOUND', 'This job is unavailable.');
+  }
+
+  if (method === 'GET') {
+    return ok(advance(job));
+  }
+
+  if (method === 'DELETE') {
+    jobs.splice(jobs.indexOf(job), 1);
+    return { status: 204, body: null };
+  }
+
+  return fail(404, 'NOT_FOUND');
+}
+
+function submitJob(input: JobSubmitRequest, key: string): TransportResponse {
+  const existing = submittedKeys.get(key);
+
+  if (existing) {
+    const job = jobs.find((candidate) => candidate.id === existing);
+    return job ? ok({ job: toSummary(job), statusUrl: job.statusUrl }) : fail(404, 'NOT_FOUND');
+  }
+
+  if (!input?.file?.content.startsWith(INPUT_FILE_HEADER)) {
+    return fail(400, 'VALIDATION_FAILED', 'Request validation failed.', [
+      { field: 'file', message: `The first line must be "${INPUT_FILE_HEADER}".` },
+    ]);
+  }
+
+  const now = new Date();
+  const id = `cmock${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`.slice(
+    0,
+    25,
+  );
+  const rows = input.file.content.trim().split(/\r?\n/).length - 1;
+  const parameters = {
+    lifestyleFactors: [],
+    simulateFailure: false,
+    ...input.parameters,
+  } as JobDetail['parameters'];
+  const job: MockJob = {
+    id,
+    sampleLabel: parameters.sampleLabel,
+    status: 'QUEUED',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + 7 * 86_400_000).toISOString(),
+    parameters,
+    file: { name: input.file.name, sizeBytes: input.file.content.length, rowCount: rows },
+    history: [
+      { status: 'QUEUED', occurredAt: now.toISOString(), summary: 'Job accepted and queued.' },
+    ],
+    failureSummary: null,
+    statusUrl: `/jobs/${id}`,
+    mockCreatedAtMs: now.getTime(),
+  };
+
+  jobs.push(job);
+  submittedKeys.set(key, id);
+
+  return {
+    status: 201,
+    body: {
+      data: { job: toSummary(job), statusUrl: job.statusUrl },
+      meta: { requestId: crypto.randomUUID() },
+    },
+  };
+}
+
+/** Moves a freshly submitted mock job along QUEUED → RUNNING → COMPLETED/FAILED by elapsed time. */
+function advance(job: MockJob): MockJob {
+  if (!job.mockCreatedAtMs) {
+    return job;
+  }
+
+  const created = job.mockCreatedAtMs;
+  const elapsed = Date.now() - created;
+  const at = (offset: number) => new Date(created + offset).toISOString();
+
+  if (job.status === 'QUEUED' && elapsed >= QUEUED_MS) {
+    job.status = 'RUNNING';
+    job.updatedAt = at(QUEUED_MS);
+    job.history.push({
+      status: 'RUNNING',
+      occurredAt: job.updatedAt,
+      summary: 'Simulated pipeline started.',
+    });
+  }
+
+  if (job.status === 'RUNNING' && elapsed >= QUEUED_MS + RUNNING_MS) {
+    const failed = job.parameters.simulateFailure;
+    const summary = failed
+      ? 'Simulated pipeline failure requested by the training option. Submit again without it to complete.'
+      : 'Analysis completed.';
+    job.status = failed ? 'FAILED' : 'COMPLETED';
+    job.updatedAt = at(QUEUED_MS + RUNNING_MS);
+    job.failureSummary = failed ? summary : null;
+    job.history.push({ status: job.status, occurredAt: job.updatedAt, summary });
+  }
+
+  return job;
+}
+
+function toSummary(job: JobDetail): JobSummary {
+  const { createdAt, expiresAt, id, sampleLabel, status, updatedAt } = job;
+  return { createdAt, expiresAt, id, sampleLabel, status, updatedAt };
+}
 
 function login(input: { email?: string; password?: string }): TransportResponse {
   const email = input.email?.trim().toLowerCase();
