@@ -20,11 +20,11 @@ beforeAll(async () => {
   context = await createIdentityTestContext();
   await context.createUser('auditor@example.test', 'AUDITOR', { ready: true });
   userId = (await context.createUser('member@example.test', 'USER', { ready: true })).id;
-  auditor = createSession(context.app);
-  user = createSession(context.app);
+  auditor = createSession(context.url);
+  user = createSession(context.url);
   await auditor.login('auditor@example.test', TEST_PASSWORD);
   await user.login('member@example.test', TEST_PASSWORD);
-  await createSession(context.app).login('ghost@example.test', TEST_PASSWORD);
+  await createSession(context.url).login('ghost@example.test', TEST_PASSWORD);
 });
 
 afterAll(async () => {
@@ -65,7 +65,7 @@ describe('GET /api/v1/audit-events (US-015, D3-9)', () => {
   });
 
   it('requires a session', async () => {
-    expect((await createSession(context.app).get('/api/v1/audit-events')).status).toBe(401);
+    expect((await createSession(context.url).get('/api/v1/audit-events')).status).toBe(401);
   });
 
   it('lists events newest first with redacted metadata and no e-mail addresses', async () => {

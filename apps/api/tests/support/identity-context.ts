@@ -10,6 +10,7 @@ import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { createApiApp } from '../../src/http/app.js';
 import { createPrismaClient } from '../../src/infrastructure/prisma.js';
 import { createTestDatabaseContext } from '../../src/infrastructure/test-database.js';
+import { listenOnLoopback } from '../../src/infrastructure/test-server.js';
 import { createAuditService } from '../../src/modules/audit/audit.service.js';
 import {
   createIdentityService,
@@ -24,6 +25,8 @@ export const OTHER_PASSWORD = 'another-synthetic-pass-02';
 
 export type IdentityTestContext = {
   app: Express;
+  /** Loopback base URL of a running server for `app`; use it for HTTP requests in tests. */
+  url: string;
   config: AppConfig;
   identity: IdentityService;
   prisma: PrismaClient;
@@ -73,10 +76,13 @@ export async function createIdentityTestContext(
   const audit = createAuditService(prisma, { error: () => undefined });
   const identity = createIdentityService({ audit, config, prisma });
   const app = createApiApp(config, prisma);
+  const server = await listenOnLoopback(app);
 
   return {
     app,
+    url: server.url,
     cleanup: async () => {
+      await server.close();
       await prisma.$disconnect();
       await database.cleanup();
     },

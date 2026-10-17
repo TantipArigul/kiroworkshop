@@ -29,7 +29,7 @@ beforeEach(() => {
 describe('POST /api/v1/auth/login (US-001)', () => {
   it('signs in, regenerates the session ID and returns the public user only', async () => {
     const { email } = await context.createUser(nextEmail(), 'AUDITOR');
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     const csrfResponse = await session.agent.get('/api/v1/auth/csrf-token');
     const anonymousCookie = sessionCookieFrom(csrfResponse);
     await session.refreshCsrfToken();
@@ -69,7 +69,7 @@ describe('POST /api/v1/auth/login (US-001)', () => {
       [disabled.email, TEST_PASSWORD],
       [locked.email, TEST_PASSWORD],
     ] as const;
-    const sessions = attempts.map(() => createSession(context.app));
+    const sessions = attempts.map(() => createSession(context.url));
     const responses = await Promise.all(
       attempts.map(([email, password], index) => sessions[index]!.login(email, password)),
     );
@@ -88,7 +88,7 @@ describe('POST /api/v1/auth/login (US-001)', () => {
 
   it('locks the account after 5 failures within the window, even for the right password', async () => {
     const { email, id } = await context.createUser(nextEmail());
-    const session = createSession(context.app);
+    const session = createSession(context.url);
 
     for (let attempt = 0; attempt < context.config.loginLockoutThreshold; attempt += 1) {
       expect((await session.login(email, OTHER_PASSWORD)).status).toBe(401);
@@ -117,7 +117,7 @@ describe('POST /api/v1/auth/login (US-001)', () => {
 
   it('does not lock when failures fall outside the 15-minute window', async () => {
     const { email, id } = await context.createUser(nextEmail());
-    const session = createSession(context.app);
+    const session = createSession(context.url);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await session.login(email, OTHER_PASSWORD);
@@ -139,7 +139,7 @@ describe('POST /api/v1/auth/login (US-001)', () => {
 
   it('rejects login, logout and password changes without a CSRF token', async () => {
     const { email } = await context.createUser(nextEmail(), 'USER', { ready: true });
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     await session.login(email, TEST_PASSWORD);
 
     for (const path of ['/api/v1/auth/login', '/api/v1/auth/logout', '/api/v1/auth/password']) {
@@ -150,7 +150,7 @@ describe('POST /api/v1/auth/login (US-001)', () => {
   });
 
   it('rejects malformed bodies with field details that never echo the input', async () => {
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     await session.refreshCsrfToken();
 
     const response = await session.post('/api/v1/auth/login', {
@@ -169,14 +169,14 @@ describe('POST /api/v1/auth/login (US-001)', () => {
 describe('session lifecycle (US-001 AC3–AC4, D3-5)', () => {
   async function signedInSession() {
     const user = await context.createUser(nextEmail(), 'USER', { ready: true });
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     expect((await session.login(user.email, TEST_PASSWORD)).status).toBe(200);
     expect((await session.get('/api/v1/auth/me')).status).toBe(200);
     return { session, user };
   }
 
   it('rejects protected requests without a session', async () => {
-    const response = await createSession(context.app).get('/api/v1/auth/me');
+    const response = await createSession(context.url).get('/api/v1/auth/me');
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe('AUTHENTICATION_REQUIRED');
   });
@@ -233,7 +233,7 @@ describe('session lifecycle (US-001 AC3–AC4, D3-5)', () => {
 describe('POST /api/v1/auth/password (forced change, D3-2)', () => {
   it('blocks other routes until the password changes, then clears the flag', async () => {
     const { email } = await context.createUser(nextEmail(), 'AUDITOR');
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     await session.login(email, TEST_PASSWORD);
 
     const blocked = await session.get('/api/v1/audit-events');
@@ -263,7 +263,7 @@ describe('POST /api/v1/auth/password (forced change, D3-2)', () => {
     ],
   ])('rejects a %s new password with a field detail', async (_label, newPassword, message) => {
     const { email } = await context.createUser(nextEmail());
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     await session.login(email, TEST_PASSWORD);
 
     const response = await session.post('/api/v1/auth/password', {
@@ -277,7 +277,7 @@ describe('POST /api/v1/auth/password (forced change, D3-2)', () => {
 
   it('rejects a wrong current password', async () => {
     const { email } = await context.createUser(nextEmail());
-    const session = createSession(context.app);
+    const session = createSession(context.url);
     await session.login(email, TEST_PASSWORD);
 
     const response = await session.post('/api/v1/auth/password', {
@@ -291,8 +291,8 @@ describe('POST /api/v1/auth/password (forced change, D3-2)', () => {
 
   it('keeps the current session but signs out the user’s other sessions', async () => {
     const { email, id } = await context.createUser(nextEmail(), 'USER', { ready: true });
-    const current = createSession(context.app);
-    const other = createSession(context.app);
+    const current = createSession(context.url);
+    const other = createSession(context.url);
     await current.login(email, TEST_PASSWORD);
     await other.login(email, TEST_PASSWORD);
 

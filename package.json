@@ -9,6 +9,7 @@
     "pnpm": "12.8.1"
   },
   "scripts": {
+    "codegen": "pnpm --filter @portal/shared build && pnpm --filter @portal/api prisma:generate",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint apps packages",

@@ -6,6 +6,9 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      # Only read by prisma.config.ts during client generation; tests use their own temp databases.
+      DATABASE_URL: file:./data/portal.db
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -14,6 +17,8 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@12.8.1 --activate
       - run: pnpm install --frozen-lockfile
+      # Build @portal/shared dist and the gitignored Prisma client before type-checking/testing.
+      - run: pnpm codegen
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

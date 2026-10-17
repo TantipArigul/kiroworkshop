@@ -1,9 +1,11 @@
 import request from 'supertest';
-import type { Express } from 'express';
 
-/** Supertest agent that keeps the session cookie and sends the current CSRF token on mutations. */
-export function createSession(app: Express) {
-  const agent = request.agent(app);
+/**
+ * Supertest agent that keeps the session cookie and sends the current CSRF token on mutations.
+ * `baseUrl` is the loopback URL from the test context (see `listenOnLoopback`).
+ */
+export function createSession(baseUrl: string) {
+  const agent = request.agent(baseUrl);
   let csrfToken = '';
 
   async function refreshCsrfToken() {

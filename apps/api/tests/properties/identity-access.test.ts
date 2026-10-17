@@ -267,7 +267,7 @@ describe('HTTP properties (synthetic accounts, isolated test database)', () => {
   it(
     'P3 every failed login returns the same status, code, message and body shape (US-001 AC2)',
     async () => {
-      const reference = await createSession(context.app).login(
+      const reference = await createSession(context.url).login(
         'reference@example.test',
         TEST_PASSWORD,
       );
@@ -321,7 +321,7 @@ describe('HTTP properties (synthetic accounts, isolated test database)', () => {
             });
           }
 
-          const session = createSession(context.app);
+          const session = createSession(context.url);
           const response = await session.login(upper ? email.toUpperCase() : email, password);
 
           expect(response.status).toBe(401);
@@ -349,7 +349,7 @@ describe('HTTP properties (synthetic accounts, isolated test database)', () => {
       await fc.assert(
         fc.asyncProperty(scenarioArbitrary, async ({ endpoint, kind, overrunMs }) => {
           await context.prisma.session.deleteMany({ where: { userId: id } });
-          const session = createSession(context.app);
+          const session = createSession(context.url);
           expect((await session.login(email, TEST_PASSWORD)).status).toBe(200);
           expect((await session.get(endpoint)).status).toBe(200);
 
