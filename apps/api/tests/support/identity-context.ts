@@ -2,7 +2,7 @@ import type { Express } from 'express';
 
 import { loadConfig, type AppConfig } from '../../src/config/index.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
-import { createApiApp } from '../../src/http/app.js';
+import { createApiApp, type ApiAppOptions } from '../../src/http/app.js';
 import { createPrismaClient } from '../../src/infrastructure/prisma.js';
 import {
   applyTestMigrations,
@@ -34,6 +34,7 @@ export type IdentityTestContext = {
 
 export async function createIdentityTestContext(
   environment: Record<string, string> = {},
+  appOptions: ApiAppOptions = {},
 ): Promise<IdentityTestContext> {
   const database = await createTestDatabaseContext();
   applyTestMigrations(database.databaseUrl);
@@ -52,7 +53,7 @@ export async function createIdentityTestContext(
   const prisma = createPrismaClient(config.databaseUrl);
   const audit = createAuditService(prisma, { error: () => undefined });
   const identity = createIdentityService({ audit, config, prisma });
-  const app = createApiApp(config, prisma);
+  const app = createApiApp(config, prisma, undefined, appOptions);
 
   return {
     app,

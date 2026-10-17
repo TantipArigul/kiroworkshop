@@ -308,3 +308,9 @@ apps/web/src/mocks/jobs.json
 | Identity `units/identity-access/design.md` | Internal | Owner-only contract, audit contract |
 | Source code บน `main` (`prisma/schema.prisma`, `apps/api/src/**`, `packages/shared/src/**`) | Internal | Existing schema, middleware, storage boundary |
 | [OWASP CSV Injection](https://owasp.org/www-community/attacks/CSV_Injection) | Guidance | C2 formula-prefix rule |
+
+## Add-on — Implementation Refinements (2026-10-17)
+- **Submission limiter**: keyed by `session.userId` (falls back to IP) to match the Foundation "10/hour/user" rule; other limiters unchanged (Open Question #4 resolved)
+- **App options**: `createApiApp(config, prisma, runtimeState, { completionHandler, isExecutorReady })` — `completionHandler` is the Results & Guidance plug-in point; `isExecutorReady` is a test hook. The worker is exposed via `getJobWorker(app)` for `server.ts` (start/stop) and tests (`tick()`)
+- **Readiness**: `/health/ready` returns `503` with `checks.executor: failed` when the executor is not running, so submissions are refused instead of queueing silently
+- **Storage guard (Foundation fix)**: `resolvePrivateStoragePath` rejects cross-drive targets on Windows (found by P5)

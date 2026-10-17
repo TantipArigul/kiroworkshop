@@ -101,19 +101,19 @@
     - **Acceptance**: ลบเฉพาะที่หมดอายุ; failure → audit `FAILURE` + log
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api build`
 
-- [ ] 5. Tests / Verify
-  - [ ] 5.1 Unit + integration tests
+- [x] 5. Tests / Verify
+  - [x] 5.1 Unit + integration tests
     - **Deps**: 3.x, 4.1 | **Ref**: `design.md` — Testing Strategy
     - **Files**: `apps/api/tests/unit/jobs/*.test.ts`, `apps/api/tests/integration/jobs/*.test.ts`, `apps/api/tests/support/jobs-context.ts`, `apps/web/src/features/jobs/*.test.ts`
     - **Acceptance**: integration cases หลักใน design ผ่านทั้งหมด
     - **Validation**: `pnpm test`
-  - [ ] 5.2 Property-based tests P1–P6
+  - [x] 5.2 Property-based tests P1–P6
     - **Deps**: 5.1 | **Ref**: `design.md` — Correctness Properties
     - แทน scaffold `job-lifecycle-scaffolds.test.ts` ด้วย `job-lifecycle.test.ts`
     - **Files**: `apps/api/tests/properties/job-lifecycle.test.ts` (ลบ scaffold เดิม)
     - **Acceptance**: P1–P6 ผ่าน 100 runs
     - **Validation**: `pnpm test:properties`
-  - [ ] 5.3 Final verification
+  - [x] 5.3 Final verification
     - **Deps**: 5.1, 5.2 | **Ref**: CI `quality.yml`
     - format:check, lint, typecheck, test, test:properties, validate:tokens, build, OpenAPI ตรง routes, browser recheck
     - **Acceptance**: ทุก gate ผ่าน; บันทึกสิ่งที่ verify ไม่ได้ตามจริง

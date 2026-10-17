@@ -46,3 +46,10 @@
 - **Action**: wave-complete
 - **Artifacts**: `apps/api/src/modules/jobs/retention.ts`, `apps/api/src/cli/jobs.ts`, `apps/api/src/http/app.ts` (sweep in worker), `apps/api/package.json` (`jobs` script), `docker/README.md`
 - **Outcome**: pass — smoke DB: expired job + `JobInput`/`JobStatusEvent` rows and its directory removed, orphan directory removed, audit `JOB_DELETED {reason: RETENTION}` recorded, exit 0; typecheck/lint/build clean
+### [2026-10-17T06:00:00Z] Implementation: Wave 5 Complete (tasks 5.1–5.3) — Unit Complete
+- **Phase**: implementation
+- **Action**: wave-complete, implementation-complete
+- **Artifacts**: `apps/api/tests/unit/jobs/jobs-units.test.ts` (33), `apps/api/tests/integration/jobs/jobs.test.ts` (18), `apps/api/tests/properties/job-lifecycle.test.ts` (P1–P6, replaces the Foundation scaffold), `apps/api/tests/support/{jobs-context,http-session,identity-context}.ts`, `apps/web/src/features/jobs/jobs.test.ts`
+- **Outcome**: pass — format:check, lint, typecheck, test (shared, web, api 14 files), test:properties, validate:tokens, build all clean; mutation check (owner check removed) fails P4 as expected and was reverted
+- **Defect found by PBT P5 and fixed**: `resolvePrivateStoragePath` accepted a cross-drive name such as `A:` on Windows because `path.relative` returns an absolute path there; the guard now also rejects absolute relative results (Foundation file, covered by a new Windows-only case in `storage-path.test.ts`)
+- **Not verified**: Docker Compose image build/run (Docker is not installed on this workstation), screen reader and real-device checks

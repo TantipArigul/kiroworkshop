@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-17T02:10:00Z"
+updated: "2026-10-17T06:00:00Z"
 state:
   status: "active"
   scope: "new"
@@ -237,17 +237,18 @@ units:
         files:
           - "tasks.md"
   - name: "submission-job-lifecycle"
-    status: "in-progress"
-    phase: "implement"
+    status: "completed"
+    phase: "complete"
     completedPhases:
       - "design"
       - "tasks"
+      - "implement"
     implementationMode: "standard"
     implementation:
       totalTasks: 17
-      completedTasks: 0
-      currentTask: "1.1"
-      currentWave: 1
+      completedTasks: 17
+      currentTask: null
+      currentWave: null
     owner: "Developer 2"
     dependencies:
       - "foundation"

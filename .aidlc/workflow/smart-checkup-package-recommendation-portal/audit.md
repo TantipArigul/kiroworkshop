@@ -204,3 +204,9 @@
 - **Action**: unit-start, approval
 - **Artifacts**: `units/submission-job-lifecycle/{design.md,tasks.md}`, manifest
 - **Outcome**: identity-access completed (merged PR #3); submission-job-lifecycle D3/D4 ใช้ค่าแนะนำภายใต้คำสั่งผู้ใช้ 2026-10-17 ให้ทำต่อจนเสร็จบน branch `feat/submission-job-lifecycle`
+
+### [2026-10-17T06:00:00Z] Unit complete: submission-job-lifecycle
+- **Phase**: implement
+- **Action**: implementation-complete
+- **Artifacts**: `units/submission-job-lifecycle/tasks.md` (17/17), manifest
+- **Outcome**: all CI gates pass locally; branch `feat/submission-job-lifecycle` pushed for review on user request; next unit `results-guidance` not started
