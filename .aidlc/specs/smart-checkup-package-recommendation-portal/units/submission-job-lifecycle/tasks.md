@@ -13,20 +13,20 @@
 
 ---
 
-- [ ] 1. Setup — shared contract, configuration และ client
-  - [ ] 1.1 เพิ่ม job contract ใน shared kernel
+- [x] 1. Setup — shared contract, configuration และ client
+  - [x] 1.1 เพิ่ม job contract ใน shared kernel
     - **Deps**: None | **Ref**: `design.md` — C1, API Specification (Shared contract changes)
     - Constants (`AGE_BANDS`, `FOCUS_AREAS`, `LIFESTYLE_FACTORS`, `INPUT_MARKERS`, limits, `JOB_POLL_INTERVAL_MS`) ใน `constants.ts`; `schemas/jobs.ts` (parameters, submit request, idempotency key, summary, detail, list, sample input) + types; `SERVICE_UNAVAILABLE` ใน `ERROR_CODES`; `JOB_INPUT_REJECTED` ใน `AUDIT_EVENT_TYPES`; OpenAPI `/jobs*`
     - **Files**: `packages/shared/src/{constants.ts,schemas/jobs.ts,schemas/common.ts,schemas/index.ts,index.ts,types/api.ts,contracts.test.ts}`, `packages/shared/openapi/openapi.yaml`
     - **Acceptance**: schema strict, ไม่ import จาก application packages
     - **Validation**: `pnpm --filter @portal/shared typecheck && pnpm --filter @portal/shared test && pnpm --filter @portal/shared build`
-  - [ ] 1.2 เพิ่ม configuration ของ executor/retention และ audit allowlist
+  - [x] 1.2 เพิ่ม configuration ของ executor/retention และ audit allowlist
     - **Deps**: 1.1 | **Ref**: `design.md` — Implementation (Configuration), API (Shared contract changes)
     - Env 6 ตัว + default + ช่วงใน `config.ts`, `.env.example`; allowlist `JOB_INPUT_REJECTED: ['reason']` ใน `audit.service.ts`
     - **Files**: `apps/api/src/config/{config.ts,config.test.ts}`, `.env.example`, `apps/api/src/modules/audit/audit.service.ts`
     - **Acceptance**: ค่า default ตาม design; ค่านอกช่วงถูกปฏิเสธ
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 1.3 ขยาย web `apiClient` ให้รองรับ DELETE และ header เสริม
+  - [x] 1.3 ขยาย web `apiClient` ให้รองรับ DELETE และ header เสริม
     - **Deps**: None | **Ref**: `design.md` — C9 (apiClient)
     - `TransportRequest.method` เพิ่ม `DELETE`; `post(path, body, headers?)`, `delete(path)`; `fetchTransport` ไม่เปลี่ยนพฤติกรรมเดิม
     - **Files**: `apps/web/src/features/auth/apiClient.ts`

@@ -148,6 +148,119 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /jobs/sample-input:
+    get:
+      summary: Authored synthetic sample input and the input format requirements
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Sample parameters, CSV content and marker allowlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SampleInputResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+  /jobs:
+    post:
+      summary: Submit a job (owner = current user); the input file is sent inline as UTF-8 text
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobSubmitRequest'
+      responses:
+        '201':
+          description: Job created in QUEUED with its bookmarkable status URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSubmitResponse'
+        '200':
+          description: Replay of an earlier submission with the same Idempotency-Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSubmitResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '503':
+          description: Executor not ready; no job was created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      summary: List the current user's jobs, most recently updated first
+      security:
+        - sessionCookie: []
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 },
+          }
+      responses:
+        '200':
+          description: Page of the owner's jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+  /jobs/{jobId}:
+    parameters:
+      - { name: jobId, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Job detail with status history (owner only)
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetailResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Delete the job, its input and results (owner only)
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204':
+          description: Job and all related data deleted
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfError'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     sessionCookie:
@@ -266,6 +379,7 @@ components:
         - JOB_SUBMITTED
         - JOB_STATUS_CHANGED
         - JOB_DELETED
+        - JOB_INPUT_REJECTED
         - RESULT_DOWNLOADED
     AuditOutcome:
       type: string
@@ -326,6 +440,154 @@ components:
               minimum: 0
         meta:
           $ref: '#/components/schemas/RequestMeta'
+    JobStatus:
+      type: string
+      enum: [QUEUED, RUNNING, COMPLETED, FAILED]
+    JobParameters:
+      type: object
+      additionalProperties: false
+      required: [sampleLabel, ageBand, focusArea]
+      properties:
+        sampleLabel:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: '^[A-Za-z0-9 _.-]+$'
+        ageBand:
+          type: string
+          enum: ['18-29', '30-39', '40-49', '50-59', '60+']
+        focusArea:
+          type: string
+          enum: [GENERAL, CARDIOMETABOLIC, LIVER, KIDNEY]
+        lifestyleFactors:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: string
+            enum: [SMOKING, LOW_ACTIVITY, HIGH_ALCOHOL, POOR_SLEEP]
+        simulateFailure:
+          type: boolean
+          default: false
+    JobInputFile:
+      type: object
+      additionalProperties: false
+      required: [name, content]
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          description: Display name only; never used as a storage path
+        content:
+          type: string
+          maxLength: 65536
+          description: UTF-8 CSV with header marker,value,unit (1-50 rows, at most 64 KB)
+    JobSubmitRequest:
+      type: object
+      additionalProperties: false
+      required: [parameters, file]
+      properties:
+        parameters:
+          $ref: '#/components/schemas/JobParameters'
+        file:
+          $ref: '#/components/schemas/JobInputFile'
+    JobSummary:
+      type: object
+      additionalProperties: false
+      required: [id, sampleLabel, status, createdAt, updatedAt, expiresAt]
+      properties:
+        id: { type: string }
+        sampleLabel: { type: string }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+    JobDetail:
+      allOf:
+        - $ref: '#/components/schemas/JobSummary'
+        - type: object
+          required: [parameters, file, history, failureSummary, statusUrl]
+          properties:
+            parameters: { $ref: '#/components/schemas/JobParameters' }
+            file:
+              type: object
+              required: [name, sizeBytes, rowCount]
+              properties:
+                name: { type: string }
+                sizeBytes: { type: integer }
+                rowCount: { type: integer }
+            history:
+              type: array
+              items:
+                type: object
+                required: [status, occurredAt, summary]
+                properties:
+                  status: { $ref: '#/components/schemas/JobStatus' }
+                  occurredAt: { type: string, format: date-time }
+                  summary: { type: [string, 'null'] }
+            failureSummary: { type: [string, 'null'] }
+            statusUrl: { type: string }
+    JobSubmitResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [job, statusUrl]
+          properties:
+            job: { $ref: '#/components/schemas/JobSummary' }
+            statusUrl: { type: string, example: /jobs/cmgq1z3b40000abcd1234efgh }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    JobListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items, page, limit, total]
+          properties:
+            items:
+              type: array
+              maxItems: 100
+              items: { $ref: '#/components/schemas/JobSummary' }
+            page: { type: integer, minimum: 1 }
+            limit: { type: integer, minimum: 1, maximum: 100 }
+            total: { type: integer, minimum: 0 }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    JobDetailResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/JobDetail' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    SampleInputResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [parameters, file, format]
+          properties:
+            parameters: { $ref: '#/components/schemas/JobParameters' }
+            file: { $ref: '#/components/schemas/JobInputFile' }
+            format:
+              type: object
+              required: [header, maxBytes, maxRows, markers]
+              properties:
+                header: { type: string, enum: ['marker,value,unit'] }
+                maxBytes: { type: integer }
+                maxRows: { type: integer }
+                markers:
+                  type: array
+                  items:
+                    type: object
+                    required: [marker, unit, min, max]
+                    properties:
+                      marker: { type: string }
+                      unit: { type: string }
+                      min: { type: number }
+                      max: { type: number }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
     ApiError:
       type: object
       additionalProperties: false
@@ -348,6 +610,7 @@ components:
                 - NOT_IMPLEMENTED
                 - PASSWORD_CHANGE_REQUIRED
                 - RATE_LIMITED
+                - SERVICE_UNAVAILABLE
                 - VALIDATION_FAILED
             message:
               type: string
@@ -390,6 +653,12 @@ components:
             $ref: '#/components/schemas/ApiError'
     RateLimitError:
       description: Route rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource is missing, deleted, expired or not accessible (indistinguishable)
       content:
         application/json:
           schema:

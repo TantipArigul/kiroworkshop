@@ -24,6 +24,12 @@ describe('HTTP security middleware contracts', () => {
       loginLockoutWindowMs: 15 * 60_000,
       loginLockoutDurationMs: 15 * 60_000,
       auditRetentionDays: 90,
+      executorEnabled: false,
+      executorPollIntervalMs: 2000,
+      executorQueuedDelayMs: 0,
+      executorRunningDelayMs: 0,
+      jobRetentionDays: 7,
+      retentionSweepIntervalMs: 3_600_000,
     });
 
     expect(rateLimiters.login).not.toBe(rateLimiters.authenticatedApi);

@@ -14,12 +14,22 @@ import type {
   currentUserResponseSchema,
   errorCodeSchema,
   healthResponseSchema,
+  inputMarkerNameSchema,
+  jobDetailSchema,
+  jobInputFileSchema,
+  jobListSchema,
+  jobParametersSchema,
+  jobStatusHistoryItemSchema,
   jobStatusSchema,
+  jobSubmitRequestSchema,
+  jobSubmitResponseSchema,
+  jobSummarySchema,
   loginRequestSchema,
   loginResponseSchema,
   paginationSchema,
   permissionSchema,
   readinessResponseSchema,
+  sampleInputSchema,
   userRoleSchema,
 } from '../schemas/index.js';
 
@@ -36,6 +46,17 @@ export type AuthenticatedUser = z.infer<typeof authenticatedUserSchema>;
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
 export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
+export type InputMarkerName = z.infer<typeof inputMarkerNameSchema>;
+export type JobDetail = z.infer<typeof jobDetailSchema>;
+export type JobInputFile = z.infer<typeof jobInputFileSchema>;
+export type JobList = z.infer<typeof jobListSchema>;
+/** Parameters after parsing (defaults applied). */
+export type JobParameters = z.output<typeof jobParametersSchema>;
+export type JobStatusHistoryItem = z.infer<typeof jobStatusHistoryItemSchema>;
+export type JobSubmitRequest = z.input<typeof jobSubmitRequestSchema>;
+export type JobSubmitResponse = z.infer<typeof jobSubmitResponseSchema>;
+export type JobSummary = z.infer<typeof jobSummarySchema>;
+export type SampleInput = z.infer<typeof sampleInputSchema>;
 export type JobStatus = z.infer<typeof jobStatusSchema>;
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;

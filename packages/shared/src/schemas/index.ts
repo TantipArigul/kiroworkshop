@@ -34,3 +34,21 @@ export {
   requestIdSchema,
 } from './common.js';
 export { healthResponseSchema, readinessResponseSchema } from './health.js';
+export {
+  ageBandSchema,
+  focusAreaSchema,
+  idempotencyKeySchema,
+  inputMarkerNameSchema,
+  jobDetailSchema,
+  jobIdSchema,
+  jobInputFileSchema,
+  jobListQuerySchema,
+  jobListSchema,
+  jobParametersSchema,
+  jobStatusHistoryItemSchema,
+  jobSubmitRequestSchema,
+  jobSubmitResponseSchema,
+  jobSummarySchema,
+  lifestyleFactorSchema,
+  sampleInputSchema,
+} from './jobs.js';

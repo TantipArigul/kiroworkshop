@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { AUDIT_OUTCOMES } from '../constants.js';
+import { AUDIT_OUTCOMES, JOB_STATUSES } from '../constants.js';
 
 export const ERROR_CODES = [
   'AUTHENTICATION_FAILED',
@@ -12,12 +12,13 @@ export const ERROR_CODES = [
   'NOT_IMPLEMENTED',
   'PASSWORD_CHANGE_REQUIRED',
   'RATE_LIMITED',
+  'SERVICE_UNAVAILABLE',
   'VALIDATION_FAILED',
 ] as const;
 
 export const errorCodeSchema = z.enum(ERROR_CODES);
 export const requestIdSchema = z.string().uuid();
-export const jobStatusSchema = z.enum(['QUEUED', 'RUNNING', 'COMPLETED', 'FAILED']);
+export const jobStatusSchema = z.enum(JOB_STATUSES);
 export const auditOutcomeSchema = z.enum(AUDIT_OUTCOMES);
 
 export const apiMetaSchema = z
