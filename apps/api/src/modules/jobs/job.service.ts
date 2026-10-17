@@ -32,6 +32,8 @@ export const ALLOWED_TRANSITIONS: Readonly<Record<JobStatus, readonly JobStatus[
   RUNNING: ['COMPLETED', 'FAILED'],
   COMPLETED: [],
   FAILED: [],
+  // Transitions into CANCELLED arrive with the cancel flow (Pipeline Catalog Wave 3).
+  CANCELLED: [],
 };
 
 export function isAllowedTransition(from: JobStatus, to: JobStatus): boolean {
@@ -410,11 +412,21 @@ export function readInputRows(content: string): InputRow[] {
   return validated.ok ? validated.rows : [];
 }
 
+// Smart Checkup defaults for the Pipeline Catalog DTO fields until the executor port lands.
+const SMART_CHECKUP_PIPELINE = {
+  pipelineId: 'smart-checkup',
+  pipelineName: 'Smart Checkup',
+} as const;
+
 function toSummary(job: JobRow, sampleLabel: string): JobSummary {
   return {
     createdAt: job.createdAt.toISOString(),
     expiresAt: job.expiresAt.toISOString(),
     id: job.id,
+    ...SMART_CHECKUP_PIPELINE,
+    progress: null,
+    queuePosition: null,
+    runName: sampleLabel,
     sampleLabel,
     status: job.status as JobStatus,
     updatedAt: job.updatedAt.toISOString(),
@@ -429,6 +441,9 @@ function toDetail(job: JobDetailRow): JobDetail {
 
   return {
     ...toSummary(job, parameters.sampleLabel),
+    cancellable: false,
+    outputs: null,
+    run: null,
     failureSummary: failed ? (lastEvent?.safeSummary ?? STATUS_SUMMARIES.HANDLER_FAILURE) : null,
     file: {
       name: String(metadata?.name ?? INPUT_FILE_NAME),

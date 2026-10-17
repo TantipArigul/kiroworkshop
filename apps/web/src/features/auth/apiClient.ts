@@ -2,11 +2,16 @@ import type { ApiError, ErrorCode } from '@portal/shared';
 
 export const API_BASE_PATH = '/api/v1';
 
+export type UploadProgressHandler = (loaded: number, total: number) => void;
+
 export type TransportRequest = {
   method: 'GET' | 'POST' | 'DELETE';
   path: string;
+  /** JSON-serialisable value, or `FormData` for multipart uploads. */
   body?: unknown;
   headers: Record<string, string>;
+  /** Upload hook: called with bytes sent so far when `body` is `FormData`. */
+  onUploadProgress?: UploadProgressHandler;
 };
 
 export type TransportResponse = {
@@ -49,6 +54,16 @@ export type ApiClient = {
   /** `headers` carries request-scoped headers such as `Idempotency-Key`. */
   post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => Promise<T>;
   delete: <T = null>(path: string) => Promise<T>;
+  /**
+   * Multipart POST with upload progress. The browser sets the multipart `Content-Type`
+   * (with its boundary), so it is never set here.
+   */
+  upload: <T>(
+    path: string,
+    formData: FormData,
+    headers?: Record<string, string>,
+    onProgress?: UploadProgressHandler,
+  ) => Promise<T>;
 };
 
 const GENERIC_ERROR_MESSAGE = 'Unable to complete the request. Please try again.';
@@ -59,11 +74,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     path: string,
     body?: unknown,
     extraHeaders: Record<string, string> = {},
+    onUploadProgress?: UploadProgressHandler,
   ) {
     const headers: Record<string, string> = { ...extraHeaders, Accept: 'application/json' };
     const csrfToken = options.getCsrfToken();
 
-    if (body !== undefined) {
+    if (body !== undefined && !(body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -74,7 +90,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     let response: TransportResponse;
 
     try {
-      response = await options.transport({ method, path, body, headers });
+      response = await options.transport(
+        onUploadProgress
+          ? { method, path, body, headers, onUploadProgress }
+          : { method, path, body, headers },
+      );
     } catch {
       throw new ApiRequestError(0, 'NETWORK_ERROR', 'The service is unreachable. Please retry.');
     }
@@ -100,10 +120,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     get: (path) => request('GET', path),
     post: (path, body, headers) => request('POST', path, body, headers),
     delete: (path) => request('DELETE', path),
+    upload: (path, formData, headers, onProgress) =>
+      request('POST', path, formData, headers, onProgress),
   };
 }
 
-export const fetchTransport: Transport = async ({ method, path, body, headers }) => {
+export const fetchTransport: Transport = async (request) => {
+  // fetch() cannot report upload progress, so multipart bodies go through XMLHttpRequest.
+  if (request.body instanceof FormData) {
+    return xhrUpload(request, request.body);
+  }
+
+  const { method, path, body, headers } = request;
   const response = await fetch(`${API_BASE_PATH}${path}`, {
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: 'same-origin',
@@ -114,6 +142,42 @@ export const fetchTransport: Transport = async ({ method, path, body, headers })
 
   return { status: response.status, body: text ? (JSON.parse(text) as unknown) : null };
 };
+
+/** Same-origin XHR (cookies are sent by default); rejects on network failure like fetch. */
+function xhrUpload(request: TransportRequest, formData: FormData): Promise<TransportResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open(request.method, `${API_BASE_PATH}${request.path}`);
+
+    for (const [name, value] of Object.entries(request.headers)) {
+      if (name.toLowerCase() !== 'content-type') {
+        xhr.setRequestHeader(name, value);
+      }
+    }
+
+    const { onUploadProgress } = request;
+
+    if (onUploadProgress) {
+      xhr.upload.addEventListener('progress', (event) => {
+        onUploadProgress(event.loaded, event.lengthComputable ? event.total : 0);
+      });
+    }
+
+    xhr.addEventListener('load', () => {
+      try {
+        const text = xhr.status === 204 ? '' : xhr.responseText;
+        resolve({ status: xhr.status, body: text ? (JSON.parse(text) as unknown) : null });
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('Invalid response body.'));
+      }
+    });
+    xhr.addEventListener('error', () => reject(new Error('Upload failed.')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted.')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload timed out.')));
+    xhr.send(formData);
+  });
+}
 
 function toApiRequestError(response: TransportResponse): ApiRequestError {
   const envelope = response.body as Partial<ApiError> | null;

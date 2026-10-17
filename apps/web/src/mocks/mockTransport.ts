@@ -12,7 +12,11 @@ import {
   INPUT_MARKERS,
 } from '@portal/shared/constants';
 
-import type { Transport, TransportResponse } from '../features/auth/apiClient';
+import type {
+  Transport,
+  TransportResponse,
+  UploadProgressHandler,
+} from '../features/auth/apiClient';
 import auditFixture from './audit-events.json';
 import jobsFixture from './jobs.json';
 import accountFixture from './me.json';
@@ -29,7 +33,17 @@ const auditEvents = auditFixture.events as AuditEvent[];
 
 let currentUser: AuthenticatedUser | null = null;
 
-export const mockTransport: Transport = async ({ method, path, body, headers }) => {
+export const mockTransport: Transport = async ({
+  method,
+  path,
+  body,
+  headers,
+  onUploadProgress,
+}) => {
+  if (body instanceof FormData) {
+    await simulateUploadProgress(body, onUploadProgress);
+  }
+
   await new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS));
 
   const url = new URL(path, 'https://mock.invalid');
@@ -54,13 +68,62 @@ export const mockTransport: Transport = async ({ method, path, body, headers }) 
   }
 };
 
+// ---------- Uploads (Pipeline Catalog upload hook) ----------
+
+const UPLOAD_STEPS = 5;
+const UPLOAD_STEP_MS = 150;
+
+/** Reports upload progress in a few steps; the mock never reads file contents. */
+async function simulateUploadProgress(
+  formData: FormData,
+  onUploadProgress: UploadProgressHandler | undefined,
+) {
+  let total = 0;
+
+  for (const value of formData.values()) {
+    total += typeof value === 'string' ? value.length : value.size;
+  }
+
+  for (let step = 1; step <= UPLOAD_STEPS; step += 1) {
+    await new Promise((resolve) => setTimeout(resolve, UPLOAD_STEP_MS));
+    onUploadProgress?.(Math.round((total * step) / UPLOAD_STEPS), total);
+  }
+}
+
 // ---------- Jobs (Submission & Job Lifecycle, Wave 2 mock) ----------
 
 type MockJob = JobDetail & { mockCreatedAtMs?: number };
 
 const QUEUED_MS = 3_000;
 const RUNNING_MS = 5_000;
-const jobs: MockJob[] = (jobsFixture.jobs as JobDetail[]).map((job) => ({ ...job }));
+/** Pipeline Catalog DTO fields for Smart Checkup jobs (fixtures predate them). */
+function withSmartCheckupDefaults<T extends { sampleLabel: string }>(job: T) {
+  return {
+    cancellable: false,
+    outputs: null,
+    pipelineId: 'smart-checkup' as const,
+    pipelineName: 'Smart Checkup',
+    progress: null,
+    queuePosition: null,
+    run: null,
+    runName: job.sampleLabel,
+    ...job,
+  };
+}
+
+type PipelineCatalogFields =
+  | 'cancellable'
+  | 'outputs'
+  | 'pipelineId'
+  | 'pipelineName'
+  | 'progress'
+  | 'queuePosition'
+  | 'run'
+  | 'runName';
+
+const jobs: MockJob[] = (jobsFixture.jobs as Omit<JobDetail, PipelineCatalogFields>[]).map(
+  (job) => withSmartCheckupDefaults(job) as MockJob,
+);
 const submittedKeys = new Map<string, string>();
 
 function routeJobs(
@@ -157,10 +220,10 @@ function submitJob(input: JobSubmitRequest, key: string): TransportResponse {
     lifestyleFactors: [],
     simulateFailure: false,
     ...input.parameters,
-  } as JobDetail['parameters'];
+  } as NonNullable<JobDetail['parameters']>;
   const job: MockJob = {
+    ...withSmartCheckupDefaults({ sampleLabel: parameters.sampleLabel }),
     id,
-    sampleLabel: parameters.sampleLabel,
     status: 'QUEUED',
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
@@ -208,7 +271,7 @@ function advance(job: MockJob): MockJob {
   }
 
   if (job.status === 'RUNNING' && elapsed >= QUEUED_MS + RUNNING_MS) {
-    const failed = job.parameters.simulateFailure;
+    const failed = job.parameters?.simulateFailure ?? false;
     const summary = failed
       ? 'Simulated pipeline failure requested by the training option. Submit again without it to complete.'
       : 'Analysis completed.';
@@ -222,8 +285,32 @@ function advance(job: MockJob): MockJob {
 }
 
 function toSummary(job: JobDetail): JobSummary {
-  const { createdAt, expiresAt, id, sampleLabel, status, updatedAt } = job;
-  return { createdAt, expiresAt, id, sampleLabel, status, updatedAt };
+  const {
+    createdAt,
+    expiresAt,
+    id,
+    pipelineId,
+    pipelineName,
+    progress,
+    queuePosition,
+    runName,
+    sampleLabel,
+    status,
+    updatedAt,
+  } = job;
+  return {
+    createdAt,
+    expiresAt,
+    id,
+    pipelineId,
+    pipelineName,
+    progress,
+    queuePosition,
+    runName,
+    sampleLabel,
+    status,
+    updatedAt,
+  };
 }
 
 function login(input: { email?: string; password?: string }): TransportResponse {

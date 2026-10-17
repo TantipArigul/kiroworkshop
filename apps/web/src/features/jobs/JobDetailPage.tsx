@@ -108,32 +108,38 @@ export function JobDetailPage() {
         <section aria-labelledby="job-input-title" className="ui-card job-panel">
           <h2 id="job-input-title">Submitted input</h2>
           <dl className="job-facts">
-            <div>
-              <dt>Age band</dt>
-              <dd>{job.parameters.ageBand}</dd>
-            </div>
-            <div>
-              <dt>Focus area</dt>
-              <dd>{humanize(job.parameters.focusArea)}</dd>
-            </div>
-            <div>
-              <dt>Lifestyle factors</dt>
-              <dd>
-                {job.parameters.lifestyleFactors.length > 0
-                  ? job.parameters.lifestyleFactors.map(humanize).join(', ')
-                  : 'None selected'}
-              </dd>
-            </div>
-            <div>
-              <dt>Simulated failure</dt>
-              <dd>{job.parameters.simulateFailure ? 'Requested' : 'No'}</dd>
-            </div>
-            <div>
-              <dt>File</dt>
-              <dd>
-                {job.file.name} · {formatBytes(job.file.sizeBytes)} · {job.file.rowCount} rows
-              </dd>
-            </div>
+            {job.parameters ? (
+              <>
+                <div>
+                  <dt>Age band</dt>
+                  <dd>{job.parameters.ageBand}</dd>
+                </div>
+                <div>
+                  <dt>Focus area</dt>
+                  <dd>{humanize(job.parameters.focusArea)}</dd>
+                </div>
+                <div>
+                  <dt>Lifestyle factors</dt>
+                  <dd>
+                    {job.parameters.lifestyleFactors.length > 0
+                      ? job.parameters.lifestyleFactors.map(humanize).join(', ')
+                      : 'None selected'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Simulated failure</dt>
+                  <dd>{job.parameters.simulateFailure ? 'Requested' : 'No'}</dd>
+                </div>
+              </>
+            ) : null}
+            {job.file ? (
+              <div>
+                <dt>File</dt>
+                <dd>
+                  {job.file.name} · {formatBytes(job.file.sizeBytes)} · {job.file.rowCount} rows
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt>Submitted</dt>
               <dd>

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
-    "./constants": "./dist/constants.js"
+    "./constants": "./dist/constants.js",
+    "./run-input": "./dist/validation/run-input.js"
   },
   "dependencies": {
     "zod": "4.6.5"
