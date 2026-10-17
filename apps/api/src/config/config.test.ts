@@ -85,4 +85,30 @@ describe('loadConfig', () => {
       expect((error as ConfigValidationError).fields).toEqual(['AUDIT_RETENTION_DAYS']);
     }
   });
+
+  it('applies executor and job retention defaults', () => {
+    const config = loadConfig(validEnvironment);
+
+    expect(config.executorEnabled).toBe(true);
+    expect(config.executorPollIntervalMs).toBe(2000);
+    expect(config.executorQueuedDelayMs).toBe(3000);
+    expect(config.executorRunningDelayMs).toBe(5000);
+    expect(config.jobRetentionDays).toBe(7);
+    expect(config.retentionSweepIntervalMs).toBe(3_600_000);
+    expect(loadConfig({ ...validEnvironment, EXECUTOR_ENABLED: 'false' }).executorEnabled).toBe(
+      false,
+    );
+  });
+
+  it('rejects a job retention longer than the approved seven days', () => {
+    try {
+      loadConfig({ ...validEnvironment, JOB_RETENTION_DAYS: '8', EXECUTOR_ENABLED: 'yes' });
+      expect.unreachable();
+    } catch (error) {
+      expect((error as ConfigValidationError).fields).toEqual([
+        'EXECUTOR_ENABLED',
+        'JOB_RETENTION_DAYS',
+      ]);
+    }
+  });
 });

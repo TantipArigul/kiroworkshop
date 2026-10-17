@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  INPUT_FILE_MAX_BYTES,
   apiErrorSchema,
   auditEventListResponseSchema,
   auditEventQuerySchema,
+  auditEventTypeSchema,
   auditNotificationSchema,
   authenticatedUserSchema,
   changePasswordRequestSchema,
   createSuccessResponse,
   healthResponseSchema,
+  idempotencyKeySchema,
+  jobIdSchema,
+  jobParametersSchema,
+  jobSubmitRequestSchema,
   loginRequestSchema,
   paginationSchema,
 } from './index.js';
@@ -162,5 +168,49 @@ describe('audit query contracts', () => {
         },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('job contracts', () => {
+  const parameters = {
+    sampleLabel: 'Training sample A',
+    ageBand: '40-49',
+    focusArea: 'CARDIOMETABOLIC',
+    lifestyleFactors: ['LOW_ACTIVITY'],
+  };
+
+  it('applies defaults and rejects unknown or unsafe parameter values', () => {
+    expect(
+      jobSubmitRequestSchema.parse({ parameters, file: { name: 'a.csv', content: 'x' } }),
+    ).toMatchObject({ parameters: { simulateFailure: false } });
+    expect(jobParametersSchema.safeParse({ ...parameters, ageBand: '10-17' }).success).toBe(false);
+    expect(jobParametersSchema.safeParse({ ...parameters, sampleLabel: '<script>' }).success).toBe(
+      false,
+    );
+    expect(
+      jobParametersSchema.safeParse({ ...parameters, lifestyleFactors: ['SMOKING', 'SMOKING'] })
+        .success,
+    ).toBe(false);
+    expect(jobParametersSchema.safeParse({ ...parameters, patientName: 'x' }).success).toBe(false);
+  });
+
+  it('bounds the inline file and requires UUID idempotency keys and cuid job IDs', () => {
+    expect(
+      jobSubmitRequestSchema.safeParse({
+        parameters,
+        file: { name: 'a.csv', content: 'x'.repeat(INPUT_FILE_MAX_BYTES + 1) },
+      }).success,
+    ).toBe(false);
+    expect(idempotencyKeySchema.safeParse('46d1f548-322b-41d6-b67f-3876622e1b63').success).toBe(
+      true,
+    );
+    expect(idempotencyKeySchema.safeParse('retry-1').success).toBe(false);
+    expect(jobIdSchema.safeParse('cmgq1z3b40000abcd1234efgh').success).toBe(true);
+    expect(jobIdSchema.safeParse('../etc').success).toBe(false);
+  });
+
+  it('includes the job error code and audit event type added by the unit', () => {
+    expect(errorCodeSchema.safeParse('SERVICE_UNAVAILABLE').success).toBe(true);
+    expect(auditEventTypeSchema.safeParse('JOB_INPUT_REJECTED').success).toBe(true);
   });
 });

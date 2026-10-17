@@ -49,6 +49,7 @@ const METADATA_ALLOWLIST: Readonly<Record<AuditEventType, readonly string[]>> = 
   JOB_SUBMITTED: ['status'],
   JOB_STATUS_CHANGED: ['from', 'to'],
   JOB_DELETED: ['reason'],
+  JOB_INPUT_REJECTED: ['reason'],
   RESULT_DOWNLOADED: ['artifactId'],
 };
 

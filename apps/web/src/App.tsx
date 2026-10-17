@@ -16,6 +16,9 @@ import { useAuth } from './features/auth/authContext';
 import { ChangePasswordPage } from './features/auth/ChangePasswordPage';
 import { CHANGE_PASSWORD_PATH, RequireAuth } from './features/auth/RequireAuth';
 import { SignInPage } from './features/auth/SignInPage';
+import { JobDetailPage } from './features/jobs/JobDetailPage';
+import { JobsListPage } from './features/jobs/JobsListPage';
+import { NewJobPage } from './features/jobs/NewJobPage';
 
 export function App() {
   return (
@@ -42,10 +45,26 @@ export function App() {
               <Route
                 element={
                   <RequireAuth>
-                    <Workspace />
+                    <JobsListPage />
                   </RequireAuth>
                 }
                 path="/jobs"
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <NewJobPage />
+                  </RequireAuth>
+                }
+                path="/jobs/new"
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <JobDetailPage />
+                  </RequireAuth>
+                }
+                path="/jobs/:jobId"
               />
               <Route
                 element={
@@ -255,33 +274,6 @@ function Step({ number, text, title }: { number: string; text: string; title: st
       <h3>{title}</h3>
       <p>{text}</p>
     </article>
-  );
-}
-
-function Workspace() {
-  return (
-    <section className="workspace">
-      <div className="workspace-head">
-        <div>
-          <p className="eyebrow">Workspace / Jobs</p>
-          <h1>Analysis jobs</h1>
-          <p>Monitor submitted analysis and return to the same secure result link later.</p>
-        </div>
-        <Button aria-describedby="new-analysis-hint" disabled>
-          New analysis
-        </Button>
-      </div>
-      <div className="job-surface">
-        <div>
-          <h2>No jobs yet</h2>
-          <p id="new-analysis-hint">
-            Job submission arrives with the Submission &amp; Job Lifecycle unit. Until then, review
-            the guide to prepare a synthetic input.
-          </p>
-          <Link to="/help">Open the submission guide</Link>
-        </div>
-      </div>
-    </section>
   );
 }
 

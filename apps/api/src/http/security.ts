@@ -2,7 +2,7 @@ import type { Request, RequestHandler, Response } from 'express';
 
 import { csrfSync } from 'csrf-sync';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import session from 'express-session';
 
 import type { AppConfig } from '../config/index.js';
@@ -79,7 +79,10 @@ export function createRateLimiters(config: AppConfig) {
   return {
     authenticatedApi: createRateLimiter(60_000, config.authRateLimitMax),
     login: createRateLimiter(15 * 60_000, config.loginRateLimitMax),
-    submit: createRateLimiter(60 * 60_000, config.submitRateLimitMax),
+    // Submission limit is per user (Foundation API spec); mount it after authentication.
+    submit: createRateLimiter(60 * 60_000, config.submitRateLimitMax, (request) =>
+      request.session?.userId ? `user:${request.session.userId}` : ipKeyGenerator(request.ip ?? ''),
+    ),
   };
 }
 
@@ -87,12 +90,17 @@ export const csrfProtection = csrfSynchronisedProtection;
 export const generateCsrfToken = generateToken;
 export { invalidCsrfTokenError };
 
-function createRateLimiter(windowMs: number, limit: number): RequestHandler {
+function createRateLimiter(
+  windowMs: number,
+  limit: number,
+  keyGenerator?: (request: Request) => string,
+): RequestHandler {
   return rateLimit({
     windowMs,
     limit,
     legacyHeaders: false,
     standardHeaders: 'draft-8',
+    ...(keyGenerator ? { keyGenerator } : {}),
     handler: (_request: Request, _response: Response, next) => next(new RateLimitError()),
   });
 }

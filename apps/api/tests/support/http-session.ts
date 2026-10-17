@@ -39,11 +39,12 @@ export function createSession(app: Express) {
     agent,
     get: (path: string) => agent.get(path),
     login,
-    post: (path: string, body?: object) =>
+    post: (path: string, body?: object, headers: Record<string, string> = {}) =>
       agent
         .post(path)
-        .set('X-CSRF-Token', csrfToken)
+        .set({ ...headers, 'X-CSRF-Token': csrfToken })
         .send(body ?? {}),
+    delete: (path: string) => agent.delete(path).set('X-CSRF-Token', csrfToken),
     refreshCsrfToken,
   };
 }

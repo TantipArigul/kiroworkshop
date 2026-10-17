@@ -14,6 +14,12 @@ jobs:
       - run: corepack enable
       - run: corepack prepare pnpm@12.8.1 --activate
       - run: pnpm install --frozen-lockfile
+      # Generated, gitignored inputs: `@portal/shared` resolves to its `dist/` build and the API
+      # imports the Prisma client from `apps/api/src/generated/`. Both must exist before checks.
+      - run: pnpm --filter @portal/shared build
+      - run: pnpm --filter @portal/api prisma:generate
+        env:
+          DATABASE_URL: file:./data/ci.db
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

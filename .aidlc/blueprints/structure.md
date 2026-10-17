@@ -77,3 +77,16 @@ apps/web/src/features/audit/     # AuditPage (AUDIT_READ only)
 
 - Unit อื่นใช้ identity ผ่าน `requireAuthenticated`, `passwordChangeGate`, `requirePermission`, `assertOwnedResourceAccess` และ `AuditService.record()` เท่านั้น — ห้าม query `User`/`Session`/`AuditEvent` ผ่าน Prisma โดยตรง
 - Tests: `apps/api/tests/{unit,integration}/identity/` และ `apps/api/tests/properties/identity-access.test.ts`
+
+## Add-on — Submission & Job Lifecycle Structure (2026-10-17)
+
+```text
+packages/shared/src/schemas/jobs.ts    # job parameters/DTO schemas; constants in constants.ts
+apps/api/src/modules/jobs/             # input-validator, job-storage, job.service, completion, job-worker, retention, sample-input, jobs.routes
+apps/api/src/cli/jobs.ts               # one-off `jobs:cleanup`
+apps/web/src/features/jobs/            # JobsListPage, NewJobPage, JobDetailPage, jobsApi, useJobPolling
+STORAGE_ROOT/jobs/{jobId}/             # input.csv, result.json (+ Results artifacts)
+```
+
+- Results & Guidance reads Job state only through `JobService.getOwnedJob` and writes artifacts only under `JobStorage.jobDirectory(jobId)`; it never queries `Job`/`JobInput`/`JobStatusEvent` directly
+- Tests: `apps/api/tests/{unit,integration}/jobs/` and `apps/api/tests/properties/job-lifecycle.test.ts`

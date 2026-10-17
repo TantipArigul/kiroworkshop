@@ -1,31 +1,48 @@
 import request from 'supertest';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Express } from 'express';
 
-import { loadConfig } from '../config/config.js';
+import { loadConfig, type AppConfig } from '../config/config.js';
+import type { PrismaClient } from '../generated/prisma/client.js';
 import { createPrismaClient } from '../infrastructure/prisma.js';
+import {
+  applyTestMigrations,
+  createTestDatabaseContext,
+  type TestDatabaseContext,
+} from '../infrastructure/test-database.js';
 import { createApiApp, type ApiRuntimeState } from './app.js';
 
-const config = loadConfig({
-  NODE_ENV: 'test',
-  PORT: '3000',
-  DATABASE_URL: 'file:/Users/tantip/Desktop/VibeCode/Pipeline Web Portal/data/portal.db',
-  SESSION_SECRET: 'a-secure-test-session-secret-with-32-chars',
-  ALLOWED_ORIGINS: 'https://localhost',
-  LOG_LEVEL: 'info',
-  SHUTDOWN_TIMEOUT_MS: '30000',
-  STORAGE_ROOT: '/tmp/portal-private',
-  PAGE_SIZE_DEFAULT: '20',
-  PAGE_SIZE_MAX: '100',
-  LOGIN_RATE_LIMIT_MAX: '5',
-  AUTH_RATE_LIMIT_MAX: '120',
-  SUBMIT_RATE_LIMIT_MAX: '10',
+let database: TestDatabaseContext;
+let config: AppConfig;
+let prisma: PrismaClient;
+let app: Express;
+
+beforeAll(async () => {
+  // An isolated, migrated SQLite file per run — never a developer's local database.
+  database = await createTestDatabaseContext();
+  applyTestMigrations(database.databaseUrl);
+  config = loadConfig({
+    NODE_ENV: 'test',
+    PORT: '3000',
+    DATABASE_URL: database.databaseUrl,
+    SESSION_SECRET: 'a-secure-test-session-secret-with-32-chars',
+    ALLOWED_ORIGINS: 'https://localhost',
+    LOG_LEVEL: 'fatal',
+    SHUTDOWN_TIMEOUT_MS: '30000',
+    STORAGE_ROOT: database.directory,
+    PAGE_SIZE_DEFAULT: '20',
+    PAGE_SIZE_MAX: '100',
+    LOGIN_RATE_LIMIT_MAX: '5',
+    AUTH_RATE_LIMIT_MAX: '120',
+    SUBMIT_RATE_LIMIT_MAX: '10',
+  });
+  prisma = createPrismaClient(config.databaseUrl);
+  app = createApiApp(config, prisma, undefined, { isExecutorReady: () => true });
 });
-const prisma = createPrismaClient(config.databaseUrl);
-const app = createApiApp(config, prisma);
 
 afterAll(async () => {
-  await prisma.session.deleteMany({ where: { userId: null } });
   await prisma.$disconnect();
+  await database.cleanup();
 });
 
 describe('Foundation API runtime', () => {
@@ -37,7 +54,7 @@ describe('Foundation API runtime', () => {
     expect(healthResponse.body.meta.requestId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(healthResponse.headers['x-request-id']).toBe(healthResponse.body.meta.requestId);
     expect(readinessResponse.body.data).toEqual({
-      checks: { database: 'ok' },
+      checks: { database: 'ok', executor: 'ok' },
       status: 'ready',
     });
   });

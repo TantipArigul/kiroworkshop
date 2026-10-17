@@ -98,3 +98,12 @@ Stack ที่ผู้ใช้กำหนดเป็น React + TypeScript,
 
 ## Add-on — Brand fonts approved (2026-10-15)
 - `@fontsource/atkinson-hyperlegible` 5.3.0 and `@fontsource/crimson-pro` 5.3.0 (OFL-1.1) are pinned `apps/web` dependencies; fonts are self-hosted via the Vite bundle with no third-party CDN.
+
+## Add-on — Submission & Job Lifecycle Design (2026-10-17)
+- **Input**: enum parameters + synthetic CSV (`marker,value,unit`, 10 allowlisted markers) sent as UTF-8 text in one JSON body (≤ 64 KB file, 50 rows); server-side CSV validation rejects unsafe filenames, formula prefixes and out-of-range values
+- **Executor**: in-process DB-polling worker loop (no outbound call), deterministic failure via `simulateFailure`, startup reconciliation of stale `RUNNING`, heartbeat in readiness (`checks.executor`)
+- **Result boundary**: `JobCompletionHandler` port — default writes `result.json`; Results & Guidance plugs in artifact/recommendation creation
+- **Idempotency**: `Idempotency-Key` header (UUID) + `@@unique([ownerId, idempotencyKey])`
+- **Retention**: 7 days; hourly sweep in the worker + one-off `jobs:cleanup` CLI; hard delete with cascade and storage removal
+- **Shared kernel additions**: error code `SERVICE_UNAVAILABLE`; audit event `JOB_INPUT_REJECTED`
+- **Dependencies**: no new packages

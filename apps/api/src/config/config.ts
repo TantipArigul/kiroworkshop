@@ -26,6 +26,12 @@ export type AppConfig = {
   loginLockoutWindowMs: number;
   loginLockoutDurationMs: number;
   auditRetentionDays: number;
+  executorEnabled: boolean;
+  executorPollIntervalMs: number;
+  executorQueuedDelayMs: number;
+  executorRunningDelayMs: number;
+  jobRetentionDays: number;
+  retentionSweepIntervalMs: number;
 };
 
 const MINUTE_MS = 60_000;
@@ -69,6 +75,18 @@ const rawConfigSchema = z
       .min(AUDIT_RETENTION_DAYS_MIN)
       .max(3650)
       .default(90),
+    EXECUTOR_ENABLED: z.enum(['true', 'false']).default('true'),
+    EXECUTOR_POLL_INTERVAL_MS: z.coerce.number().int().min(500).max(60_000).default(2000),
+    EXECUTOR_QUEUED_DELAY_MS: z.coerce.number().int().min(0).max(600_000).default(3000),
+    EXECUTOR_RUNNING_DELAY_MS: z.coerce.number().int().min(0).max(600_000).default(5000),
+    // The approved retention policy is seven days; shorter windows are allowed for demos.
+    JOB_RETENTION_DAYS: z.coerce.number().int().min(1).max(7).default(7),
+    RETENTION_SWEEP_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(60_000)
+      .max(86_400_000)
+      .default(3_600_000),
   })
   .superRefine((value, context) => {
     if (
@@ -137,6 +155,12 @@ export function loadConfig(environment: Environment): AppConfig {
     loginLockoutWindowMs: parsedConfig.data.LOGIN_LOCKOUT_WINDOW_MINUTES * MINUTE_MS,
     loginLockoutDurationMs: parsedConfig.data.LOGIN_LOCKOUT_DURATION_MINUTES * MINUTE_MS,
     auditRetentionDays: parsedConfig.data.AUDIT_RETENTION_DAYS,
+    executorEnabled: parsedConfig.data.EXECUTOR_ENABLED === 'true',
+    executorPollIntervalMs: parsedConfig.data.EXECUTOR_POLL_INTERVAL_MS,
+    executorQueuedDelayMs: parsedConfig.data.EXECUTOR_QUEUED_DELAY_MS,
+    executorRunningDelayMs: parsedConfig.data.EXECUTOR_RUNNING_DELAY_MS,
+    jobRetentionDays: parsedConfig.data.JOB_RETENTION_DAYS,
+    retentionSweepIntervalMs: parsedConfig.data.RETENTION_SWEEP_INTERVAL_MS,
   };
 }
 

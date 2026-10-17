@@ -3,7 +3,7 @@ import type { ApiError, ErrorCode } from '@portal/shared';
 export const API_BASE_PATH = '/api/v1';
 
 export type TransportRequest = {
-  method: 'GET' | 'POST';
+  method: 'GET' | 'POST' | 'DELETE';
   path: string;
   body?: unknown;
   headers: Record<string, string>;
@@ -46,14 +46,21 @@ export type ApiClientOptions = {
 
 export type ApiClient = {
   get: <T>(path: string) => Promise<T>;
-  post: <T>(path: string, body?: unknown) => Promise<T>;
+  /** `headers` carries request-scoped headers such as `Idempotency-Key`. */
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => Promise<T>;
+  delete: <T = null>(path: string) => Promise<T>;
 };
 
 const GENERIC_ERROR_MESSAGE = 'Unable to complete the request. Please try again.';
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
-  async function request<T>(method: TransportRequest['method'], path: string, body?: unknown) {
-    const headers: Record<string, string> = { Accept: 'application/json' };
+  async function request<T>(
+    method: TransportRequest['method'],
+    path: string,
+    body?: unknown,
+    extraHeaders: Record<string, string> = {},
+  ) {
+    const headers: Record<string, string> = { ...extraHeaders, Accept: 'application/json' };
     const csrfToken = options.getCsrfToken();
 
     if (body !== undefined) {
@@ -91,7 +98,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   return {
     get: (path) => request('GET', path),
-    post: (path, body) => request('POST', path, body),
+    post: (path, body, headers) => request('POST', path, body, headers),
+    delete: (path) => request('DELETE', path),
   };
 }
 

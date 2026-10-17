@@ -73,11 +73,34 @@ Example crontab entry (`crontab -e`; adjust the path). The encrypted volume must
 Audit events are append-only: the database rejects updates, and deletes of events inside the
 90-day window. `AUDIT_RETENTION_DAYS` cannot be set below 90.
 
+### Job retention (7 days)
+
+The API deletes jobs older than `JOB_RETENTION_DAYS` (default and maximum 7) automatically every
+`RETENTION_SWEEP_INTERVAL_MS` (default one hour) and once shortly after start — no scheduler is
+required. Each deletion removes the job, its input, results and its `jobs/{jobId}/` directory under
+`STORAGE_ROOT`; only a `JOB_DELETED` audit event (no input or result content) remains. Failures are
+recorded as `JOB_DELETED` with outcome `Failure` in the Audit viewer and retried on the next sweep.
+To run the same sweep on demand (for example after the API was stopped for a while):
+
+```zsh
+docker compose run --rm -T api node apps/api/dist/cli/jobs.js jobs:cleanup
+```
+
+### Simulated executor
+
+Jobs are processed inside the API process by a simulated local executor (no outbound calls).
+`EXECUTOR_QUEUED_DELAY_MS` and `EXECUTOR_RUNNING_DELAY_MS` control how long a job stays in each
+state; `EXECUTOR_ENABLED=false` stops processing and makes `/health/ready` report
+`executor: failed`, so new submissions are refused with `503` instead of queueing silently. A job
+left `Running` by a restart is marked `Failed` with a safe message when the API starts again.
+
 ## 5. Incident playbook (local MVP)
 
-1. **Detect** — in the Audit viewer (`AUDITOR`/`ADMIN`) filter `Login failure`, `Account locked` and
-   `Authorization denied`; note actor IDs and request IDs.
-2. **Contain** — `user:disable` the affected account; this revokes all of its sessions.
+1. **Detect** — in the Audit viewer (`AUDITOR`/`ADMIN`) filter `Login failure`, `Account locked`,
+   `Authorization denied`, `Job input rejected` and `Job deleted` with outcome `Failure`; note actor
+   IDs and request IDs.
+2. **Contain** — `user:disable` the affected account; this revokes all of its sessions. For an
+   executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`).
 3. **Remediate** — `user:reset-password` with a new temporary password; review role with `user:set-role`.
 4. **Recover** — `user:enable` once the user has been contacted out of band.
 5. **Review** — record the timeline from audit events and request IDs; logs never contain passwords,

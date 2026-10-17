@@ -10,6 +10,12 @@ import { createAuditService } from '../modules/audit/audit.service.js';
 import { createIdentityRouter } from '../modules/identity/identity.routes.js';
 import { createIdentityService } from '../modules/identity/identity.service.js';
 import { createSessionGuard } from '../modules/identity/session-guard.js';
+import { writeResultSummary, type JobCompletionHandler } from '../modules/jobs/completion.js';
+import { createJobStorage } from '../modules/jobs/job-storage.js';
+import { createJobWorker, type JobWorker } from '../modules/jobs/job-worker.js';
+import { createJobService } from '../modules/jobs/job.service.js';
+import { createJobsRouter } from '../modules/jobs/jobs.routes.js';
+import { createRetentionSweeper } from '../modules/jobs/retention.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -29,10 +35,18 @@ export type ApiRuntimeState = {
   startedAt: number;
 };
 
+export type ApiAppOptions = {
+  /** Replaces the default `result.json` handler (Results & Guidance plugs in here). */
+  completionHandler?: JobCompletionHandler;
+  /** Test hook: overrides executor readiness when the worker loop is not started. */
+  isExecutorReady?: () => boolean;
+};
+
 export function createApiApp(
   config: AppConfig,
   prisma: PrismaClient,
   runtimeState: ApiRuntimeState = { draining: false, startedAt: Date.now() },
+  options: ApiAppOptions = {},
 ): Express {
   const app = express();
   const logger = createLogger(config);
@@ -41,6 +55,34 @@ export function createApiApp(
   const audit = createAuditService(prisma, logger);
   const identity = createIdentityService({ audit, config, prisma });
   const guard = createSessionGuard({ audit, config, identity });
+  const storage = createJobStorage(config.storageRoot);
+  const jobs = createJobService({
+    audit,
+    config,
+    isExecutorReady: () => executorReady(),
+    logger,
+    prisma,
+    storage,
+  });
+  const sweepExpiredJobs = createRetentionSweeper({ audit, jobs, logger, prisma, storage });
+  const worker = createJobWorker({
+    completionHandler: options.completionHandler ?? writeResultSummary,
+    config,
+    jobs,
+    logger,
+    prisma,
+    storage,
+    sweep: async () => {
+      const result = await sweepExpiredJobs();
+
+      if (result.deleted + result.failed + result.orphansRemoved > 0) {
+        logger.info(result, 'Retention sweep completed');
+      }
+    },
+  });
+  // server.ts starts/stops the worker with the HTTP server; tests drive `tick()` directly.
+  app.locals.jobWorker = worker;
+  const executorReady = () => (options.isExecutorReady ?? worker.isReady)();
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -79,23 +121,26 @@ export function createApiApp(
 
     try {
       await prisma.$queryRawUnsafe('SELECT 1');
-      response
-        .status(200)
-        .json(
-          createSuccessResponse(
-            { checks: { database: 'ok' }, status: 'ready' },
-            getRequestId(response),
-          ),
-        );
+      const executor = executorReady() ? 'ok' : 'failed';
+      response.status(executor === 'ok' ? 200 : 503).json(
+        createSuccessResponse(
+          {
+            checks: { database: 'ok', executor },
+            status: executor === 'ok' ? 'ready' : 'not_ready',
+          },
+          getRequestId(response),
+        ),
+      );
     } catch {
-      response
-        .status(503)
-        .json(
-          createSuccessResponse(
-            { checks: { database: 'failed' }, status: 'not_ready' },
-            getRequestId(response),
-          ),
-        );
+      response.status(503).json(
+        createSuccessResponse(
+          {
+            checks: { database: 'failed', executor: executorReady() ? 'ok' : 'failed' },
+            status: 'not_ready',
+          },
+          getRequestId(response),
+        ),
+      );
     }
   });
 
@@ -120,6 +165,15 @@ export function createApiApp(
     }),
   );
   app.use('/api/v1/audit-events', createAuditRouter({ audit, guard, prisma }));
+  app.use(
+    '/api/v1/jobs',
+    createJobsRouter({
+      authenticatedApiLimiter: rateLimiters.authenticatedApi,
+      guard,
+      jobs,
+      submitLimiter: rateLimiters.submit,
+    }),
+  );
   app.use('/api/v1', (_request, _response, next) => {
     next(new HttpError(404, 'NOT_FOUND', 'The requested resource is unavailable.'));
   });
@@ -223,4 +277,9 @@ function isCsrfError(error: unknown): boolean {
     'code' in error &&
     (error as { code?: unknown }).code === 'EBADCSRFTOKEN'
   );
+}
+
+/** The simulated executor created for this app instance. */
+export function getJobWorker(app: Express): JobWorker {
+  return app.locals.jobWorker as JobWorker;
 }
