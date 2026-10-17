@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-16T16:30:00Z"
+updated: "2026-10-17T02:10:00Z"
 state:
   status: "active"
   scope: "new"
@@ -181,11 +181,12 @@ units:
         files:
           - "tasks.md"
   - name: "identity-access"
-    status: "in-progress"
-    phase: "implement"
+    status: "completed"
+    phase: "complete"
     completedPhases:
       - "design"
       - "tasks"
+      - "implement"
     implementationMode: "standard"
     implementation:
       totalTasks: 19
@@ -236,13 +237,60 @@ units:
         files:
           - "tasks.md"
   - name: "submission-job-lifecycle"
-    status: "pending"
-    phase: "design"
+    status: "in-progress"
+    phase: "implement"
+    completedPhases:
+      - "design"
+      - "tasks"
+    implementationMode: "standard"
+    implementation:
+      totalTasks: 17
+      completedTasks: 0
+      currentTask: "1.1"
+      currentWave: 1
     owner: "Developer 2"
     dependencies:
       - "foundation"
       - "identity-access"
-    artifacts: {}
+    decisions:
+      design:
+        input: "Enum parameters (ageBand, focusArea, lifestyleFactors) + sampleLabel + synthetic CSV marker,value,unit with marker allowlist"
+        upload: "Single JSON body, file as UTF-8 text <= 64 KB, no new dependency"
+        validation: "Server-side CSV schema parse: header, 1-50 rows, allowlist, ranges, units, UTF-8, no control chars or formula prefixes"
+        storage: "Server-generated jobs/{jobId}/input.csv via resolvePrivateStoragePath; sanitized name in metadata"
+        executor: "In-process DB-polling worker loop, restart reconciliation, heartbeat in readiness"
+        outcome: "Deterministic: simulateFailure or handler error -> FAILED with safe summary"
+        resultBoundary: "JobCompletionHandler port; default writes result.json; Results & Guidance extends"
+        idempotency: "Idempotency-Key header + unique(ownerId, idempotencyKey)"
+        deletion: "Hard delete + cascade + storage removal; audit JOB_DELETED; 404 for deleted/foreign/missing"
+        retention: "Hourly sweep in worker + jobs:cleanup CLI; failure audited"
+        frontend: "/jobs, /jobs/new, /jobs/:jobId; poll 3s while active, pause hidden, manual refresh"
+        correctness: "PBT P1 transitions, P2 idempotency, P3 deletion closure, P4 owner isolation, P5 storage containment, P6 CSV/audit content"
+        observability: "Minimal"
+        errorTracking: "Log-based only"
+        lifecycle: "Health + readiness (executor) + graceful shutdown (stop worker first)"
+        source: "System recommendations applied under user instruction 2026-10-17 to continue until finished"
+      tasks:
+        strategy: "Component/dependency-first"
+        waveOrder: "Setup -> FE+mock json -> BE + wire -> retention/CLI/ops -> Tests/Verify"
+        testing: "Test-after; integration + PBT P1-P6 mandatory"
+        scope: "API unit/integration/PBT; web unit CSV preview/polling; E2E deferred"
+        granularity: "Single concern, 0.5-2 days"
+        parallelism: "Sequential waves"
+        testData: "One authored synthetic sample shared by endpoint, mock and tests"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-17T02:00:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-17T02:10:00Z"
+        totalTasks: 17
+        files:
+          - "tasks.md"
   - name: "results-guidance"
     status: "pending"
     phase: "design"

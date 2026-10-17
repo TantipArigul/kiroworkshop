@@ -1,0 +1,120 @@
+# Submission & Job Lifecycle Implementation Tasks
+
+## สรุป
+- **จำนวน Tasks**: 17 tasks ใน 5 phases (3 / 4 / 6 / 1 / 3)
+- **Execution Waves**: 5 waves (ตรงกับ phase); commit ต่อ wave
+- **Strategy**: Component/dependency-first ภายในลำดับ Setup → Frontend + mock `.json` → Backend + เชื่อม API จริง → Retention/CLI/operations → Tests/Verify
+- **Testing**: Test-after; integration (5 endpoints + worker) และ PBT P1–P6 บังคับก่อนปิด unit (NFR-006); E2E เลื่อน
+- **Derived From**: `units/submission-job-lifecycle/design.md`, D4 `units/submission-job-lifecycle/decisions-tasks.md`
+- **Owner/Branch**: Developer 2 / `feat/submission-job-lifecycle`
+- **Constraint สำคัญ**: ไม่มี dependency ใหม่, ไม่มี outbound call, ไม่มี migration, ข้อมูล synthetic เท่านั้น
+
+**Legend**: `[ ]` ยังไม่เริ่ม · `[x]` เสร็จแล้ว
+
+---
+
+- [ ] 1. Setup — shared contract, configuration และ client
+  - [ ] 1.1 เพิ่ม job contract ใน shared kernel
+    - **Deps**: None | **Ref**: `design.md` — C1, API Specification (Shared contract changes)
+    - Constants (`AGE_BANDS`, `FOCUS_AREAS`, `LIFESTYLE_FACTORS`, `INPUT_MARKERS`, limits, `JOB_POLL_INTERVAL_MS`) ใน `constants.ts`; `schemas/jobs.ts` (parameters, submit request, idempotency key, summary, detail, list, sample input) + types; `SERVICE_UNAVAILABLE` ใน `ERROR_CODES`; `JOB_INPUT_REJECTED` ใน `AUDIT_EVENT_TYPES`; OpenAPI `/jobs*`
+    - **Files**: `packages/shared/src/{constants.ts,schemas/jobs.ts,schemas/common.ts,schemas/index.ts,index.ts,types/api.ts,contracts.test.ts}`, `packages/shared/openapi/openapi.yaml`
+    - **Acceptance**: schema strict, ไม่ import จาก application packages
+    - **Validation**: `pnpm --filter @portal/shared typecheck && pnpm --filter @portal/shared test && pnpm --filter @portal/shared build`
+  - [ ] 1.2 เพิ่ม configuration ของ executor/retention และ audit allowlist
+    - **Deps**: 1.1 | **Ref**: `design.md` — Implementation (Configuration), API (Shared contract changes)
+    - Env 6 ตัว + default + ช่วงใน `config.ts`, `.env.example`; allowlist `JOB_INPUT_REJECTED: ['reason']` ใน `audit.service.ts`
+    - **Files**: `apps/api/src/config/{config.ts,config.test.ts}`, `.env.example`, `apps/api/src/modules/audit/audit.service.ts`
+    - **Acceptance**: ค่า default ตาม design; ค่านอกช่วงถูกปฏิเสธ
+    - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
+  - [ ] 1.3 ขยาย web `apiClient` ให้รองรับ DELETE และ header เสริม
+    - **Deps**: None | **Ref**: `design.md` — C9 (apiClient)
+    - `TransportRequest.method` เพิ่ม `DELETE`; `post(path, body, headers?)`, `delete(path)`; `fetchTransport` ไม่เปลี่ยนพฤติกรรมเดิม
+    - **Files**: `apps/web/src/features/auth/apiClient.ts`
+    - **Acceptance**: auth/audit pages เดิม compile และทำงานเหมือนเดิม
+    - **Validation**: `pnpm --filter @portal/web typecheck && pnpm --filter @portal/web test`
+
+- [ ] 2. Frontend + mock `.json` — list, submit, detail
+  - [ ] 2.1 Jobs API client, polling hook, status badge และ mock adapter
+    - **Deps**: 1.1, 1.3 | **Ref**: `design.md` — C9
+    - `jobsApi.ts` (typed calls), `useJobPolling.ts` (3 s ขณะ `QUEUED`/`RUNNING`, หยุดเมื่อ terminal/hidden), `JobStatusBadge.tsx` (label + SVG + สี), `csvPreview.ts` (นับแถว/ตรวจ header ฝั่ง client เพื่อ preview เท่านั้น); `mocks/jobs.json` + routes `/jobs*` ใน `mockTransport.ts` (in-memory, จำลอง transition ตามเวลา)
+    - **Files**: `apps/web/src/features/jobs/{jobsApi.ts,useJobPolling.ts,JobStatusBadge.tsx,csvPreview.ts}`, `apps/web/src/mocks/{jobs.json,mockTransport.ts}`
+    - **Acceptance**: mock ไม่มีข้อมูลบุคคล; mock code ไม่อยู่ใน production bundle
+    - **Validation**: `pnpm --filter @portal/web typecheck`
+  - [ ] 2.2 หน้า Job list (`/jobs`)
+    - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-006
+    - แทน `Workspace` placeholder ใน `App.tsx`; ตาราง + pagination; empty state (New analysis + Load sample data); error + Retry; loading skeleton
+    - **Files**: `apps/web/src/features/jobs/JobsListPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
+    - **Acceptance**: US-006 AC1–AC4 ด้วย mock
+    - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
+  - [ ] 2.3 หน้า New analysis (`/jobs/new`)
+    - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-003, US-004, US-005
+    - Form + Load sample data + input format box + file preview + synthetic-only notice + idempotency key; server error details → field/file; `503`; success → `/jobs/:id`
+    - **Files**: `apps/web/src/features/jobs/NewJobPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`, `apps/web/src/components/ui/styles.css` (checkbox/file/textarea ถ้าจำเป็น)
+    - **Acceptance**: sample โหลดได้และไม่ submit อัตโนมัติ; ทุก control มี label + focus-visible + ≥ 44px
+    - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
+  - [ ] 2.4 หน้า Job detail (`/jobs/:jobId`)
+    - **Deps**: 2.1 | **Ref**: `design.md` — C9 routes; US-007, US-008, US-014
+    - Status + history timeline + parameters + file metadata + failure summary + Last updated + Refresh + polling + Delete พร้อม `<dialog>` confirm + unavailable state + stale label
+    - **Files**: `apps/web/src/features/jobs/JobDetailPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
+    - **Acceptance**: US-007 AC1–3, US-008 AC2, US-014 AC4 ด้วย mock
+    - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (375/768/1440 px)
+
+- [ ] 3. Backend + เชื่อม API จริง
+  - [ ] 3.1 Input Validator และ sample input
+    - **Deps**: 1.1 | **Ref**: `design.md` — C2; US-003, US-004
+    - **Files**: `apps/api/src/modules/jobs/{input-validator.ts,sample-input.ts}`
+    - **Acceptance**: กฎ C2 ครบ; sample ผ่าน validator
+    - **Validation**: `pnpm --filter @portal/api typecheck`
+  - [ ] 3.2 Job Storage
+    - **Deps**: None | **Ref**: `design.md` — C3; US-005 AC4
+    - **Files**: `apps/api/src/modules/jobs/job-storage.ts`
+    - **Acceptance**: path ทุกตัวผ่าน `resolvePrivateStoragePath`; jobId ไม่ตรง pattern ถูกปฏิเสธ
+    - **Validation**: `pnpm --filter @portal/api typecheck`
+  - [ ] 3.3 Job Service (submit, list, get, transition, delete)
+    - **Deps**: 1.2, 3.1, 3.2 | **Ref**: `design.md` — C4; US-005, US-006, US-007, US-014
+    - **Files**: `apps/api/src/modules/jobs/job.service.ts`
+    - **Acceptance**: ทุก state change + audit ใน transaction เดียว; owner check; idempotency
+    - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
+  - [ ] 3.4 Simulated Executor และ JobCompletionHandler
+    - **Deps**: 3.3 | **Ref**: `design.md` — C5, C6; US-007 AC4, US-008
+    - **Files**: `apps/api/src/modules/jobs/{job-worker.ts,completion.ts}`
+    - **Acceptance**: ไม่มี Completed เทียม; reconciliation; `stop()` รอ tick
+    - **Validation**: `pnpm --filter @portal/api typecheck`
+  - [ ] 3.5 Jobs routes + wiring (app, readiness, server shutdown)
+    - **Deps**: 3.3, 3.4 | **Ref**: `design.md` — C8, API Specification, Operations
+    - Mount `/api/v1/jobs`; submit limiter key ตาม user; `checks.executor` ใน readiness; `server.ts` start/stop worker
+    - **Files**: `apps/api/src/modules/jobs/jobs.routes.ts`, `apps/api/src/http/app.ts`, `apps/api/src/server.ts`
+    - **Acceptance**: 5 endpoints ตาม design; readiness รายงาน executor
+    - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api build`
+  - [ ] 3.6 เชื่อม frontend กับ API จริงและ smoke test
+    - **Deps**: 2.2–2.4, 3.5 | **Ref**: `design.md` — C9
+    - ตรวจ flow submit → poll → completed/failed → delete กับ API จริง (dev server + temp DB/storage ใน workspace)
+    - **Files**: (แก้เฉพาะ defect ที่พบ)
+    - **Acceptance**: ทุก flow หลักทำงานบน browser โดยไม่มี console error
+    - **Validation**: smoke test บันทึกใน audit
+
+- [ ] 4. Retention, CLI และ operations
+  - [ ] 4.1 Retention Sweeper + `jobs:cleanup` CLI + docs
+    - **Deps**: 3.3, 3.4 | **Ref**: `design.md` — C7, Operations; US-014 AC2–3
+    - Sweep รายชั่วโมงใน worker + orphan directories; CLI one-off; `docker/README.md` ขั้นตอน
+    - **Files**: `apps/api/src/modules/jobs/retention.ts`, `apps/api/src/modules/jobs/job-worker.ts`, `apps/api/src/cli/jobs.ts`, `apps/api/package.json`, `docker/README.md`
+    - **Acceptance**: ลบเฉพาะที่หมดอายุ; failure → audit `FAILURE` + log
+    - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api build`
+
+- [ ] 5. Tests / Verify
+  - [ ] 5.1 Unit + integration tests
+    - **Deps**: 3.x, 4.1 | **Ref**: `design.md` — Testing Strategy
+    - **Files**: `apps/api/tests/unit/jobs/*.test.ts`, `apps/api/tests/integration/jobs/*.test.ts`, `apps/api/tests/support/jobs-context.ts`, `apps/web/src/features/jobs/*.test.ts`
+    - **Acceptance**: integration cases หลักใน design ผ่านทั้งหมด
+    - **Validation**: `pnpm test`
+  - [ ] 5.2 Property-based tests P1–P6
+    - **Deps**: 5.1 | **Ref**: `design.md` — Correctness Properties
+    - แทน scaffold `job-lifecycle-scaffolds.test.ts` ด้วย `job-lifecycle.test.ts`
+    - **Files**: `apps/api/tests/properties/job-lifecycle.test.ts` (ลบ scaffold เดิม)
+    - **Acceptance**: P1–P6 ผ่าน 100 runs
+    - **Validation**: `pnpm test:properties`
+  - [ ] 5.3 Final verification
+    - **Deps**: 5.1, 5.2 | **Ref**: CI `quality.yml`
+    - format:check, lint, typecheck, test, test:properties, validate:tokens, build, OpenAPI ตรง routes, browser recheck
+    - **Acceptance**: ทุก gate ผ่าน; บันทึกสิ่งที่ verify ไม่ได้ตามจริง
+    - **Validation**: CI command sequence
