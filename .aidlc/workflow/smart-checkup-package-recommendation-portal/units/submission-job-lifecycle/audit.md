@@ -25,3 +25,19 @@
 - **Action**: decision-gate, validation, generation, approval
 - **Artifacts**: `units/submission-job-lifecycle/decisions-tasks.md`, `units/submission-job-lifecycle/tasks.md`
 - **Outcome**: D4 7 ข้อใช้ค่าแนะนำ; 17 tasks / 5 waves; implementation mode `standard` (เหมือน unit ก่อนหน้า) ภายใต้การมอบหมายเดียวกัน
+### [2026-10-17T03:00:00Z] Implementation: Wave 1 Complete (tasks 1.1–1.3)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: `packages/shared/src/{constants.ts,schemas/jobs.ts,...}`, `openapi.yaml`, `apps/api/src/config/config.ts`, `.env.example`, `audit.service.ts`, `apps/web/src/features/auth/apiClient.ts`
+- **Outcome**: pass — format/lint/typecheck/tests; commit `feat(jobs): add job contracts, executor config and client support`
+### [2026-10-17T03:40:00Z] Implementation: Wave 2 Complete (tasks 2.1–2.4)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: `apps/web/src/features/jobs/**`, `apps/web/src/mocks/{jobs.json,mockTransport.ts}`, `App.tsx`, `app.css`, `components/ui/styles.css`
+- **Outcome**: pass — headless Edge (CDP, local-only tooling in `.tools/`) 23/23 checks with mock API at 1440/768/375 px: sample load without auto-submit, polling to Completed/Failed, delete confirm, unavailable state, no page overflow, targets ≥ 44px; mock code absent from production bundle; validate:tokens clean
+### [2026-10-17T04:30:00Z] Implementation: Wave 3 Complete (tasks 3.1–3.6)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: `apps/api/src/modules/jobs/{input-validator,sample-input,job-storage,job.service,completion,job-worker,jobs.routes}.ts`, `apps/api/src/http/{app,security}.ts`, `apps/api/src/server.ts`, `app.test.ts`
+- **Outcome**: pass — workspace typecheck/lint/tests; real stack smoke (API + Caddy 2.11.4 `tls internal` with `skip_install_trust`, throwaway DB/storage under `.tools/tmp/smoke`, 2 synthetic CLI accounts) 24/24 browser checks over `https://localhost:8443` including persisted state after reload; `input.csv` + `result.json` written under `jobs/{id}/`; API log contains no marker values, CSV content or e-mail
+- **Design refinements (Add-on)**: submission limiter keyed by user ID (Open Question #4); readiness `checks.executor`; `createApiApp` options `completionHandler`/`isExecutorReady` (test hook + Results port)

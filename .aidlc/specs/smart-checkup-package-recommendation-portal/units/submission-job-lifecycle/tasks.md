@@ -59,34 +59,34 @@
     - **Acceptance**: US-007 AC1–3, US-008 AC2, US-014 AC4 ด้วย mock
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (375/768/1440 px)
 
-- [ ] 3. Backend + เชื่อม API จริง
-  - [ ] 3.1 Input Validator และ sample input
+- [x] 3. Backend + เชื่อม API จริง
+  - [x] 3.1 Input Validator และ sample input
     - **Deps**: 1.1 | **Ref**: `design.md` — C2; US-003, US-004
     - **Files**: `apps/api/src/modules/jobs/{input-validator.ts,sample-input.ts}`
     - **Acceptance**: กฎ C2 ครบ; sample ผ่าน validator
     - **Validation**: `pnpm --filter @portal/api typecheck`
-  - [ ] 3.2 Job Storage
+  - [x] 3.2 Job Storage
     - **Deps**: None | **Ref**: `design.md` — C3; US-005 AC4
     - **Files**: `apps/api/src/modules/jobs/job-storage.ts`
     - **Acceptance**: path ทุกตัวผ่าน `resolvePrivateStoragePath`; jobId ไม่ตรง pattern ถูกปฏิเสธ
     - **Validation**: `pnpm --filter @portal/api typecheck`
-  - [ ] 3.3 Job Service (submit, list, get, transition, delete)
+  - [x] 3.3 Job Service (submit, list, get, transition, delete)
     - **Deps**: 1.2, 3.1, 3.2 | **Ref**: `design.md` — C4; US-005, US-006, US-007, US-014
     - **Files**: `apps/api/src/modules/jobs/job.service.ts`
     - **Acceptance**: ทุก state change + audit ใน transaction เดียว; owner check; idempotency
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.4 Simulated Executor และ JobCompletionHandler
+  - [x] 3.4 Simulated Executor และ JobCompletionHandler
     - **Deps**: 3.3 | **Ref**: `design.md` — C5, C6; US-007 AC4, US-008
     - **Files**: `apps/api/src/modules/jobs/{job-worker.ts,completion.ts}`
     - **Acceptance**: ไม่มี Completed เทียม; reconciliation; `stop()` รอ tick
     - **Validation**: `pnpm --filter @portal/api typecheck`
-  - [ ] 3.5 Jobs routes + wiring (app, readiness, server shutdown)
+  - [x] 3.5 Jobs routes + wiring (app, readiness, server shutdown)
     - **Deps**: 3.3, 3.4 | **Ref**: `design.md` — C8, API Specification, Operations
     - Mount `/api/v1/jobs`; submit limiter key ตาม user; `checks.executor` ใน readiness; `server.ts` start/stop worker
     - **Files**: `apps/api/src/modules/jobs/jobs.routes.ts`, `apps/api/src/http/app.ts`, `apps/api/src/server.ts`
     - **Acceptance**: 5 endpoints ตาม design; readiness รายงาน executor
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api build`
-  - [ ] 3.6 เชื่อม frontend กับ API จริงและ smoke test
+  - [x] 3.6 เชื่อม frontend กับ API จริงและ smoke test
     - **Deps**: 2.2–2.4, 3.5 | **Ref**: `design.md` — C9
     - ตรวจ flow submit → poll → completed/failed → delete กับ API จริง (dev server + temp DB/storage ใน workspace)
     - **Files**: (แก้เฉพาะ defect ที่พบ)

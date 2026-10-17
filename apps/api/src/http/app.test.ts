@@ -37,7 +37,7 @@ beforeAll(async () => {
     SUBMIT_RATE_LIMIT_MAX: '10',
   });
   prisma = createPrismaClient(config.databaseUrl);
-  app = createApiApp(config, prisma);
+  app = createApiApp(config, prisma, undefined, { isExecutorReady: () => true });
 });
 
 afterAll(async () => {
@@ -54,7 +54,7 @@ describe('Foundation API runtime', () => {
     expect(healthResponse.body.meta.requestId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(healthResponse.headers['x-request-id']).toBe(healthResponse.body.meta.requestId);
     expect(readinessResponse.body.data).toEqual({
-      checks: { database: 'ok' },
+      checks: { database: 'ok', executor: 'ok' },
       status: 'ready',
     });
   });

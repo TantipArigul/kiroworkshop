@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 
 import type { AppConfig } from './config/index.js';
-import { createApiApp, type ApiRuntimeState } from './http/app.js';
+import { createApiApp, getJobWorker, type ApiRuntimeState } from './http/app.js';
 import { createPrismaClient } from './infrastructure/prisma.js';
 
 export function createApiRuntime(config: AppConfig) {
@@ -9,13 +9,22 @@ export function createApiRuntime(config: AppConfig) {
   const prisma = createPrismaClient(config.databaseUrl);
   const app = createApiApp(config, prisma, runtimeState);
   const server = createServer(app);
+  const worker = getJobWorker(app);
 
   return {
     app,
     prisma,
     server,
-    start: () => startServer(server, config.port),
-    shutdown: () => shutdownServer(server, prisma, runtimeState, config.shutdownTimeoutMs),
+    start: async () => {
+      await startServer(server, config.port);
+      await worker.start();
+    },
+    shutdown: async () => {
+      runtimeState.draining = true;
+      // Stop the executor first so no transition is interrupted by the disconnect.
+      await worker.stop();
+      await shutdownServer(server, prisma, runtimeState, config.shutdownTimeoutMs);
+    },
   };
 }
 
