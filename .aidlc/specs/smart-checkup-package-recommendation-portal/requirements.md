@@ -400,3 +400,184 @@
 - **Forced password change**: WHEN Admin reset รหัสผ่านผ่าน CLI THEN ระบบ SHALL revoke ทุก session ของผู้ใช้นั้น และ SHALL บังคับให้ผู้ใช้เปลี่ยนรหัสผ่านก่อนเข้าถึง protected page/API อื่นในการ login ครั้งถัดไป
 - **Audit viewer**: ผู้มีสิทธิ์ audit (`AUDITOR`/`ADMIN`) SHALL ตรวจ audit events ผ่านหน้า web ได้โดยไม่ใช้ Command Line ตาม NFR-001
 - **Traceability**: US-001, US-002, US-015, NFR-001, NFR-005
+
+## Add-on — Pipeline Catalog + Local Nextflow (approved 2026-10-18)
+
+แหล่งที่มา: `decisions-requirements-addon-pipeline-catalog.md` (C-1..C-7, D1A-1..D1A-10, V-1, V-2) และผลทดสอบ Step 0 บน macOS arm64 (2026-10-18) · branch `feat/pipeline-catalog-nextflow`
+
+### สรุป Add-on
+- **Stories ใหม่**: 6 stories (US-016 – US-021) ใน Functional Area 7; High 5, Medium 1
+- **Stories เดิมที่ปรับ**: US-004, US-005, US-006, US-007, US-008, US-009, US-011, US-014 และ NFR-002, NFR-004, NFR-005, NFR-007
+- **Pipelines**: Smart Checkup (simulated, คงเดิม) และ `si-lol/wf-renamefastq` revision `1.0.3` (local Nextflow)
+- **Integration ใหม่**: Local Nextflow + Docker บนเครื่องเดียวกับ API; outbound network เฉพาะ admin setup ครั้งเดียว ทุก run ทำงานแบบ offline
+- **สถานะใหม่**: `Cancelled` (terminal)
+- **ข้อมูลใหม่**: pipeline identity/revision และ run name ต่อ Job, input file entries หลายไฟล์ต่อ Job, output manifest ต่อ Job
+
+### การเปลี่ยนขอบเขต
+**เพิ่มในขอบเขต**
+- Pipeline catalog ที่มีรายการ pipeline จาก registry ที่ review ผ่าน PR (D1A-9)
+- การรัน Nextflow pipeline จาก GitHub ที่ pin revision บนเครื่อง local ผ่าน Docker (C-1, D1A-2)
+- การประมวลผล FASTQ ที่เป็น test/public data และไม่ใช่ข้อมูลผู้ป่วยเพื่อการฝึก (D1A-1)
+- Run queue, ลำดับคิว, ความคืบหน้า และการ Cancel (D1A-4, D1A-6)
+
+**ยังคงนอกขอบเขต / เพิ่มนอกขอบเขต**
+- ข้อมูลผู้ป่วยจริงหรือข้อมูลที่ระบุตัวบุคคลได้, medical diagnosis และการใช้ผลเพื่อการรักษา
+- AWS HealthOmics/cloud executor, SOAP หรือ outbound pipeline API ระหว่าง run
+- Pipeline ที่ไม่อยู่ใน registry, การให้ผู้ใช้ระบุ repo/revision เอง และ admin UI สำหรับจัดการ pipeline
+- Nextflow `-resume`, การ render MultiQC/HTML report ภายในแอป
+- หน้าผลลัพธ์ของ Nextflow run ใน change นี้ (ส่งต่อให้ Results & Guidance ผ่าน output manifest — D1A-7, V-2)
+- ข้อ "multi-pipeline" ใน out-of-scope เดิมถูกแทนด้วย catalog ที่จำกัดตาม registry
+
+---
+
+## Functional Area 7: Pipeline Catalog and Nextflow Runs
+
+### US-016: Browse the Pipeline Catalog
+**ในฐานะ** Research Staff หรือ Trainer  
+**ฉันต้องการ** เห็นรายการ pipeline ที่ใช้งานได้พร้อมคำอธิบาย  
+**เพื่อให้** เลือก pipeline ที่ตรงกับงานก่อนเริ่ม run
+
+**Priority**: High
+
+**Acceptance Criteria**:
+1. WHEN authenticated user เปิดหน้า pipeline catalog THEN ระบบ SHALL แสดงทุก pipeline ใน registry พร้อมชื่อ, คำอธิบาย, version/revision, ชนิด input ที่รับ และปุ่มเริ่ม run
+2. WHILE pipeline ไม่พร้อมใช้งาน (เช่น Nextflow, Docker หรือ asset ที่ต้อง pre-pull ไม่ครบ) THEN ระบบ SHALL แสดง pipeline นั้นเป็น unavailable พร้อมเหตุผลที่ปลอดภัย และ SHALL NOT ให้เริ่ม run
+3. WHEN ผู้ใช้เลือก pipeline THEN ระบบ SHALL นำไปยังหน้า launch ของ pipeline นั้นด้วย URL ที่ bookmark ได้
+4. IF ผู้ใช้เรียก pipeline ID ที่ไม่อยู่ใน registry THEN ระบบ SHALL ตอบว่าไม่พบโดยไม่เปิดเผยข้อมูลภายใน
+
+**Dependencies**: US-001
+**Source**: C-1, C-2, D1A-2, D1A-9
+
+### US-017: Launch a Nextflow Run with FASTQ Input and a Run Name
+**ในฐานะ** Research Staff  
+**ฉันต้องการ** อัปโหลด FASTQ, ตั้ง run name และเลือก options ของ wf-renamefastq  
+**เพื่อให้** เริ่มงาน rename/demultiplex ได้โดยไม่ใช้ Command Line
+
+**Priority**: High
+
+**Acceptance Criteria**:
+1. WHEN ผู้ใช้เปิดหน้า launch THEN ระบบ SHALL ให้ตั้ง run name (บังคับ, 1–64 ตัวอักษร `[A-Za-z0-9 _.-]`, ไม่ต้องไม่ซ้ำ) และเลือก input แบบใดแบบหนึ่ง: (1) FASTQ ไฟล์เดียว, (2) folder ของ FASTQ ตัวอย่างเดียว, (3) folder ที่มี sub-folder ต่อ barcode
+2. WHERE input เป็นแบบ (1) หรือ (2) THEN ระบบ SHALL ให้ระบุ sample name แบบไม่บังคับ และ SHALL ไม่แสดงช่อง sample sheet; WHERE input เป็นแบบ (3) THEN ระบบ SHALL บังคับ sample sheet CSV (`barcode,alias`)
+3. WHEN ผู้ใช้กำหนด options THEN ระบบ SHALL แสดงเฉพาะ options ที่ registry อนุญาต: demultiplex, kit name (เมื่อเปิด demultiplex), quality filter และ minimum Q-score พร้อมค่า default ของ pipeline
+4. WHERE input เป็นแบบ (3) THEN ระบบ SHALL ไม่อนุญาตให้เปิด demultiplex พร้อมอธิบายเหตุผล (pipeline ไม่ demultiplex sub-folder input)
+5. WHEN ผู้ใช้เลือกไฟล์หรือ folder THEN UI SHALL แสดง preview ของชนิด input ที่ตรวจพบ, จำนวนไฟล์, ขนาดรวม และรายชื่อ barcode ก่อน submit พร้อมประกาศว่ารับเฉพาะ test/public data ที่ไม่ใช่ข้อมูลผู้ป่วยและผลไม่ใช่การวินิจฉัย
+6. WHILE upload กำลังส่ง THEN UI SHALL แสดงความคืบหน้าและป้องกันการ submit ซ้ำ; WHEN submit สำเร็จ THEN ระบบ SHALL คืน Job ID และ status URL ตาม US-005
+
+**Dependencies**: US-005, US-016, US-018
+**Source**: C-2, C-3, C-4, C-5, C-6, D1A-1, D1A-5; README ของ `si-lol/wf-renamefastq` 1.0.3
+
+### US-018: Validate FASTQ Input and Sample Sheet Before Running
+**ในฐานะ** Research Staff  
+**ฉันต้องการ** ให้ระบบตรวจ input ทั้งหมดก่อนเริ่ม Nextflow  
+**เพื่อให้** ไม่เสียเวลารันงานที่ผิดหรือได้ผลไม่ครบโดยไม่รู้ตัว
+
+**Priority**: High
+
+**Acceptance Criteria**:
+1. WHEN server รับ upload THEN ระบบ SHALL ตรวจที่ server ว่ามี FASTQ ไม่เกิน 10 ไฟล์ และขนาดรวมไม่เกิน 1 GB โดยหยุดรับข้อมูลทันทีที่เกินขีดจำกัดและลบไฟล์บางส่วนที่รับมาแล้ว
+2. WHEN ตรวจไฟล์ THEN ระบบ SHALL รับเฉพาะนามสกุล `.fastq`, `.fq`, `.fastq.gz`, `.fq.gz` พร้อมตรวจเนื้อหาเบื้องต้น และ SHALL ปฏิเสธชื่อไฟล์/folder ที่ไม่อยู่ใน safe character set, มี path traversal หรือซ้อนลึกเกิน 1 ระดับ
+3. WHEN ตรวจโครงสร้าง folder THEN ระบบ SHALL ใช้กฎเดียวกับ pipeline: ไม่ผสม FASTQ ระดับบนกับ sub-folder, sub-folder ชื่อ `unclassified` ถูกละเว้น และในแบบ (3) ชื่อ sub-folder SHALL ตรง `barcode` ตามด้วยตัวเลขอย่างน้อย 2 หลัก
+4. WHEN ตรวจ sample sheet แบบ (3) THEN ระบบ SHALL ตรวจ header `barcode,alias`, barcode/alias ไม่ซ้ำ, alias อยู่ใน safe character set และ barcode ใน sheet ตรงกับ sub-folder ที่อัปโหลดครบทุกตัวทั้งสองทาง
+5. WHEN ตรวจ sample name, alias และ run name THEN ระบบ SHALL ปฏิเสธช่องว่าง (สำหรับ sample/alias), quote, `$` และอักขระที่อาจถูกตีความโดย shell ของ pipeline
+6. IF validation ไม่ผ่าน THEN ระบบ SHALL ไม่สร้าง Job, ไม่เหลือไฟล์ใน storage และ SHALL แสดงข้อผิดพลาดระดับไฟล์/บรรทัดที่ไม่สะท้อนเนื้อหาไฟล์
+
+**Dependencies**: US-004
+**Source**: C-3, C-4, C-6; Step 0 finding (sheet ที่ barcode ไม่ตรงทำให้ pipeline ทิ้งข้อมูลโดยจบด้วย exit 0; alias ถูก interpolate ลง shell script)
+
+### US-019: Execute Nextflow Runs Locally, Offline and in Order
+**ในฐานะ** Bioinformatician/Developer  
+**ฉันต้องการ** ให้ระบบรัน Nextflow ตามลำดับคิวด้วย revision ที่ pin ไว้และไม่ใช้ network ระหว่าง run  
+**เพื่อให้** ผลทำซ้ำได้, เครื่องไม่ overload และข้อมูลไม่ถูกส่งออก
+
+**Priority**: High
+
+**Acceptance Criteria**:
+1. WHEN Job ของ Nextflow pipeline เริ่มทำงาน THEN ระบบ SHALL เรียก Nextflow ด้วย repository และ revision จาก registry เท่านั้น, ส่ง parameters ผ่าน params file ที่สร้างจากค่าที่ validate แล้ว และ SHALL NOT สร้างคำสั่งผ่าน shell string
+2. WHILE มี run ทำงานครบตาม `MAX_CONCURRENT_RUNS` (ค่าเริ่มต้น 1) THEN Job ใหม่ SHALL รอในสถานะ `Queued` ตามลำดับเวลาที่ส่ง
+3. WHEN run ทำงาน THEN ระบบ SHALL ใช้ offline mode และ resource caps ที่ server กำหนด (ค่าเริ่มต้น 4 CPUs, 8 GB) และ SHALL NOT ให้ผู้ใช้กำหนด resource, e-mail, hook URL หรือ config path
+4. WHEN Nextflow จบด้วย exit code 0 และพบ output ตาม registry THEN ระบบ SHALL บันทึก output manifest (relative path, ขนาด, ชนิด) แล้วเปลี่ยนเป็น `Completed`; IF จบด้วย error หรือ output ไม่ครบ THEN ระบบ SHALL เปลี่ยนเป็น `Failed` พร้อม safe summary ที่ระบุขั้นตอนที่ล้ม โดยไม่แสดง raw Nextflow log หรือ filesystem path
+5. IF API process restart ขณะ run ทำงาน THEN ระบบ SHALL เปลี่ยน Job นั้นเป็น `Failed` พร้อมข้อความให้ส่งใหม่ และ SHALL NOT ทิ้ง Nextflow/container process ไว้โดยไม่มีเจ้าของ
+6. WHILE Nextflow, Java runtime, Docker daemon หรือ asset ที่ pre-pull ไว้ไม่พร้อม THEN readiness SHALL รายงานว่า pipeline นั้นไม่พร้อม และ submission ไปยัง pipeline นั้น SHALL ถูกปฏิเสธตาม US-008 AC3
+
+**Dependencies**: US-005, US-008, US-018
+**Source**: D1A-2, D1A-4, D1A-9, V-2; Step 0 (`NXF_SYNTAX_PARSER=v1`, `-profile docker,arm`, `NXF_OFFLINE=true` ผ่านการทดสอบ)
+
+### US-020: Monitor Runs in the Overview
+**ในฐานะ** Research Staff  
+**ฉันต้องการ** เห็น run ทั้งหมดของฉันพร้อม run name, pipeline, สถานะ, ลำดับคิว และความคืบหน้า  
+**เพื่อให้** รู้ว่างานใดรอ กำลังทำ หรือเสร็จแล้ว
+
+**Priority**: High
+
+**Acceptance Criteria**:
+1. WHEN ผู้ใช้เปิด overview THEN ระบบ SHALL แสดงเฉพาะ Job ของผู้ใช้พร้อม run name, Job ID แบบย่อ, pipeline, สถานะ, เวลาสร้างและเวลาอัปเดตล่าสุด
+2. WHILE Job อยู่ใน `Queued` THEN ระบบ SHALL แสดงลำดับคิวที่คำนวณจาก Job `Queued` ที่ส่งก่อนหน้า
+3. WHILE Job อยู่ใน `Running` THEN ระบบ SHALL แสดงจำนวนขั้นตอนที่เสร็จ, ขั้นตอนปัจจุบัน และเวลาที่ใช้ไป โดยไม่แสดงเปอร์เซ็นต์ที่คาดเดาไม่ได้
+4. WHILE มี Job ใน `Queued` หรือ `Running` THEN overview และหน้ารายละเอียด SHALL poll ตาม interval เดิม (US-007 AC2) และสถานะ SHALL ใช้ label + icon + สี (ไม่ใช้สีอย่างเดียว)
+5. WHEN Job เป็น `Completed` THEN หน้ารายละเอียด SHALL แจ้งว่างานสำเร็จและผลลัพธ์จะดูได้เมื่อ Results view พร้อม โดย SHALL NOT อ้างถึงหน้าที่ยังไม่มี
+
+**Dependencies**: US-006, US-007, US-019
+**Source**: C-2, D1A-4, D1A-5, D1A-7, V-2
+
+### US-021: Cancel a Queued or Running Job
+**ในฐานะ** เจ้าของ Job  
+**ฉันต้องการ** ยกเลิก Job ที่รอหรือกำลังทำงานโดยยังเก็บประวัติไว้  
+**เพื่อให้** หยุดงานที่ส่งผิดได้ทันทีโดยไม่ต้องลบหลักฐาน
+
+**Priority**: Medium
+
+**Acceptance Criteria**:
+1. WHILE Job อยู่ใน `Queued` หรือ `Running` WHEN owner ยืนยัน Cancel THEN ระบบ SHALL เปลี่ยนสถานะเป็น `Cancelled` ซึ่งเป็น terminal state สำหรับทั้ง Smart Checkup และ Nextflow pipeline
+2. WHEN Job ที่ `Running` ถูก cancel THEN ระบบ SHALL หยุด Nextflow process และ container ที่เกี่ยวข้อง แล้วลบ `work/` และ output บางส่วนทันที
+3. WHEN Job ถูก cancel THEN ระบบ SHALL เก็บ Job record, input และ status history จนครบ retention และ owner SHALL ยัง Delete ได้ตาม US-014
+4. IF Job อยู่ใน `Completed`, `Failed` หรือ `Cancelled` หรือผู้ขอไม่ใช่ owner THEN ระบบ SHALL ปฏิเสธโดยไม่เปลี่ยนสถานะ (ผู้ที่ไม่ใช่ owner ได้ผลลัพธ์แบบไม่พบตาม US-002 AC2)
+5. WHEN cancel สำเร็จ THEN ระบบ SHALL บันทึก `JobStatusEvent` และ audit event การเปลี่ยนสถานะไป `Cancelled`
+
+**Dependencies**: US-002, US-007, US-019
+**Source**: D1A-6, V-1
+
+---
+
+### การปรับ Stories และ NFR เดิม
+- **US-004 / US-005**: Job SHALL ผูกกับ pipeline ID และ revision จาก registry และเก็บ run name; Smart Checkup ใช้ flow เดิมผ่าน catalog; Nextflow pipeline ใช้ multipart upload ตาม US-017/US-018 แทนข้อจำกัด JSON ≤ 64 KB; submission limit เดิม 10 ครั้ง/ชั่วโมง/ผู้ใช้ใช้กับทุก pipeline
+- **US-006**: Job list เดิมคือ overview ตาม US-020
+- **US-007 AC4**: allowed transitions เพิ่ม `Queued → Cancelled` และ `Running → Cancelled`
+- **US-008**: "simulated executor" ครอบคลุม Nextflow executor ด้วย; safe summary ของ Nextflow ระบุชื่อขั้นตอนที่ล้มเท่านั้น
+- **US-009 / US-011**: ผลลัพธ์และ download ของ Nextflow run เป็นขอบเขตของ Results & Guidance โดยใช้ output manifest (US-019 AC4); HTML report ที่มี script SHALL NOT render inline บน app origin
+- **US-014**: การลบและ retention 7 วันครอบคลุม input files, output, `work/` และไฟล์สถานะของ Nextflow; `work/` SHALL ถูกลบทันทีเมื่อ run จบ (D1A-8)
+- **NFR-002**: เป้าหมาย 3 วินาทีไม่รวมเวลา upload ไฟล์ขนาดใหญ่และเวลา execution; Nextflow executor SHALL ไม่รายงาน `Completed` เมื่อ exit code ไม่เป็น 0 หรือ output ไม่ครบ
+- **NFR-004**: pipeline SHALL pin revision ใน registry และ container images ที่ใช้ SHALL ถูก pre-pull ในขั้น admin setup; การเพิ่ม/เปลี่ยน pipeline SHALL ผ่าน PR review
+- **NFR-005**: FASTQ SHALL เป็น test/public data ที่ไม่ใช่ข้อมูลผู้ป่วยเท่านั้น และ UI SHALL แจ้งก่อน submit; log/audit SHALL ไม่บรรจุชื่อไฟล์เดิม, sample alias หรือเนื้อหา read
+- **NFR-007**: Nextflow executor ต้องการ Nextflow + Java + Docker บน host เดียวกับ API; deployment ที่ไม่มีองค์ประกอบนี้ (เช่น Compose container ปัจจุบัน) SHALL ยังรัน Smart Checkup ได้และแสดง Nextflow pipeline เป็น unavailable ตาม US-016 AC2; รูปแบบ packaging สำหรับ Compose กำหนดใน Design
+
+### สรุป Stories ใหม่
+
+| ID | ชื่อ | Area | Priority | Dependencies |
+|---|---|---|---|---|
+| US-016 | Browse the Pipeline Catalog | Pipeline Catalog and Nextflow Runs | High | US-001 |
+| US-017 | Launch a Nextflow Run with FASTQ Input and a Run Name | Pipeline Catalog and Nextflow Runs | High | US-005, US-016, US-018 |
+| US-018 | Validate FASTQ Input and Sample Sheet Before Running | Pipeline Catalog and Nextflow Runs | High | US-004 |
+| US-019 | Execute Nextflow Runs Locally, Offline and in Order | Pipeline Catalog and Nextflow Runs | High | US-005, US-008, US-018 |
+| US-020 | Monitor Runs in the Overview | Pipeline Catalog and Nextflow Runs | High | US-006, US-007, US-019 |
+| US-021 | Cancel a Queued or Running Job | Pipeline Catalog and Nextflow Runs | Medium | US-002, US-007, US-019 |
+
+### Story–Persona Matrix (Add-on)
+
+| Story | Research Staff/Scientist | Bioinformatician/Developer | Trainer/Administrator |
+|---|---|---|---|
+| US-016 | Primary | Secondary | Primary |
+| US-017 | Primary | Secondary | Secondary |
+| US-018 | Primary | Primary | Secondary |
+| US-019 | Secondary | Primary | Secondary |
+| US-020 | Primary | Secondary | Primary |
+| US-021 | Primary | Secondary | Secondary |
+
+Personas เดิมครอบคลุมผู้ใช้ทั้งหมด — ไม่ต้องปรับ `personas.md`
+
+### Traceability (Add-on)
+
+| แหล่งข้อมูล | Stories | การใช้งาน |
+|---|---|---|
+| `decisions-requirements-addon-pipeline-catalog.md` | US-016 – US-021, การปรับ stories/NFR เดิม | C-1..C-7, D1A-1..D1A-10, V-1, V-2 |
+| [si-lol/wf-renamefastq](https://github.com/si-lol/wf-renamefastq) README, `nextflow_schema.json`, `bin/samplesheet_check.py` (revision 1.0.3, MIT) | US-017, US-018, US-019 | Input cases, sample sheet rules, options, outputs |
+| Step 0 local verification (2026-10-18) | US-018, US-019 | Legacy config parser, arm profile, offline run, silent barcode drop, alias validation |

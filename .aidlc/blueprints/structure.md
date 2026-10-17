@@ -90,3 +90,18 @@ STORAGE_ROOT/jobs/{jobId}/             # input.csv, result.json (+ Results artif
 
 - Results & Guidance reads Job state only through `JobService.getOwnedJob` and writes artifacts only under `JobStorage.jobDirectory(jobId)`; it never queries `Job`/`JobInput`/`JobStatusEvent` directly
 - Tests: `apps/api/tests/{unit,integration}/jobs/` and `apps/api/tests/properties/job-lifecycle.test.ts`
+
+## Add-on — Pipeline Catalog & Nextflow Executor Structure (approved 2026-10-18)
+```text
+packages/shared/src/schemas/pipelines.ts      # pipeline catalog/launch/progress schemas
+packages/shared/src/validation/run-input.ts   # shared layout, sample sheet and safe-name rules (web + api)
+apps/api/src/modules/jobs/executor.ts         # ExecutorAdapter port; simulated-adapter.ts wraps the original executor
+apps/api/src/modules/pipelines/               # registry, run-upload, run-input-validator, pipeline-run.service, nextflow-adapter, nextflow-progress, readiness, pipelines.routes
+apps/api/src/cli/pipelines.ts                 # one-off `pipelines:setup` (online) and `pipelines:check` (offline)
+apps/api/tests/fixtures/                      # fake-nextflow.mjs, fake-docker.mjs
+apps/web/src/features/pipelines/              # PipelinesPage, PipelineRunPage, RenameFastqRunPage, pipelinesApi, inputPreview, UploadProgress
+STORAGE_ROOT/uploads/{uploadId}/              # streaming staging, removed after launch or within 1 hour
+STORAGE_ROOT/jobs/{jobId}/{input,run,output}/ # Nextflow job: inputs, run files (params, trace, logs, work), published outputs
+```
+- Only `modules/pipelines` spawns `nextflow`/`docker`; `modules/jobs` talks to it through `ExecutorAdapter`
+- Results & Guidance reads Nextflow outputs through `JobOutputFile` rows and files under `jobs/{jobId}/output/`

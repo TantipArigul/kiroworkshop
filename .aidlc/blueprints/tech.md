@@ -107,3 +107,10 @@ Stack ที่ผู้ใช้กำหนดเป็น React + TypeScript,
 - **Retention**: 7 days; hourly sweep in the worker + one-off `jobs:cleanup` CLI; hard delete with cascade and storage removal
 - **Shared kernel additions**: error code `SERVICE_UNAVAILABLE`; audit event `JOB_INPUT_REJECTED`
 - **Dependencies**: no new packages
+
+## Add-on — Pipeline Catalog & Nextflow Executor Design (approved 2026-10-18)
+- **Upload**: `busboy` 1.6.0 (+ `@types/busboy` 1.5.5) streaming multipart to `STORAGE_ROOT/uploads/{uploadId}/`; limits 1 GiB / 10 FASTQ / sample sheet 64 KB enforced while streaming; browser uses `webkitdirectory` and XHR for upload progress
+- **Executor**: `ExecutorAdapter` port in the existing worker loop; `SimulatedAdapter` (Smart Checkup) and `NextflowAdapter` (`spawn` without shell, `-params-file`, `-with-trace`, explicit child env allowlist, `NXF_OFFLINE=true`, `NXF_SYNTAX_PARSER=v1`, `-profile docker,arm`); queue capacity `NEXTFLOW_MAX_CONCURRENT_RUNS=1`
+- **Host tools (not npm)**: Nextflow 26.10.2 with OpenJDK 25 (Homebrew) and Docker Desktop; tested pipeline `si-lol/wf-renamefastq` 1.0.3 with plugin `nf-validation@1.1.3`
+- **Packaging**: Nextflow runs only when the API runs on the host (`NEXTFLOW_ENABLED=true`); Docker Compose keeps Smart Checkup and reports the Nextflow pipeline unavailable; no Docker socket mount
+- **Status contract**: `CANCELLED` added to `JOB_STATUSES`; `CONFLICT` (409) added to `ERROR_CODES`

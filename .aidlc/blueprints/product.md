@@ -72,3 +72,10 @@ Smart Checkup Package Recommendation Portal เป็น Greenfield prototype �
 - ยืนยัน entities: User, Job, JobInput, JobStatusEvent, ResultArtifact, PackageRecommendation และ AuditEvent
 - ยืนยันข้อมูล synthetic/de-identified, retention 7 วัน, delete on demand, redacted logs และ secure session cookie เท่าที่จำเป็น
 - ยืนยัน Docker Compose/local Linux deployment ผ่าน HTTPS port 443 และ MIT License บน landing page
+
+## Add-on — Pipeline Catalog + Local Nextflow (approved 2026-10-18)
+- **Catalog**: เปลี่ยนจาก pipeline เดียวเป็น catalog จาก registry ที่ review ผ่าน PR — Smart Checkup (simulated) และ `si-lol/wf-renamefastq` 1.0.3 (rename/demultiplex FASTQ จาก Oxford Nanopore ผ่าน local Nextflow + Docker)
+- **Flow ใหม่**: pipeline catalog → launch run (run name, FASTQ file/folder, sample sheet สำหรับ barcode sub-folders, options) → overview (สถานะ, ลำดับคิว, ความคืบหน้า) → Cancel ได้ขณะ `Queued`/`Running`
+- **ข้อจำกัด**: test/public FASTQ ที่ไม่ใช่ข้อมูลผู้ป่วย, ≤ 1 GB และ ≤ 10 FASTQ ต่อ run, รันครั้งละ 1 run, ไม่มี outbound network ระหว่าง run
+- **ผลลัพธ์**: Nextflow run บันทึก output manifest; หน้าแสดงผลออกแบบใน Results & Guidance
+- **ภาษาของโดเมนเพิ่ม**: Pipeline Registry (รายการ pipeline ที่อนุญาต), Run Name (ชื่อแสดงผลของ Job), FASTQ, Barcode, Sample Sheet (`barcode,alias`), Demultiplex, Output Manifest, Cancelled

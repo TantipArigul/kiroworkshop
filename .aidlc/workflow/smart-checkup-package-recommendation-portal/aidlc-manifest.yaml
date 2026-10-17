@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-17T06:00:00Z"
+updated: "2026-10-18T01:00:00Z"
 state:
   status: "active"
   scope: "new"
@@ -64,6 +64,11 @@ versions:
     prisma-adapter-better-sqlite3: "7.10.0"
     better-sqlite3: "12.6.0"
     csrf-sync: "4.2.1"
+    busboy: "1.6.0"
+    "@types/busboy": "1.5.5"
+    nextflow (host): "26.10.2"
+    openjdk (host, via nextflow formula): "25.0.4.1"
+    si-lol/wf-renamefastq: "1.0.3"
     cookie-parser: "not used with csrf-sync"
 context-summary:
   type: "Greenfield"
@@ -97,6 +102,23 @@ decisions:
     outOfScope: "Real medical/genomic processing, diagnosis, AI training, patient data, email, multi-pipeline, HA, large scale, analytics"
     priority: "Security/foundation, frontend mock, backend and executor, polish, verification"
     licence: "MIT License"
+    addOnPipelineCatalog:
+      status: "approved"
+      timestamp: "2026-10-18T01:10:00Z"
+      branch: "feat/pipeline-catalog-nextflow"
+      file: "decisions-requirements-addon-pipeline-catalog.md"
+      catalog: "Smart Checkup (simulated) + si-lol/wf-renamefastq 1.0.3 (local Nextflow, registry reviewed via PR)"
+      input: "Single FASTQ | folder (one sample) | barcode sub-folders; sample sheet required for barcode case only; <= 1 GB and <= 10 FASTQ per run"
+      demultiplex: "Included; not allowed with barcode sub-folder input"
+      data: "Test/public non-patient FASTQ only with notice"
+      network: "Outbound only in one-time admin setup; runs NXF_OFFLINE=true"
+      access: "All authenticated users, owner-only"
+      concurrency: "MAX_CONCURRENT_RUNS=1; per run 4 CPUs / 8 GB"
+      runName: "Not unique, 1-64 chars, display label"
+      cancel: "Cancel from QUEUED/RUNNING to terminal CANCELLED for both pipelines; keep record until retention"
+      results: "Deferred to Results & Guidance via output manifest"
+      retention: "7 days; delete work/ when run ends"
+      unit: "New unit pipeline-catalog-nextflow, owner Developer 2"
   decomposition:
     need: "Foundation and domain units"
     architecture: "Modular monolith"
@@ -292,6 +314,72 @@ units:
         totalTasks: 17
         files:
           - "tasks.md"
+  - name: "pipeline-catalog-nextflow"
+    status: "in-progress"
+    phase: "implement"
+    owner: "Developer 2"
+    addedBy: "requirements Add-on 2026-10-18"
+    branch: "feat/pipeline-catalog-nextflow"
+    implementationMode: "parallel"
+    implementation:
+      totalTasks: 25
+      completedTasks: 5
+      currentTask: null
+      currentWave: 2
+    decisions:
+      design:
+        upload: "busboy streaming to staging with byte/file counters; abort and delete on limit"
+        folderPicker: "webkitdirectory + single-file input; relative path per file; server validates every segment"
+        api: "GET /pipelines, GET /pipelines/{id}, POST /pipelines/{id}/runs (multipart), POST /jobs/{id}/cancel; Smart Checkup keeps POST /jobs"
+        executor: "ExecutorAdapter port in existing worker; SimulatedAdapter + NextflowAdapter; queue capacity in worker"
+        process: "spawn without shell, params file, fixed trace path, Job-ID run name, env allowlist; progress from trace/log; cancel SIGTERM→grace→SIGKILL + container cleanup"
+        registry: "Typed TypeScript module in apps/api pipelines module"
+        data: "Job + pipelineId, pipelineRevision, runName, progressJson; JobInputFile; JobOutputFile"
+        routes: "/pipelines, /pipelines/:id/run, /jobs overview, /jobs/:id with progress + Cancel; /jobs/new redirects"
+        packaging: "Host-run API for Nextflow; Compose shows pipeline unavailable; no Docker socket"
+        setup: "CLI pipelines:setup (online) + offline readiness/pipelines:check"
+        correctness: "PBT P7-P13"
+        nextflowTesting: "Fake nextflow/docker executables; real local suite with NEXTFLOW_IT=1"
+        observability: "Minimal + per-pipeline readiness"
+        errorTracking: "Log-based only; run logs kept on server until retention"
+        lifecycle: "Health + readiness + graceful shutdown stopping Nextflow; interrupted runs FAILED on restart"
+        source: "System recommendations applied on user instruction 2026-10-18"
+      tasks:
+        strategy: "Component/dependency-first; executor port refactor first"
+        waveOrder: "Setup + real-Nextflow spike -> FE + mock json -> BE + real API -> CLI/readiness/retention/ops -> Tests/Verify; stop per wave"
+        testing: "Test-after; Unit 2 tests after every jobs change; integration + PBT P7-P13 mandatory"
+        scope: "API unit/integration with fake bins, PBT, local real-run (NEXTFLOW_IT=1), web unit; E2E deferred"
+        externalDeps: "Real in spike, mock json in W2, fake in W3-W4 with real run per adapter task, full real-run in W5"
+        granularity: "Single concern, 0.5-2 days"
+        parallelism: "Sequential waves; non-overlapping parallel within wave only"
+        testData: "Synthetic FASTQ in tests; pipeline test data from Nextflow cache; nothing committed"
+    completedPhases:
+      - "design"
+      - "tasks"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-18T01:55:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-18T02:20:00Z"
+        totalTasks: 25
+        files:
+          - "tasks.md"
+    stories:
+      - "US-016"
+      - "US-017"
+      - "US-018"
+      - "US-019"
+      - "US-020"
+      - "US-021"
+    dependencies:
+      - "foundation"
+      - "identity-access"
+      - "submission-job-lifecycle"
   - name: "results-guidance"
     status: "pending"
     phase: "design"
@@ -300,4 +388,5 @@ units:
       - "foundation"
       - "identity-access"
       - "submission-job-lifecycle"
+      - "pipeline-catalog-nextflow"
     artifacts: {}

@@ -210,3 +210,58 @@
 - **Action**: implementation-complete
 - **Artifacts**: `units/submission-job-lifecycle/tasks.md` (17/17), manifest
 - **Outcome**: all CI gates pass locally; branch `feat/submission-job-lifecycle` pushed for review on user request; next unit `results-guidance` not started
+### [2026-10-18T00:40:00Z] Requirements: Add-on Decision Gate (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: decision-gate
+- **Artifacts**: `decisions-requirements-addon-pipeline-catalog.md`
+- **Outcome**: scope change requested by user on branch `feat/pipeline-catalog-nextflow`; confirmed C-1..C-7 recorded from conversation; Step 0 local Nextflow verification results recorded; D1A-1..D1A-10 awaiting answers
+### [2026-10-18T00:55:00Z] Requirements: Add-on Validation (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: validation
+- **Artifacts**: `decisions-requirements-addon-pipeline-catalog.md` (Decisions Summary + validation)
+- **Outcome**: answers D1A-1..D1A-10 recorded (D1A-6 = Cancel with CANCELLED, D1A-7 = results deferred to Results & Guidance); 2 medium conflicts (V-1 CANCELLED contract scope, V-2 results deferral vs verification) awaiting resolution; 2 low notes recorded
+### [2026-10-18T01:00:00Z] Requirements: Add-on Generation (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: edit (Add-on generation)
+- **Artifacts**: `requirements.md` Add-on (US-016..US-021, adjusted US-004..US-014, NFR-002/004/005/007), `blueprints/product.md` Add-on, manifest `decisions.requirements.addOnPipelineCatalog`, backup `history/requirements-2026-10-18T01-00-00Z.md`
+- **Outcome**: V-1 and V-2 resolved with recommendations on user instruction; personas unchanged; Add-on draft awaiting approval. Completed units (foundation, identity-access, submission-job-lifecycle) are affected only through the new unit's design (shared status contract, jobs module) and are not reopened
+### [2026-10-18T01:10:00Z] Requirements: Add-on Approval (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: approval
+- **Artifacts**: `requirements.md` Add-on, `blueprints/product.md` Add-on, manifest `decisions.requirements.addOnPipelineCatalog`
+- **Outcome**: approved by user ("proceed"); next decomposition edit to add unit `pipeline-catalog-nextflow` per D1A-10
+### [2026-10-18T01:15:00Z] Units: Edit — add pipeline-catalog-nextflow
+- **Phase**: decomposition
+- **Action**: edit
+- **Artifacts**: `units.md` (Unit 4, summary, context map, sequence Phase 3b, ownership), manifest `units[pipeline-catalog-nextflow]`, backup `history/units-2026-10-18T01-10-00Z.md`
+- **Outcome**: unit decided by D1A-10 (no new D2 gate); validation passed — 21/21 stories assigned exactly once, no circular dependency (Foundation → Identity → Jobs → Pipelines → Results); completed units not marked outdated (changes flow through the new unit's design); results-guidance has no artifacts yet, so nothing to mark outdated. Awaiting approval
+### [2026-10-18T01:25:00Z] Units: decomposition edit approved; pipeline-catalog-nextflow design D3 gate opened
+- **Phase**: decomposition/design
+- **Action**: approval, unit-start
+- **Artifacts**: `units.md`, `units/pipeline-catalog-nextflow/decisions-design.md`
+- **Outcome**: user approved Unit 4 ("proceed"); D3 (15 questions) awaiting answers — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T01:45:00Z] Design: pipeline-catalog-nextflow draft generated
+- **Phase**: design
+- **Action**: generation
+- **Artifacts**: `units/pipeline-catalog-nextflow/design.md`, blueprints tech/structure Add-on
+- **Outcome**: D3 recommendations applied; design draft awaiting approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T02:00:00Z] Units: pipeline-catalog-nextflow design approved; D4 gate opened
+- **Phase**: design/tasks
+- **Action**: approval, decision-gate
+- **Artifacts**: `units/pipeline-catalog-nextflow/{design.md, decisions-tasks.md}`
+- **Outcome**: design approved by user; D4 (8 questions) awaiting answers
+### [2026-10-18T02:15:00Z] Tasks: pipeline-catalog-nextflow draft generated
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `units/pipeline-catalog-nextflow/tasks.md`
+- **Outcome**: 25 tasks / 5 waves awaiting approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T02:20:00Z] Tasks: pipeline-catalog-nextflow approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `units/pipeline-catalog-nextflow/tasks.md`
+- **Outcome**: 25 tasks approved; awaiting implementation mode choice
+### [2026-10-18T03:30:00Z] Implementation: pipeline-catalog-nextflow Wave 1 complete (5/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: shared contracts, config, migration, web client, spike Add-on
+- **Outcome**: all checks pass — details in `units/pipeline-catalog-nextflow/audit.md`
