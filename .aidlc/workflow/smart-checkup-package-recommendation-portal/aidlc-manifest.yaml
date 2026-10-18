@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-18T13:30:00Z"
+updated: "2026-10-18T14:40:00Z"
 state:
   status: "active"
   scope: "new"
@@ -315,8 +315,8 @@ units:
         files:
           - "tasks.md"
   - name: "pipeline-catalog-nextflow"
-    status: "in-progress"
-    phase: "implement"
+    status: "completed"
+    phase: "complete"
     owner: "Developer 2"
     addedBy: "requirements Add-on 2026-10-18"
     branch: "feat/pipeline-catalog-nextflow"
@@ -325,7 +325,7 @@ units:
       totalTasks: 25
       completedTasks: 25
       currentTask: null
-      currentWave: 6
+      currentWave: null
     decisions:
       design:
         upload: "busboy streaming to staging with byte/file counters; abort and delete on limit"
@@ -356,6 +356,7 @@ units:
     completedPhases:
       - "design"
       - "tasks"
+      - "implement"
     artifacts:
       design:
         status: "approved"

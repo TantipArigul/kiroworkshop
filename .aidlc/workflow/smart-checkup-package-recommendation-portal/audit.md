@@ -285,3 +285,8 @@
 - **Action**: wave-complete
 - **Artifacts**: unit/integration/PBT/real-run suites, flaky-test fix (test support), upload race fix (BUG-1/1b)
 - **Outcome**: full chain green; real-run 6/6 offline — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T14:40:00Z] Implementation: pipeline-catalog-nextflow complete (25/25)
+- **Phase**: implementation
+- **Action**: implementation-complete
+- **Artifacts**: branch `feat/pipeline-catalog-nextflow` pushed to origin (no PR/merge; all units merge to `main` at the end per user decision)
+- **Outcome**: unit completed; next unit `results-guidance` (Developer 3) branches from `feat/pipeline-catalog-nextflow`

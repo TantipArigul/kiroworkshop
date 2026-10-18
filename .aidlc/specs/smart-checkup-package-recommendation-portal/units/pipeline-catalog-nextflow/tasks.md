@@ -256,7 +256,7 @@
 - [x] Run ผ่านแบบ `NXF_OFFLINE=true`; env ของ child ไม่มี secret
 - [x] HTML report ไม่ถูก render inline; log/audit ไม่มีชื่อไฟล์/alias/path
 - [x] ไม่มี FASTQ, uploads, work directory หรือ `.env` ใน git
-- [ ] ทุก task ใน `tasks.md` ติ๊ก `[x]`; Add-on และ `audit.md` อัปเดต; ผู้ใช้ยืนยันก่อน push/PR
+- [x] ทุก task ใน `tasks.md` ติ๊ก `[x]`; Add-on และ `audit.md` อัปเดต; ผู้ใช้ยืนยันก่อน push/PR
 
 ## Execution Waves
 

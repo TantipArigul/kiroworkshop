@@ -95,3 +95,12 @@
 - **Action**: user reported `.fastq.gz` not selectable; `accept` listed multi-dot extensions (`.fastq.gz`, `.fq.gz`), which file dialogs do not match (they use the last extension). Added `fastqPickerAccept()` in `inputPreview.ts` → `.fastq,.fq,.gz`; full extension check unchanged (preview + API)
 - **Artifacts**: `apps/web/src/features/pipelines/{inputPreview.ts,RenameFastqRunPage.tsx,inputPreview.test.ts}`
 - **Outcome**: web typecheck, lint, tests 40/40, build pass; smoke proxy serves the rebuilt bundle. Browser re-check by user pending
+### [2026-10-18T14:30:00Z] Branch pushed (no PR, no merge)
+- **Phase**: implementation
+- **Action**: user requested push only; `git push -u origin feat/pipeline-catalog-nextflow` (origin `TantipArigul/kiroworkshop`), 7 commits ahead of `main`; no PR opened, nothing merged
+- **Outcome**: user decision — next unit branches from this branch; all units merge to `main` together at the end (deviates from team policy of PR + merge per unit; recorded at user's request)
+### [2026-10-18T14:40:00Z] Phase Complete: Implementation
+- **Phase**: implementation
+- **Action**: all tasks implemented (parallel mode, 5 waves, 1 sub-agent per wave); user approved ("done")
+- **Artifacts**: 103 files changed vs `main` (+ picker fix), 8 commits on `feat/pipeline-catalog-nextflow`; tests shared 66, web 40, api 266 (+6 opt-in real-run), properties 26
+- **Outcome**: 25 tasks completed, 0 failed, 0 skipped. Test suite: pass; real-run suite 6/6; browser smoke by user (file picker fix verified). DoD 13/13 — push done without PR/merge per user decision (merge to `main` after all units)
