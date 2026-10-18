@@ -45,32 +45,32 @@
     - **Acceptance**: หน้าเดิมทั้งหมด compile และทำงานเหมือนเดิม
     - **Validation**: `pnpm --filter @portal/web typecheck && pnpm --filter @portal/web test && pnpm validate:tokens`
 
-- [ ] 2. Frontend + mock `.json` — catalog, launch, overview, detail
-  - [ ] 2.1 Pipelines API client และ mock adapter
+- [x] 2. Frontend + mock `.json` — catalog, launch, overview, detail
+  - [x] 2.1 Pipelines API client และ mock adapter
     - **Deps**: 1.2, 1.5 | **Ref**: `design.md` — C10 (Mock)
     - `pipelinesApi.ts` (list, get, launch พร้อม progress, cancel); `mocks/pipelines.json` (2 pipelines, metadata เท่านั้น); routes `/pipelines*`, `/pipelines/:id/runs`, `/jobs/:id/cancel` ใน `mockTransport.ts`; mock Job DTO ขยาย (pipeline, runName, queuePosition, progress ตามเวลา, CANCELLED)
     - **Files**: `apps/web/src/features/pipelines/pipelinesApi.ts`, `apps/web/src/mocks/{pipelines.json,jobs.json,mockTransport.ts}`, `apps/web/src/features/jobs/jobsApi.ts`
     - **Acceptance**: ไม่มีข้อมูลบุคคล/FASTQ จริงใน mock; mock ไม่อยู่ใน production bundle
     - **Validation**: `pnpm --filter @portal/web typecheck`
-  - [ ] 2.2 หน้า Pipeline catalog (`/pipelines`) และ routes
+  - [x] 2.2 หน้า Pipeline catalog (`/pipelines`) และ routes
     - **Deps**: 2.1 | **Ref**: `design.md` — C10 routes; US-016
     - Cards (ชื่อ, คำอธิบาย, version, input ที่รับ, Run, badge Unavailable + เหตุผล); `/jobs/new` → redirect `/pipelines`; nav เพิ่ม "Pipelines"
     - **Files**: `apps/web/src/features/pipelines/PipelinesPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
     - **Acceptance**: US-016 AC1–AC4 ด้วย mock
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.3 หน้า Launch (`/pipelines/:pipelineId/run`)
+  - [x] 2.3 หน้า Launch (`/pipelines/:pipelineId/run`)
     - **Deps**: 2.1 | **Ref**: `design.md` — C10 routes; US-017, US-018
     - `PipelineRunPage` (เลือก form ตาม pipeline; Smart Checkup ใช้ form เดิม); `RenameFastqRunPage`: run name, input type 3 แบบ, file/folder picker (`webkitdirectory`), `inputPreview.ts` (layout ที่ตรวจพบ, จำนวน, ขนาด, barcodes ด้วยกฎ shared), sample name / sample sheet + ผลจับคู่, options (demultiplex ปิดในแบบ 3 + คำเตือน ~8 นาที), ประกาศ test/public data, `UploadProgress` (`<progress>` + `aria-live`), idempotency key, server errors, `503`, success → `/jobs/:id`
     - **Files**: `apps/web/src/features/pipelines/{PipelineRunPage.tsx,RenameFastqRunPage.tsx,inputPreview.ts,UploadProgress.tsx}`, `apps/web/src/features/jobs/NewJobPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
     - **Acceptance**: US-017 AC1–AC6 ด้วย mock; client validation ใช้ `validation/run-input.ts`; ทุก control มี label, focus-visible, ≥ 44px
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.4 Overview (`/jobs`)
+  - [x] 2.4 Overview (`/jobs`)
     - **Deps**: 2.1 | **Ref**: `design.md` — C10 routes; US-020
     - คอลัมน์ run name + Job ID ย่อ, pipeline, status, queue position / progress, created, updated; poll 3 วินาทีขณะมี Job active ในหน้า (หยุดเมื่อแท็บซ่อน); empty state ชี้ไป `/pipelines`
     - **Files**: `apps/web/src/features/jobs/{JobsListPage.tsx,JobProgress.tsx}`, `apps/web/src/app.css`
     - **Acceptance**: US-020 AC1–AC4 ด้วย mock
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.5 Job detail: run info, progress, Cancel
+  - [x] 2.5 Job detail: run info, progress, Cancel
     - **Deps**: 2.1, 2.4 | **Ref**: `design.md` — C10 routes; US-020 AC5, US-021
     - pipeline, run name, input summary (layout, files, sample/sheet), progress, Cancel ด้วย `<dialog>` confirm, outcome `CANCELLED`, ข้อความ `COMPLETED` ที่ไม่อ้างหน้าที่ยังไม่มี (ทั้งสอง pipeline)
     - **Files**: `apps/web/src/features/jobs/{JobDetailPage.tsx,CancelJob.tsx}`, `apps/web/src/app.css`
@@ -184,11 +184,11 @@
 | 1.3 | Config, audit allowlist, busboy | 1.2 | ✅ |
 | 1.4 | Prisma schema + migration | — | ✅ |
 | 1.5 | Web `upload()` + status `cancelled` | 1.2 | ✅ |
-| 2.1 | Pipelines API client + mock | 1.2, 1.5 | ⬜ |
-| 2.2 | Catalog page + routes | 2.1 | ⬜ |
-| 2.3 | Launch page | 2.1 | ⬜ |
-| 2.4 | Overview | 2.1 | ⬜ |
-| 2.5 | Detail + Cancel | 2.1, 2.4 | ⬜ |
+| 2.1 | Pipelines API client + mock | 1.2, 1.5 | ✅ |
+| 2.2 | Catalog page + routes | 2.1 | ✅ |
+| 2.3 | Launch page | 2.1 | ✅ |
+| 2.4 | Overview | 2.1 | ✅ |
+| 2.5 | Detail + Cancel | 2.1, 2.4 | ✅ |
 | 3.1 | Executor port + SimulatedAdapter | 1.2, 1.4 | ⬜ |
 | 3.2 | Cancel flow + delete while running | 3.1 | ⬜ |
 | 3.3 | Registry + run input validator | 1.2 | ⬜ |

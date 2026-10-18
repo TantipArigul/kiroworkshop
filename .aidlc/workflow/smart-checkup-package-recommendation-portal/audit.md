@@ -265,3 +265,8 @@
 - **Action**: wave-complete
 - **Artifacts**: shared contracts, config, migration, web client, spike Add-on
 - **Outcome**: all checks pass — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T04:30:00Z] Implementation: pipeline-catalog-nextflow Wave 2 complete (10/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: web pipelines catalog/launch, jobs overview/detail/cancel, mock adapter
+- **Outcome**: all checks pass (one pre-existing parallel-run flake in identity P4 noted) — details in `units/pipeline-catalog-nextflow/audit.md`

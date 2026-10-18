@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   BrowserRouter,
   Link,
+  Navigate,
   NavLink,
   Route,
   Routes,
@@ -18,7 +19,8 @@ import { CHANGE_PASSWORD_PATH, RequireAuth } from './features/auth/RequireAuth';
 import { SignInPage } from './features/auth/SignInPage';
 import { JobDetailPage } from './features/jobs/JobDetailPage';
 import { JobsListPage } from './features/jobs/JobsListPage';
-import { NewJobPage } from './features/jobs/NewJobPage';
+import { PipelineRunPage } from './features/pipelines/PipelineRunPage';
+import { PipelinesPage } from './features/pipelines/PipelinesPage';
 
 export function App() {
   return (
@@ -50,13 +52,23 @@ export function App() {
                 }
                 path="/jobs"
               />
+              {/* The Smart Checkup form now lives under the catalog (design C10). */}
+              <Route element={<Navigate replace to="/pipelines" />} path="/jobs/new" />
               <Route
                 element={
                   <RequireAuth>
-                    <NewJobPage />
+                    <PipelinesPage />
                   </RequireAuth>
                 }
-                path="/jobs/new"
+                path="/pipelines"
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <PipelineRunPage />
+                  </RequireAuth>
+                }
+                path="/pipelines/:pipelineId/run"
               />
               <Route
                 element={
@@ -127,6 +139,7 @@ function SiteHeader() {
       </Link>
       <nav aria-label="Primary navigation" className="site-nav">
         <NavLink to="/jobs">Workspace</NavLink>
+        <NavLink to="/pipelines">Pipelines</NavLink>
         <NavLink to="/help">Guide</NavLink>
         {signedIn && hasPermission('AUDIT_READ') ? <NavLink to="/audit">Audit</NavLink> : null}
         {signedIn ? (

@@ -403,3 +403,10 @@ apps/web/src/mocks/pipelines.json
 - อื่น ๆ ที่พบ: `-[si-lol/wf-renamefastq] Pipeline completed successfully-`, `ERROR ~ Error executing process > '<FQ_PROCESS> (<tag>)'`, `WARN: Killing running tasks (<n>)`
 
 **สรุปผลกระทบต่อ design**: ไม่มีการเปลี่ยน design เชิงสาระ — OQ1 และ OQ3 ใช้แนวทางหลัก; OQ2 ใช้ fallback ที่ระบุไว้ (ชื่อ `nxf-*` + path ของ run ผ่าน `WorkingDir`) แทน `--filter volume=<workDir>`; เพิ่มข้อสังเกต security เรื่องขอบเขต mount ให้พิจารณาใน task 3.7/4.2
+
+## Add-on — Wave 2 UI decisions (approved 2026-10-18)
+ผู้ใช้ยืนยันทางเลือกที่ design เดิมไม่ได้ระบุ (C10) ระหว่าง Wave 2:
+- **Folder upload**: browser ส่งเฉพาะไฟล์ที่นามสกุลเป็น FASTQ (`FASTQ_EXTENSIONS`) — ไฟล์อื่นในโฟลเดอร์ (เช่น `.DS_Store`) ไม่ถูกส่ง; ไฟล์ใต้ `unclassified/` ไม่ถูกส่งเพราะ pipeline ไม่อ่าน; preview แสดงจำนวนที่ข้าม; แบบ `SINGLE_FILE` ไม่กรองเพื่อให้รายงานนามสกุลผิด — server (C3/C4) ยังตรวจซ้ำแบบ authoritative
+- **Sample sheet**: upload ด้วยชื่อคงที่ `sample_sheet.csv` (ชื่อไฟล์ของผู้ใช้ไม่ถูกส่ง); `sampleName` ส่งเฉพาะเมื่อไม่ว่าง
+- **Q-score**: แก้ได้เสมอแม้ปิด quality filter (ค่า validate ตามช่วงเดิม)
+- **Web client placement**: `cancel()` อยู่ใน `features/jobs/jobsApi.ts` เพราะ endpoint คือ `POST /jobs/{id}/cancel`

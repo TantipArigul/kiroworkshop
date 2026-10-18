@@ -45,3 +45,18 @@
 - **Action**: wave 1 executed (parallel mode, 1 sub-agent; Phase 1 Setup, tasks 1.1–1.5)
 - **Artifacts**: spike Add-on in `design.md`; `packages/shared/**` (CANCELLED, CONFLICT, pipeline constants/schemas, `validation/run-input.ts`, `@portal/shared/run-input` export, generators, OpenAPI); `apps/api/src/config/*` (`NextflowConfig`/`PortalConfig`, 10 env vars), audit allowlist, `busboy` 1.6.0 + `@types/busboy` 1.5.5; `prisma/schema.prisma` + migration `20261018010000_pipeline_catalog`; web `upload()` (XHR) + status `cancelled`; minimal type-compat edits in `job.service.ts`, web mocks and `JobDetailPage.tsx`
 - **Outcome**: pass — format, lint, typecheck, build, validate:tokens; tests shared 62, web 17, api 136, properties 18 (coordinator re-run: all green twice). Spike: OQ1 trace override works (rows on completion only); OQ2 SIGTERM to process group stops containers, SIGKILL leaves them → cleanup by `nxf-*` name + `WorkingDir` prefix (volume filter rejected); OQ3 `nextflow info -o json` offline works. Notes: intermittent supertest port-collision failures seen by the sub-agent (environmental, not reproduced by coordinator); pipeline containers mount the common root (home dir) — narrow via `NEXTFLOW_HOME`/`STORAGE_ROOT` placement in 4.2. 20% overall
+### [2026-10-18T03:35:00Z] Implementation: Paused
+- **Phase**: implementation
+- **Action**: pause
+- **Artifacts**: manifest `implementation.currentWave: 2`, commits `f6585e4`, `320966c` on local branch
+- **Outcome**: paused by user after Wave 1; resume at Wave 2 (Frontend + mock json, tasks 2.1–2.5)
+### [2026-10-18T04:30:00Z] Wave Complete: Wave 2
+- **Phase**: implementation
+- **Action**: wave 2 executed (parallel mode, 1 sub-agent; Phase 2 Frontend + mock json, tasks 2.1–2.5)
+- **Artifacts**: new `apps/web/src/features/pipelines/{pipelinesApi.ts,PipelinesPage.tsx,PipelineRunPage.tsx,RenameFastqRunPage.tsx,inputPreview.ts,UploadProgress.tsx}`, `features/jobs/{CancelJob.tsx,JobProgress.tsx}`, `mocks/pipelines.json`; modified `App.tsx`, `app.css`, `features/jobs/{JobDetailPage,JobsListPage,NewJobPage}.tsx`, `jobsApi.ts` (adds `cancel`), `mocks/{jobs.json,mockTransport.ts}`; 14 files, ownership respected
+- **Outcome**: pass — format, lint, typecheck, validate:tokens, build; tests shared 62, web 17, api 136, properties 18. Coordinator observed a pre-existing intermittent failure in `identity-access.test.ts` P4 (`/api/v1/audit-events` 404 right after login) only when property files run in parallel; passes alone and on re-run of the full suite (2/2); no API/shared file changed in this wave → tracked for Wave 5 (5.3). Sub-agent choices pending user confirmation: folder uploads send only FASTQ files and skip `unclassified/`; sample sheet uploaded as `sample_sheet.csv`; Q-score editable when quality filter is off; `cancel()` lives in `jobsApi`. Visual checks at 375/768/1440 px not performed (no browser available to the agent); dev server served all routes with no transform errors. 40% overall
+### [2026-10-18T04:40:00Z] Design Add-on: Wave 2 UI decisions approved
+- **Phase**: implementation
+- **Action**: user approved 3 sub-agent choices ("next"); recorded as `design.md` Add-on — Wave 2 UI decisions
+- **Artifacts**: `units/pipeline-catalog-nextflow/design.md`
+- **Outcome**: FASTQ-only folder upload (skip `unclassified/`), fixed `sample_sheet.csv` name, Q-score always editable, `cancel()` in `jobsApi`
