@@ -1,0 +1,42 @@
+# Audit — results-guidance
+
+### [2026-10-18T14:50:00Z] Design: Decision Gate D3 generated
+- **Phase**: design
+- **Action**: decision-gate — fresh D3 for this unit (15 questions; Foundation/Identity/Unit 2/Pipeline Catalog decisions not re-asked); branch `feat/results-guidance` created from `feat/pipeline-catalog-nextflow` (`4a5c3af`)
+- **Artifacts**: `units/results-guidance/decisions-design.md`
+- **Outcome**: awaiting user answers; open items not in source — mock rule content (D3-3), approved reference links (D3-8), MIT copyright holder/year (D3-10)
+### [2026-10-18T15:10:00Z] Design: D3 answered + validation
+- **Phase**: design
+- **Action**: user — "use recommendations but if there are html report, it should able to open on page"; 14 answers = recommended, D3-5 = Other (HTML reports viewable on page); Decisions Summary populated; validation run
+- **Artifacts**: `units/results-guidance/decisions-design.md`
+- **Outcome**: 3 conflicts awaiting user — 🔴 HTML report on page vs requirements Add-on (proposed sandboxed iframe, opaque origin, no-network CSP; requires requirements Add-on refinement), 🟡 DAG report loads mermaid from cdn.jsdelivr.net (proposed: download only), 🟡 MIT copyright holder/year missing. Evidence: smoke outputs contain `pipeline_info/execution_report_*`, `execution_timeline_*`, `pipeline_dag_*` HTML
+### [2026-10-18T15:40:00Z] Design: conflicts resolved + design generated (draft)
+- **Phase**: design
+- **Action**: user answered "1,1,2" — Conflict 1 → sandboxed opaque-origin report viewer; Conflict 2 → DAG download only; Conflict 3 → "Copyright (c) 2026 SamNohserver contributors". Spec refined first: `requirements.md` Add-on — Results & Guidance Design Refinement (US-009 AC5–6, US-013 AC1 holder), `blueprints/product.md` Add-on; then compact design generated; blueprints tech/structure Add-ons; manifest decisions + artifacts (draft)
+- **Artifacts**: `units/results-guidance/design.md`, `decisions-design.md` (resolutions), `requirements.md`, `blueprints/{product,tech,structure}.md`, manifest
+- **Outcome**: 10 components, 3 endpoints + 2 web routes, no migration, no new dependency, PBT P14–P18, traceability 5/5 stories without gaps; open items: Plotly may need `'unsafe-eval'` (verify in browser), coordinated changes to jobs/pipelines modules and shared `GONE` error code, mock rule content for user review
+### [2026-10-18T15:50:00Z] Design: approved
+- **Phase**: design
+- **Action**: approval ("proceed"); mock rules C2 accepted as drafted
+- **Artifacts**: `units/results-guidance/design.md`; manifest `artifacts.design.status: approved`, `completedPhases: [design]`; blueprint Add-ons marked approved
+- **Outcome**: ready for tasks (aidlc-tasks, D4)
+### [2026-10-18T16:00:00Z] Tasks: Decision Gate D4 generated
+- **Phase**: tasks
+- **Action**: decision-gate — fresh D4 for this unit (8 questions)
+- **Artifacts**: `units/results-guidance/decisions-tasks.md`
+- **Outcome**: awaiting user answers
+### [2026-10-18T16:10:00Z] Tasks: D4 answered + tasks generated (draft)
+- **Phase**: tasks
+- **Action**: "use recommendations" → 8 answers + Decisions Summary; validation clean (no conflicts); tasks generated
+- **Artifacts**: `units/results-guidance/decisions-tasks.md`, `units/results-guidance/tasks.md`; manifest `decisions.tasks`, `artifacts.tasks` (draft, 20 tasks)
+- **Outcome**: 20 tasks / 5 phases / 5 sequential waves; coverage 5/5 stories, 10/10 components, 3/3 endpoints; PBT P14–P18 in 5.3
+### [2026-10-18T16:20:00Z] Tasks: approved
+- **Phase**: tasks
+- **Action**: approval ("approve")
+- **Artifacts**: `units/results-guidance/tasks.md` (20 tasks); manifest `artifacts.tasks.status: approved`, `completedPhases: [design, tasks]`, `phase: implement`
+- **Outcome**: ready for implementation (mode not yet selected)
+### [2026-10-18T16:25:00Z] Implementation: mode selected
+- **Phase**: implementation
+- **Action**: mode-selection — parallel (recommended; user "go")
+- **Artifacts**: manifest `implementationMode: parallel`, `implementation: { totalTasks: 20, currentWave: 1 }`
+- **Outcome**: Wave 1 plan presented

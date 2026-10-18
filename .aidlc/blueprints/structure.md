@@ -105,3 +105,15 @@ STORAGE_ROOT/jobs/{jobId}/{input,run,output}/ # Nextflow job: inputs, run files 
 ```
 - Only `modules/pipelines` spawns `nextflow`/`docker`; `modules/jobs` talks to it through `ExecutorAdapter`
 - Results & Guidance reads Nextflow outputs through `JobOutputFile` rows and files under `jobs/{jobId}/output/`
+
+## Add-on — Results & Guidance Structure (approved 2026-10-18)
+```text
+LICENSE                                   # MIT, 2026 SamNohserver contributors
+packages/shared/src/schemas/results.ts    # result/artifact DTOs (+ GONE error code)
+apps/api/src/modules/results/             # recommendation-rules, smart-checkup-result, nextflow-stats, result.service, artifact-delivery, report-policy, references, results.routes
+apps/web/src/features/results/            # ResultPage, SmartCheckupResult, NextflowResult, BarChart, RecommendationCard, ArtifactList, ReportViewer, resultsApi
+apps/web/src/features/guide/GuidePage.tsx # /help (moved from App.tsx)
+apps/web/src/features/legal/              # LicensePage, licenseText
+```
+- Results reads Job state only via `JobService.getOwnedJob` and Nextflow outputs only via `PipelineRunService.listOutputFiles`; it owns `ResultArtifact`, `PackageRecommendation` and `jobs/{jobId}/result.json`
+- Tests: `apps/api/tests/{unit,integration}/results/`, `apps/api/tests/properties/results.test.ts`

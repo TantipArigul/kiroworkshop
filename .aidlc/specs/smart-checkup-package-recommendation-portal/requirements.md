@@ -581,3 +581,24 @@ Personas เดิมครอบคลุมผู้ใช้ทั้งห�
 | `decisions-requirements-addon-pipeline-catalog.md` | US-016 – US-021, การปรับ stories/NFR เดิม | C-1..C-7, D1A-1..D1A-10, V-1, V-2 |
 | [si-lol/wf-renamefastq](https://github.com/si-lol/wf-renamefastq) README, `nextflow_schema.json`, `bin/samplesheet_check.py` (revision 1.0.3, MIT) | US-017, US-018, US-019 | Input cases, sample sheet rules, options, outputs |
 | Step 0 local verification (2026-10-18) | US-018, US-019 | Legacy config parser, arm profile, offline run, silent barcode drop, alias validation |
+
+## Add-on — Results & Guidance Design Refinement (approved 2026-10-18)
+
+แหล่งที่มา: Results & Guidance D3-5, D3-10 และการ resolve Conflict 1–3 ที่ผู้ใช้อนุมัติ (`units/results-guidance/decisions-design.md`) · branch `feat/results-guidance`
+
+### การเปลี่ยนขอบเขต
+- **ย้ายเข้าในขอบเขต**: การเปิดดู HTML report ของ Nextflow run บนหน้าผลลัพธ์ (เดิมอยู่ในรายการนอกขอบเขตของ Add-on — Pipeline Catalog + Local Nextflow) ภายใต้ข้อกำหนดด้านล่าง
+- **ยังคงนอกขอบเขต**: การ render report ที่ต้องโหลด script หรือ resource จากเครือข่ายภายนอก (เช่น `pipeline_dag_*.html` ที่ import mermaid จาก CDN) — ให้ download เท่านั้น; MultiQC ไม่ได้ทำงานใน wf-renamefastq 1.0.3
+
+### Acceptance criteria ที่ปรับ
+- **US-009 AC5 (ใหม่)**: WHILE Job เป็น `Completed` WHEN owner เปิด HTML report ที่ registry/allowlist ระบุว่าเปิดดูได้ THEN ระบบ SHALL แสดง report ในกรอบ sandbox ที่แยก origin (opaque origin) ซึ่งเข้าถึง cookie, DOM หรือ API ของแอปไม่ได้ และ SHALL ห้าม report โหลดหรือส่งข้อมูลออกเครือข่าย พร้อมทางเลือก download
+- **US-009 AC6 (ใหม่)**: IF report ต้องใช้ resource ภายนอก THEN UI SHALL แสดงหมายเหตุและให้ download เท่านั้น
+- **US-009 / US-011 (แทนข้อความใน Add-on ก่อนหน้า)**: HTML report ที่มี script SHALL NOT ทำงานบน app origin — การแสดงผลตาม AC5 ไม่ถือว่าเป็น app origin; download ยังคงเป็น attachment
+- **US-013 AC1 (ระบุเพิ่ม)**: ข้อความ licence คือ MIT License "Copyright (c) 2026 SamNohserver contributors" ที่ไฟล์ `LICENSE` ของ repo และหน้าสาธารณะ `/license`
+
+### Traceability (Add-on)
+
+| แหล่งข้อมูล | Stories | การใช้งาน |
+|---|---|---|
+| `units/results-guidance/decisions-design.md` (D3-5, D3-10, Conflict 1–3) | US-009, US-011, US-013 | HTML report viewing, DAG download-only, copyright holder |
+| Smoke run outputs ของ wf-renamefastq 1.0.3 (2026-10-18) | US-009 | `pipeline_info/execution_report_*`, `execution_timeline_*` (script ฝังในไฟล์), `pipeline_dag_*` (โหลด mermaid จาก CDN) |

@@ -290,3 +290,33 @@
 - **Action**: implementation-complete
 - **Artifacts**: branch `feat/pipeline-catalog-nextflow` pushed to origin (no PR/merge; all units merge to `main` at the end per user decision)
 - **Outcome**: unit completed; next unit `results-guidance` (Developer 3) branches from `feat/pipeline-catalog-nextflow`
+### [2026-10-18T14:50:00Z] Design: results-guidance D3 generated
+- **Phase**: design
+- **Action**: decision-gate
+- **Artifacts**: `units/results-guidance/decisions-design.md` (15 questions)
+- **Outcome**: awaiting user answers
+### [2026-10-18T15:40:00Z] Design: results-guidance generated (draft)
+- **Phase**: design
+- **Action**: generation (after requirements Add-on refinement for HTML report viewing)
+- **Artifacts**: `units/results-guidance/design.md`, requirements Add-on, blueprints Add-ons
+- **Outcome**: awaiting user approval — details in `units/results-guidance/audit.md`
+### [2026-10-18T15:50:00Z] Design: results-guidance approved
+- **Phase**: design
+- **Action**: approval
+- **Artifacts**: `units/results-guidance/design.md`
+- **Outcome**: next — tasks for results-guidance
+### [2026-10-18T16:00:00Z] Tasks: results-guidance D4 generated
+- **Phase**: tasks
+- **Action**: decision-gate
+- **Artifacts**: `units/results-guidance/decisions-tasks.md` (8 questions)
+- **Outcome**: awaiting user answers
+### [2026-10-18T16:10:00Z] Tasks: results-guidance generated (draft)
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `units/results-guidance/tasks.md` (20 tasks, 5 waves)
+- **Outcome**: awaiting user approval
+### [2026-10-18T16:20:00Z] Tasks: results-guidance approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `units/results-guidance/tasks.md`
+- **Outcome**: next — implement (mode selection)

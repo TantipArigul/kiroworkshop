@@ -79,3 +79,7 @@ Smart Checkup Package Recommendation Portal เป็น Greenfield prototype �
 - **ข้อจำกัด**: test/public FASTQ ที่ไม่ใช่ข้อมูลผู้ป่วย, ≤ 1 GB และ ≤ 10 FASTQ ต่อ run, รันครั้งละ 1 run, ไม่มี outbound network ระหว่าง run
 - **ผลลัพธ์**: Nextflow run บันทึก output manifest; หน้าแสดงผลออกแบบใน Results & Guidance
 - **ภาษาของโดเมนเพิ่ม**: Pipeline Registry (รายการ pipeline ที่อนุญาต), Run Name (ชื่อแสดงผลของ Job), FASTQ, Barcode, Sample Sheet (`barcode,alias`), Demultiplex, Output Manifest, Cancelled
+
+## Add-on — Results & Guidance refinement (approved 2026-10-18)
+- HTML report ของ Nextflow run เปิดดูบนหน้าผลลัพธ์ได้ในกรอบ sandbox ที่แยก origin และห้าม network; report ที่ต้องใช้ resource ภายนอก (DAG) เป็น download อย่างเดียว
+- Licence: MIT "Copyright (c) 2026 SamNohserver contributors" ที่ `LICENSE` และหน้าสาธารณะ `/license`

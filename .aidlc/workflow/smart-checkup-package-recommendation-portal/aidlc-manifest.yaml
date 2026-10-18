@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-18T14:40:00Z"
+updated: "2026-10-18T16:20:00Z"
 state:
   status: "active"
   scope: "new"
@@ -382,12 +382,61 @@ units:
       - "identity-access"
       - "submission-job-lifecycle"
   - name: "results-guidance"
-    status: "pending"
-    phase: "design"
+    status: "in-progress"
+    phase: "implement"
+    branch: "feat/results-guidance"
+    implementationMode: "parallel"
+    implementation:
+      totalTasks: 20
+      completedTasks: 0
+      currentTask: null
+      currentWave: 1
+    decisions:
+      design:
+        generation: "Results & Guidance JobCompletionHandler writes result.json and finalize(tx) creates ResultArtifact + PackageRecommendation before COMPLETED"
+        ruleEngine: "Typed TypeScript rules, RULESET_VERSION append-only, priority first-match, NO_MATCH stored"
+        ruleContent: "Kiro-drafted 5 synthetic training rules + NO_MATCH; threshold = midpoint of validation range; user reviews in design"
+        api: "GET /jobs/{id}/result, /artifacts/{artifactId}/download, /artifacts/{artifactId}/view; 409 not completed, 404 missing/foreign, 410 GONE removed files"
+        nextflowResult: "Per-sample seqkit stats + bars + outputs by category; execution report/timeline viewable in sandboxed iframe; DAG download only"
+        download: "Attachment, sanitized filename, content-type allowlist (html → octet-stream), nosniff, CSP sandbox, no-store, audit RESULT_DOWNLOADED, single files"
+        visualization: "Hand-built SVG/CSS bars with tokens + paired tables"
+        references: "Tool/project docs only, no medical links"
+        tutorial: "Step-by-step /help + Try the sample (/pipelines/smart-checkup/run?sample=1) + fallback"
+        licence: "Root LICENSE MIT (c) 2026 SamNohserver contributors + public /license + session-cookie notice, no consent banner"
+        routes: "/jobs/:jobId/result + View result on job detail"
+        correctness: "PBT P14-P18"
+        observability: "Minimal"
+        errorTracking: "Log-based only"
+        lifecycle: "Foundation health + readiness + graceful shutdown"
+        conflicts: "HTML report on page via opaque-origin sandbox (requirements Add-on); DAG download only; copyright 2026 SamNohserver contributors"
+      tasks:
+        strategy: "Component/dependency-first; C1 + GONE → ports → C2 → C3 → C4 → C5 → C6 → C7 → web"
+        waveOrder: "Setup → FE + mock json → BE + real API + browser report check → Operations → Tests/Verify; stop per wave"
+        testing: "Test-after; jobs/pipelines tests after every port change; integration + PBT P14–P18 mandatory"
+        scope: "API unit/integration/PBT, real-run /result and /view, web unit; manual browser smoke W3/W5; E2E deferred"
+        testData: "Synthetic TSV/HTML/fake fastq.gz in tests; nothing from real runs committed"
+        granularity: "Single concern, 0.5–2 days"
+        parallelism: "Sequential waves; non-overlapping parallel within wave only"
+        smartCheckupSwitch: "Default handler → C3 in W3; older COMPLETED jobs → 410, no backfill"
+    completedPhases:
+      - "design"
+      - "tasks"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-18T15:50:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-18T16:20:00Z"
+        totalTasks: 20
+        files:
+          - "tasks.md"
     owner: "Developer 3"
     dependencies:
       - "foundation"
       - "identity-access"
       - "submission-job-lifecycle"
       - "pipeline-catalog-nextflow"
-    artifacts: {}

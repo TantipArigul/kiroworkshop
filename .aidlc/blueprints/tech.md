@@ -114,3 +114,11 @@ Stack ที่ผู้ใช้กำหนดเป็น React + TypeScript,
 - **Host tools (not npm)**: Nextflow 26.10.2 with OpenJDK 25 (Homebrew) and Docker Desktop; tested pipeline `si-lol/wf-renamefastq` 1.0.3 with plugin `nf-validation@1.1.3`
 - **Packaging**: Nextflow runs only when the API runs on the host (`NEXTFLOW_ENABLED=true`); Docker Compose keeps Smart Checkup and reports the Nextflow pipeline unavailable; no Docker socket mount
 - **Status contract**: `CANCELLED` added to `JOB_STATUSES`; `CONFLICT` (409) added to `ERROR_CODES`
+
+## Add-on — Results & Guidance Design (approved 2026-10-18)
+- **Result generation**: Results & Guidance `JobCompletionHandler` (Smart Checkup) writes `result.json` and returns `finalize(tx)` that creates `ResultArtifact` + `PackageRecommendation` in the `COMPLETED` transaction; port change is backward compatible
+- **Mock rules**: typed TypeScript rule module, `RULESET_VERSION` append-only, priority first-match; training threshold = midpoint of the synthetic validation range; `NO_MATCH` stored too
+- **API**: `GET /jobs/{id}/result`, `GET /jobs/{id}/artifacts/{artifactId}/download`, `GET /jobs/{id}/artifacts/{artifactId}/view`; `409` not completed, `410 GONE` (new error code) for removed files
+- **Delivery security**: attachment + sanitized filename + content-type allowlist (`.html` → `application/octet-stream`) + `nosniff` + CSP `sandbox`; HTML report viewer = `<iframe sandbox="allow-scripts">` + CSP `sandbox allow-scripts; default-src 'none'; …; frame-ancestors 'self'` (opaque origin, no network); DAG report download-only
+- **Visualization**: hand-built SVG/CSS bars with design tokens + paired tables
+- **Dependencies**: no new packages
