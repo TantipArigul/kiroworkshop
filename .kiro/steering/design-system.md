@@ -88,3 +88,8 @@ Tokens follow three layers: primitive values → semantic aliases → component 
 - The portal sets one essential, `HttpOnly`, `SameSite=strict`, `Secure` session cookie for sign-in; there is no consent banner because no other cookie exists.
 - **Future permanent cookies** (any cookie that outlives the browser session) must not be set until the user has given consent through a consent notice designed in a new spec change; the notice must allow refusing with equal prominence.
 - **Third-party, analytics and tracking cookies are opt-in only**: off by default, never set before explicit consent, and withdrawable at any time.
+
+## Add-on — Primary colour contrast fix (approved 2026-10-18)
+- **Issue**: `--color-primary` was `--color-blue-600` (#0284c7): 4.10:1 on `--color-surface` (#ffffff), 3.91:1 on `--color-page` (#f8fafc) and 4.10:1 for `--color-on-primary` text on primary buttons — below WCAG 2.2 AA (4.5:1) for normal text.
+- **Fix**: new primitive `--color-blue-700` (#0369a1); `--color-primary` now maps to it — 5.93:1 on surface, 5.67:1 on page, 5.93:1 for white text on primary buttons. `--color-primary-hover` stays `--color-blue-800` (#075985, darker than primary). Token names are unchanged; only the value changes.
+- `--color-focus` stays `--color-blue-600` (focus ring, non-text: 4.10:1 on surface ≥ 3:1).

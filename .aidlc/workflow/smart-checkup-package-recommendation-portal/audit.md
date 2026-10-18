@@ -325,3 +325,8 @@
 - **Action**: wave-complete
 - **Artifacts**: result contracts + GONE, completion finalize port, listOutputFiles, result tokens, LICENSE
 - **Outcome**: all checks pass — details in `units/results-guidance/audit.md`
+### [2026-10-18T18:00:00Z] Implementation: results-guidance Wave 2 complete (9/20)
+- **Phase**: implementation
+- **Action**: wave-complete (after one retry)
+- **Artifacts**: result page, charts, artifact list + sandboxed report viewer, guide, licence page, footer, cookie notice, mocks
+- **Outcome**: checks pass; primary colour contrast finding pending user decision — details in `units/results-guidance/audit.md`

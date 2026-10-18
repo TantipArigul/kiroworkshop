@@ -222,17 +222,22 @@ function JobOutcome({ job }: { job: JobDetail }) {
   }
 
   if (job.status === 'COMPLETED') {
-    // US-020 AC5: no link to a result page that does not exist yet (both pipelines).
+    // Results & Guidance C8: the result page now exists for both pipelines.
     return (
       <div className="job-outcome job-outcome--completed" role="status">
         <h2>The run completed</h2>
-        <p>The run completed. Results will be viewable when the Results view is available.</p>
         {job.outputs ? (
           <p>
             {job.outputs.fileCount} output file{job.outputs.fileCount === 1 ? '' : 's'} (
             {formatBytes(job.outputs.totalBytes)}) were recorded for this run.
           </p>
         ) : null}
+        <Link
+          className="ui-button ui-button--primary"
+          to={`/jobs/${encodeURIComponent(job.id)}/result`}
+        >
+          View result
+        </Link>
       </div>
     );
   }

@@ -66,8 +66,8 @@
     - **Acceptance**: ข้อความทั้งสองแหล่งตรงกันทุก byte (normalize line ending)
     - **Validation**: `pnpm --filter @portal/web test`
 
-- [ ] 2. Frontend + mock `.json` — result page, guide, licence
-  - [ ] 2.1 Results API client และ mock adapter
+- [x] 2. Frontend + mock `.json` — result page, guide, licence
+  - [x] 2.1 Results API client และ mock adapter
     - **Deps**: 1.1 | **Ref**: `design.md` — C8 (Mock), API Specification
     - `resultsApi.ts`:
       - `getResult`
@@ -81,7 +81,7 @@
     - **Files**: `apps/web/src/features/results/resultsApi.ts`, `apps/web/src/mocks/{results.json,mockTransport.ts}`
     - **Acceptance**: ไม่มีข้อมูลบุคคลหรือเนื้อหาไฟล์จริงใน mock; mock ไม่อยู่ใน production bundle
     - **Validation**: `pnpm --filter @portal/web typecheck`
-  - [ ] 2.2 `BarChart` และ `RecommendationCard`
+  - [x] 2.2 `BarChart` และ `RecommendationCard`
     - **Deps**: 1.3 | **Ref**: `design.md` — C8 (BarChart, RecommendationCard); US-009 AC1/AC3, US-010 AC1–3
     - SVG bars (`aria-hidden`) + `<table>` คู่กัน
     - เส้น midpoint + band label + ไอคอนรูปทรงต่างกัน + legend; ปิด transition เมื่อ `prefers-reduced-motion`
@@ -90,7 +90,7 @@
     - **Files**: `apps/web/src/features/results/{BarChart.tsx,RecommendationCard.tsx}`, `apps/web/src/app.css`
     - **Acceptance**: ไม่ใช้สีอย่างเดียว; token เท่านั้น; ไม่มี emoji
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.3 `ArtifactList` และ `ReportViewer`
+  - [x] 2.3 `ArtifactList` และ `ReportViewer`
     - **Deps**: 2.1, 1.3 | **Ref**: `design.md` — C8 (ArtifactList, ReportViewer), C6 (DAG note); US-009 AC5–6, US-011
     - จัดกลุ่มตาม category; แสดงชื่อ ขนาด และปุ่ม Download
     - ไฟล์ที่ viewable มีปุ่ม View และ Open in new tab (`rel="noopener noreferrer"`); `viewNote` สำหรับ DAG
@@ -99,7 +99,7 @@
     - **Files**: `apps/web/src/features/results/{ArtifactList.tsx,ReportViewer.tsx}`, `apps/web/src/app.css`
     - **Acceptance**: ปุ่ม ≥ 44px; focus-visible; ตาราง/list ไม่ล้นจอบน mobile
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.4 หน้า `/jobs/:jobId/result` และปุ่ม View result
+  - [x] 2.4 หน้า `/jobs/:jobId/result` และปุ่ม View result
     - **Deps**: 2.1, 2.2, 2.3 | **Ref**: `design.md` — C8 (Route, States, Layout); US-009 AC1–2, AC4
     - `ResultPage` แยก `SmartCheckupResult` / `NextflowResult`
     - States: loading skeleton, `409` (สถานะ + ลิงก์กลับ), `410` (retention/ผลเก่า), `404`, error, success
@@ -108,7 +108,7 @@
     - **Files**: `apps/web/src/features/results/{ResultPage.tsx,SmartCheckupResult.tsx,NextflowResult.tsx}`, `apps/web/src/features/jobs/JobDetailPage.tsx`, `apps/web/src/App.tsx`, `apps/web/src/app.css`
     - **Acceptance**: US-009 AC1–4 ใช้ได้กับ mock; ไม่ poll; responsive 1 คอลัมน์บน mobile
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 2.5 Guide `/help`, `/license`, footer และ cookie notice
+  - [x] 2.5 Guide `/help`, `/license`, footer และ cookie notice
     - **Deps**: 1.4 | **Ref**: `design.md` — C9, C10; US-012 AC1–4, US-013 AC1–2
     - ย้าย Guide ออกจาก `App.tsx` ไป `GuidePage.tsx`; section มี anchor และมี `#results`
     - ลิงก์ "Try the sample" → `/pipelines/smart-checkup/run?sample=1`; `NewJobPage` โหลด sample อัตโนมัติเมื่อมี `?sample=1` และมี fallback links
@@ -256,11 +256,11 @@
 | 1.2 | Port `finalize` + `listOutputFiles` | 1.1 | ✅ |
 | 1.3 | Design tokens + steering Add-on | — | ✅ |
 | 1.4 | `LICENSE` + licence text | — | ✅ |
-| 2.1 | Results API client + mock | 1.1 | ⬜ |
-| 2.2 | BarChart + RecommendationCard | 1.3 | ⬜ |
-| 2.3 | ArtifactList + ReportViewer | 2.1, 1.3 | ⬜ |
-| 2.4 | Result page + View result button | 2.1–2.3 | ⬜ |
-| 2.5 | Guide, `/license`, footer, cookie notice | 1.4 | ⬜ |
+| 2.1 | Results API client + mock | 1.1 | ✅ |
+| 2.2 | BarChart + RecommendationCard | 1.3 | ✅ |
+| 2.3 | ArtifactList + ReportViewer | 2.1, 1.3 | ✅ |
+| 2.4 | Result page + View result button | 2.1–2.3 | ✅ |
+| 2.5 | Guide, `/license`, footer, cookie notice | 1.4 | ✅ |
 | 3.1 | Mock rule engine | 1.1 | ⬜ |
 | 3.2 | Smart Checkup result builder + wiring | 1.2, 3.1 | ⬜ |
 | 3.3 | Nextflow stats reader | 1.1 | ⬜ |

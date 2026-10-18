@@ -2,13 +2,17 @@ import type {
   AuditEvent,
   AuthenticatedUser,
   JobDetail,
+  JobResult,
   JobSubmitRequest,
   JobSummary,
+  NextflowResult,
   PipelineDetail,
   PipelineId,
   PipelineSummary,
   RenamefastqOptions,
+  ResultArtifact,
   RunInputLayout,
+  SmartCheckupResult,
 } from '@portal/shared';
 import {
   FASTQ_EXTENSIONS,
@@ -16,6 +20,7 @@ import {
   INPUT_FILE_MAX_BYTES,
   INPUT_FILE_MAX_ROWS,
   INPUT_MARKERS,
+  NO_MOCK_RECOMMENDATION_RULE_ID,
   RENAMEFASTQ_DEFAULT_KIT_NAME,
   RENAMEFASTQ_DEFAULT_Q_SCORE,
   RENAMEFASTQ_KIT_NAMES,
@@ -44,6 +49,7 @@ import auditFixture from './audit-events.json';
 import jobsFixture from './jobs.json';
 import accountFixture from './me.json';
 import pipelinesFixture from './pipelines.json';
+import resultsFixture from './results.json';
 
 /**
  * Wave 2 mock adapter (VITE_API_MOCK=true). Holds a fake session in memory only, accepts any
@@ -127,6 +133,8 @@ type MockSchedule = {
   mockStartAtMs?: number;
   mockFinishAtMs?: number;
   mockSteps?: string[];
+  /** Synthetic marker CSV of a session-created Smart Checkup job, used to build its result. */
+  mockCsv?: string;
 };
 type MockJob = JobDetail & MockSchedule;
 
@@ -240,6 +248,15 @@ function routeJobs(
     return cancelJob(job);
   }
 
+  if (method === 'GET' && action === 'result' && url.pathname.split('/').length === 4) {
+    return resultFor(job);
+  }
+
+  if (action === 'artifacts') {
+    // Mock mode never serves file contents; the UI shows "Not available in mock mode".
+    return fail(404, 'NOT_FOUND', 'Not available in mock mode.');
+  }
+
   if (action !== undefined) {
     return fail(404, 'NOT_FOUND');
   }
@@ -287,6 +304,7 @@ function submitJob(input: JobSubmitRequest, key: string): TransportResponse {
     ...queuedTimestamps(id, now),
     parameters,
     file: { name: input.file.name, sizeBytes: input.file.content.length, rowCount: rows },
+    mockCsv: input.file.content,
     mockCreatedAtMs: now,
     mockStartAtMs: now + QUEUED_MS,
     mockFinishAtMs: now + QUEUED_MS + SIMULATED_RUNNING_MS,
@@ -432,13 +450,328 @@ function finish(job: MockJob, occurredAt: string) {
   job.failureSummary = failed ? summary : null;
   job.history.push({ status: job.status, occurredAt, summary });
 
-  if (isNextflow(job) && job.run) {
-    const reads = job.run.files.filter((file) => file.kind === 'FASTQ');
+  if (isNextflow(job) && job.run && !failed) {
+    // Same file list as the result page, so the totals on the job page match it.
+    const artifacts = sessionNextflowOutputs(job).artifacts;
     job.outputs = {
-      fileCount: reads.length + 1,
-      totalBytes: reads.reduce((sum, file) => sum + file.sizeBytes, 0),
+      fileCount: artifacts.length,
+      totalBytes: artifacts.reduce((sum, file) => sum + file.sizeBytes, 0),
     };
   }
+}
+
+// ---------- Results (design C8 mock) ----------
+
+const fixtureResults = resultsFixture.results as unknown as Record<string, JobResult>;
+const RULESET_VERSION = 'mock-rules-2026.10-1';
+const RECOMMENDATION_DISCLAIMER =
+  'Training output only. Not a medical diagnosis or treatment advice.';
+const GONE_MESSAGE =
+  'The result files were removed by the retention policy or are no longer available.';
+const CARDIO_MARKERS = [
+  'fasting_glucose',
+  'hba1c',
+  'ldl_cholesterol',
+  'triglycerides',
+  'systolic_bp',
+  'bmi',
+];
+/** Reference lists are copied from the fixtures so every mock result uses the same links. */
+const SMART_CHECKUP_REFERENCES = fixtureResults.cmockjob0000000000000001?.references ?? [];
+const NEXTFLOW_REFERENCES = fixtureResults.cmockjob0000000000000003?.references ?? [];
+
+/**
+ * `GET /jobs/{id}/result`: `409` until COMPLETED, the fixture result for fixture jobs, a result
+ * built from the session input for jobs created in this session, and `410` for the fixture job
+ * that completed before results existed (design C5/C7).
+ */
+function resultFor(job: MockJob): TransportResponse {
+  if (job.status !== 'COMPLETED') {
+    return fail(409, 'CONFLICT', 'The result is available when the job is completed.', [
+      { field: 'status', message: job.status },
+    ]);
+  }
+
+  const fixture = fixtureResults[job.id];
+
+  if (fixture) {
+    return ok(fixture);
+  }
+
+  if (job.mockCreatedAtMs === undefined) {
+    return fail(410, 'GONE', GONE_MESSAGE);
+  }
+
+  return ok(isNextflow(job) ? sessionNextflowResult(job) : sessionSmartCheckupResult(job));
+}
+
+type ResultMarker = SmartCheckupResult['markers'][number];
+
+function sessionSmartCheckupResult(job: MockJob): SmartCheckupResult {
+  const parameters = job.parameters!;
+  const markers = parseMarkers(job.mockCsv ?? '');
+  const recommendation = mockRecommendation(parameters, markers);
+
+  return {
+    pipelineId: 'smart-checkup',
+    summary: {
+      runName: job.runName,
+      focusArea: parameters.focusArea,
+      ageBand: parameters.ageBand,
+      lifestyleFactors: parameters.lifestyleFactors,
+      markerCount: markers.length,
+      generatedAt: job.updatedAt,
+    },
+    markers,
+    recommendation,
+    artifacts: [
+      {
+        id: `${job.id}r1`,
+        kind: 'RESULT',
+        category: 'RESULT',
+        displayName: `smart-checkup-result-${job.id.slice(-8)}.json`,
+        sizeBytes: JSON.stringify({ markers, recommendation }).length,
+        contentType: 'application/json',
+        viewable: false,
+        viewNote: null,
+      },
+    ],
+    references: SMART_CHECKUP_REFERENCES,
+  };
+}
+
+/** Rows were validated on submit; unknown markers are skipped like the server would reject them. */
+function parseMarkers(csv: string): ResultMarker[] {
+  return csv
+    .trim()
+    .split(/\r?\n/)
+    .slice(1)
+    .flatMap((line) => {
+      const [name = '', value = ''] = line.split(',');
+      const definition = INPUT_MARKERS.find((item) => item.marker === name.trim());
+      const numeric = Number(value);
+
+      if (!definition || !Number.isFinite(numeric)) {
+        return [];
+      }
+
+      const midpoint = (definition.min + definition.max) / 2;
+
+      return [
+        {
+          marker: definition.marker,
+          value: numeric,
+          unit: definition.unit,
+          min: definition.min,
+          max: definition.max,
+          midpoint,
+          band:
+            numeric >= midpoint
+              ? ('AT_OR_ABOVE_TRAINING_MIDPOINT' as const)
+              : ('BELOW_TRAINING_MIDPOINT' as const),
+        },
+      ];
+    });
+}
+
+/** UI-review mirror of the C2 rule table (priority first-match); the API owns the real rules. */
+function mockRecommendation(
+  parameters: NonNullable<JobDetail['parameters']>,
+  markers: ResultMarker[],
+): SmartCheckupResult['recommendation'] {
+  const above = (marker: string) =>
+    markers.some((item) => item.marker === marker && item.band === 'AT_OR_ABOVE_TRAINING_MIDPOINT');
+  const has = (factor: string) => (parameters.lifestyleFactors as string[]).includes(factor);
+  const focus = parameters.focusArea;
+  const markerFactors = (names: string[]) => names.filter(above).map((name) => `marker:${name}`);
+  const lifestyleFactors = (names: string[]) =>
+    names.filter(has).map((name) => `lifestyle:${name}`);
+  const rules: { ruleId: string; packageLabel: string; factors: () => string[] | null }[] = [
+    {
+      ruleId: 'MOCK-CARDIO-01',
+      packageLabel: 'Training Package B — Cardiometabolic',
+      factors: () => {
+        const hits = markerFactors(CARDIO_MARKERS);
+        return focus === 'CARDIOMETABOLIC' && hits.length > 0
+          ? ['focusArea:CARDIOMETABOLIC', ...hits]
+          : null;
+      },
+    },
+    {
+      ruleId: 'MOCK-LIVER-01',
+      packageLabel: 'Training Package C — Liver',
+      factors: () => {
+        const hits = [...markerFactors(['alt']), ...lifestyleFactors(['HIGH_ALCOHOL'])];
+        return focus === 'LIVER' && hits.length > 0 ? ['focusArea:LIVER', ...hits] : null;
+      },
+    },
+    {
+      ruleId: 'MOCK-KIDNEY-01',
+      packageLabel: 'Training Package D — Kidney',
+      factors: () => {
+        const hits = markerFactors(['creatinine', 'systolic_bp']);
+        return focus === 'KIDNEY' && hits.length > 0 ? ['focusArea:KIDNEY', ...hits] : null;
+      },
+    },
+    {
+      ruleId: 'MOCK-LIFESTYLE-01',
+      packageLabel: 'Training Package E — Lifestyle',
+      factors: () => {
+        const hits = lifestyleFactors(['SMOKING', 'LOW_ACTIVITY']);
+        return hits.length > 0 ? hits : null;
+      },
+    },
+    {
+      ruleId: 'MOCK-GENERAL-01',
+      packageLabel: 'Training Package A — General',
+      factors: () => (focus === 'GENERAL' ? ['focusArea:GENERAL'] : null),
+    },
+  ];
+
+  for (const rule of rules) {
+    const factors = rule.factors();
+
+    if (factors) {
+      return {
+        ruleId: rule.ruleId,
+        ruleVersion: RULESET_VERSION,
+        packageLabel: rule.packageLabel,
+        reason: `Rule ${rule.ruleId} matched on ${factors.join(', ')}.`,
+        matchedFactors: factors,
+        matched: true,
+        disclaimer: RECOMMENDATION_DISCLAIMER,
+      };
+    }
+  }
+
+  return {
+    ruleId: NO_MOCK_RECOMMENDATION_RULE_ID,
+    ruleVersion: RULESET_VERSION,
+    packageLabel: 'No mock recommendation',
+    reason: 'No mock rule matches this input, so no package is recommended.',
+    matchedFactors: [],
+    matched: false,
+    disclaimer: RECOMMENDATION_DISCLAIMER,
+  };
+}
+
+const SYNTHETIC_BYTES_PER_READ = 440;
+const SYNTHETIC_AVG_LEN = 4200;
+
+/** Synthetic per-sample stats and output list derived from FASTQ sizes only (never contents). */
+function sessionNextflowOutputs(job: MockJob): {
+  samples: NextflowResult['samples'];
+  artifacts: ResultArtifact[];
+} {
+  const run = job.run!;
+  const bytesBySample = new Map<string, number>();
+
+  for (const file of run.files.filter((candidate) => candidate.kind === 'FASTQ')) {
+    const folder = file.relativePath.split('/').slice(-2, -1)[0];
+    const sample = run.sampleName ?? folder ?? 'sample';
+    bytesBySample.set(sample, (bytesBySample.get(sample) ?? 0) + file.sizeBytes);
+  }
+
+  const samples = [...bytesBySample].map(([sample, bytes]) => {
+    const numSeqs = Math.max(1, Math.round(bytes / SYNTHETIC_BYTES_PER_READ));
+    return {
+      sample,
+      numSeqs,
+      sumLen: numSeqs * SYNTHETIC_AVG_LEN,
+      minLen: 180,
+      avgLen: SYNTHETIC_AVG_LEN,
+      maxLen: 15000,
+      avgQual: 13.5,
+    };
+  });
+  // Nextflow-style report suffix, e.g. 2026-10-18_02-00-04.
+  const timestamp = job.createdAt.slice(0, 19).replace('T', '_').replace(/:/g, '-');
+  const output = (
+    index: number,
+    category: ResultArtifact['category'],
+    displayName: string,
+    sizeBytes: number,
+    contentType: string,
+    viewable = false,
+    viewNote: string | null = null,
+  ): ResultArtifact => ({
+    id: `${job.id}a${index}`,
+    kind: 'OUTPUT',
+    category,
+    displayName,
+    sizeBytes,
+    contentType,
+    viewable,
+    viewNote,
+  });
+  const reads = samples.map((sample, index) =>
+    output(
+      index,
+      'READS',
+      `fastq/${sample.sample}.fastq.gz`,
+      bytesBySample.get(sample.sample) ?? 0,
+      'application/gzip',
+    ),
+  );
+  const next = reads.length;
+
+  return {
+    samples,
+    artifacts: [
+      ...reads,
+      output(
+        next,
+        'STATS',
+        'stats/all_fastq_statistics.tsv',
+        64 + 48 * samples.length,
+        'text/tab-separated-values',
+      ),
+      output(
+        next + 1,
+        'REPORT',
+        `pipeline_info/execution_report_${timestamp}.html`,
+        1_600_000,
+        'text/html',
+        true,
+      ),
+      output(
+        next + 2,
+        'REPORT',
+        `pipeline_info/execution_timeline_${timestamp}.html`,
+        250_000,
+        'text/html',
+        true,
+      ),
+      output(
+        next + 3,
+        'REPORT',
+        `pipeline_info/pipeline_dag_${timestamp}.html`,
+        9_000,
+        'text/html',
+        false,
+        'This report loads scripts from the internet, so it can only be downloaded.',
+      ),
+    ],
+  };
+}
+
+function sessionNextflowResult(job: MockJob): NextflowResult {
+  const { artifacts, samples } = sessionNextflowOutputs(job);
+
+  return {
+    pipelineId: 'wf-renamefastq',
+    summary: {
+      runName: job.runName,
+      sampleCount: samples.length,
+      totalReads: samples.reduce((sum, sample) => sum + sample.numSeqs, 0),
+      totalBases: samples.reduce((sum, sample) => sum + sample.sumLen, 0),
+      outputFileCount: artifacts.length,
+      outputBytes: artifacts.reduce((sum, file) => sum + file.sizeBytes, 0),
+    },
+    samples,
+    artifacts,
+    references: NEXTFLOW_REFERENCES,
+  };
 }
 
 /** 1-based position among QUEUED jobs of the same executor, by creation time. */
@@ -458,8 +791,8 @@ function queuePosition(job: JobDetail): number | null {
 }
 
 function toDetail(job: MockJob): JobDetail {
-  const { mockCreatedAtMs, mockFinishAtMs, mockStartAtMs, mockSteps, ...detail } = job;
-  void [mockCreatedAtMs, mockFinishAtMs, mockStartAtMs, mockSteps];
+  const { mockCreatedAtMs, mockCsv, mockFinishAtMs, mockStartAtMs, mockSteps, ...detail } = job;
+  void [mockCreatedAtMs, mockCsv, mockFinishAtMs, mockStartAtMs, mockSteps];
 
   return { ...detail, queuePosition: queuePosition(job) };
 }

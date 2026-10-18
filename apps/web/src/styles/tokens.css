@@ -5,6 +5,7 @@
   --color-blue-100: #e0f2fe;
   --color-blue-200: #bae6fd;
   --color-blue-600: #0284c7;
+  --color-blue-700: #0369a1;
   --color-blue-800: #075985;
   --color-green-600: #16a34a;
   --color-green-700: #15803d;
@@ -55,7 +56,8 @@
   --color-text: var(--color-slate-900);
   --color-text-muted: var(--color-slate-600);
   --color-border: var(--color-slate-300);
-  --color-primary: var(--color-blue-600);
+  /* blue-700: 5.93:1 on surface, 5.67:1 on page (design-system Add-on — Primary colour contrast fix) */
+  --color-primary: var(--color-blue-700);
   --color-primary-hover: var(--color-blue-800);
   --color-on-primary: var(--color-white);
   --color-accent: var(--color-green-600);

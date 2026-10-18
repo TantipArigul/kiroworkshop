@@ -184,6 +184,17 @@ export function NewJobPage() {
           attach a file yourself.
         </FeedbackMessage>
       ) : null}
+      {sampleState === 'error' ? (
+        // US-012 AC4: fallback paths when the guided sample cannot load.
+        <nav aria-label="Sample fallback" className="jobs-state__actions">
+          <Link className="ui-button ui-button--secondary" to="/pipelines">
+            Back to pipelines
+          </Link>
+          <Link className="ui-button ui-button--ghost" to="/help#smart-checkup">
+            Read the guide
+          </Link>
+        </nav>
+      ) : null}
       {formError ? <FeedbackMessage tone="error">{formError}</FeedbackMessage> : null}
 
       <div className="new-job">

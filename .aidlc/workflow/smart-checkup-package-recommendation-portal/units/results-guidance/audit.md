@@ -45,3 +45,21 @@
 - **Action**: spec baseline committed (`a093d63`); wave 1 executed (parallel mode, 1 sub-agent; Phase 1 Setup, tasks 1.1–1.4)
 - **Artifacts**: `packages/shared/src/schemas/results.ts` (+ constants, `GONE`, types, OpenAPI 3 paths), `jobs/completion.ts` + `simulated-adapter.ts` (`finalize`), `pipelines/pipeline-run.service.ts` (`listOutputFiles`, optional `prisma` option), `http/errors.ts` (`GoneError`), tokens `--color-band-low/high`, `--chart-track`, `--chart-bar-height`, `--report-frame-height` + steering Add-ons (Results UI Tokens, Cookie Rule), `LICENSE` + `features/legal/licenseText.ts` (+ test); tests `completion-finalize.test.ts`, `list-output-files.test.ts`
 - **Outcome**: pass — format, lint, typecheck, tokens, build; tests shared 70, web 42, api 270 (+6 opt-in), properties 26 (coordinator re-run green). Contrast: band-low 6.90–7.56:1, band-high 4.58–5.02:1 on intended surfaces; bands 1.51:1 apart → icon + label + legend required (steering). Follow-ups for Wave 3: pass `prisma` to `createPipelineRunService` in `app.ts`; `job-worker.ts` uses the Nextflow-worded summary when `finalize` throws for Smart Checkup. OpenAPI not validated by a tool (none installed). 20% overall
+### [2026-10-18T17:05:00Z] Design Add-on: Wave 1 findings approved; Wave 1 committed
+- **Phase**: implementation
+- **Action**: user "next" — accepted listOutputFiles wiring (3.5) and executor-specific finalize failure summary (3.2); recorded as `design.md` Add-on — Wave 1 findings; Wave 1 committed `5140819`
+- **Outcome**: Wave 2 plan presented
+### [2026-10-18T17:20:00Z] Wave 2: sub-agent dispatch failed
+- **Phase**: implementation
+- **Action**: wave 2 dispatch (1 sub-agent) ended with a service error ("unexpectedly high load") before reporting
+- **Artifacts (partial, uncommitted)**: `apps/web/src/features/results/resultsApi.ts`, `apps/web/src/mocks/results.json` (304 lines), `mocks/mockTransport.ts` (+345), `mocks/jobs.json` (+98); web typecheck passes; tasks 2.2–2.5 not started; no stray dev server
+- **Outcome**: no task marked complete; awaiting user choice (retry / fix / skip)
+### [2026-10-18T18:00:00Z] Wave Complete: Wave 2 (retry)
+- **Phase**: implementation
+- **Action**: user "retry" — new sub-agent reviewed and kept the partial 2.1 work (all mock payloads parse with `jobResultSchema`), then completed 2.2–2.5
+- **Artifacts**: `features/results/{resultsApi,ResultPage,SmartCheckupResult,NextflowResult,BarChart,RecommendationCard,ArtifactList,ReportViewer,ResultReferences}.tsx|ts` + `ReportViewer.test.tsx`; `features/guide/GuidePage.tsx`; `features/legal/LicensePage.tsx` (+ `CookieNotice`); `App.tsx` (routes `/jobs/:jobId/result`, `/license`, footer, landing licence link); `JobDetailPage.tsx` (View result); `NewJobPage.tsx` (sample fallback links); `mocks/{results.json,mockTransport.ts,jobs.json}`; `app.css`
+- **Outcome**: pass — format, lint, typecheck, tokens, build (web JS 381.93 kB, no zod/mock strings); tests shared 70, web 44, api 270 (+6 opt-in), properties 26 (coordinator re-run). Choices: no client-side zod check (bundle size) — unknown shape → error state; references rendered from API `references[]` (no web constant); Nextflow per-sample table = chart's paired table. Finding: `--color-primary` (#0284c7) is 4.10:1 on white / 3.91:1 on page and white-on-primary 4.10:1 → below WCAG AA for normal text (pre-existing Foundation token, site-wide) — awaiting user decision. Browser visual check pending (user). 45% overall
+### [2026-10-18T18:10:00Z] Design Add-on: Wave 2 findings approved; primary colour fixed; Wave 2 committed
+- **Phase**: implementation
+- **Action**: user "next" — option 1: spec refined first (`design-system.md` Add-on — Primary colour contrast fix; `design.md` Add-on — Wave 2 findings), then `tokens.css` adds `--color-blue-700` (#0369a1) and maps `--color-primary` to it
+- **Outcome**: validate:tokens, web tests 44/44, web build, format, lint pass; Wave 2 committed; Wave 3 plan presented

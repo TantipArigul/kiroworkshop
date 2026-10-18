@@ -1,0 +1,304 @@
+{
+  "_note": "Synthetic UI-review fixtures only (VITE_API_MOCK=true). No personal data and no file contents; values are invented training numbers, not clinical references.",
+  "results": {
+    "cmockjob0000000000000001": {
+      "pipelineId": "smart-checkup",
+      "summary": {
+        "runName": "Baseline cardiometabolic",
+        "focusArea": "CARDIOMETABOLIC",
+        "ageBand": "40-49",
+        "lifestyleFactors": ["LOW_ACTIVITY"],
+        "markerCount": 10,
+        "generatedAt": "2026-10-16T08:10:09.000+00:00"
+      },
+      "markers": [
+        {
+          "marker": "fasting_glucose",
+          "value": 236,
+          "unit": "mg/dL",
+          "min": 40,
+          "max": 400,
+          "midpoint": 220,
+          "band": "AT_OR_ABOVE_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "hba1c",
+          "value": 6.1,
+          "unit": "%",
+          "min": 3,
+          "max": 15,
+          "midpoint": 9,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "ldl_cholesterol",
+          "value": 162,
+          "unit": "mg/dL",
+          "min": 20,
+          "max": 400,
+          "midpoint": 210,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "hdl_cholesterol",
+          "value": 41,
+          "unit": "mg/dL",
+          "min": 10,
+          "max": 150,
+          "midpoint": 80,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "triglycerides",
+          "value": 620,
+          "unit": "mg/dL",
+          "min": 20,
+          "max": 1000,
+          "midpoint": 510,
+          "band": "AT_OR_ABOVE_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "systolic_bp",
+          "value": 172,
+          "unit": "mmHg",
+          "min": 70,
+          "max": 250,
+          "midpoint": 160,
+          "band": "AT_OR_ABOVE_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "diastolic_bp",
+          "value": 88,
+          "unit": "mmHg",
+          "min": 40,
+          "max": 150,
+          "midpoint": 95,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "bmi",
+          "value": 27.4,
+          "unit": "kg/m2",
+          "min": 10,
+          "max": 70,
+          "midpoint": 40,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "alt",
+          "value": 32,
+          "unit": "U/L",
+          "min": 5,
+          "max": 500,
+          "midpoint": 252.5,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "creatinine",
+          "value": 0.9,
+          "unit": "mg/dL",
+          "min": 0.2,
+          "max": 15,
+          "midpoint": 7.6,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        }
+      ],
+      "recommendation": {
+        "ruleId": "MOCK-CARDIO-01",
+        "ruleVersion": "mock-rules-2026.10-1",
+        "packageLabel": "Training Package B — Cardiometabolic",
+        "reason": "Focus area is Cardiometabolic and fasting_glucose, triglycerides, systolic_bp are at or above the synthetic training midpoint.",
+        "matchedFactors": [
+          "focusArea:CARDIOMETABOLIC",
+          "marker:fasting_glucose",
+          "marker:triglycerides",
+          "marker:systolic_bp"
+        ],
+        "matched": true,
+        "disclaimer": "Training output only. Not a medical diagnosis or treatment advice."
+      },
+      "artifacts": [
+        {
+          "id": "cmockartifact00000000001",
+          "kind": "RESULT",
+          "category": "RESULT",
+          "displayName": "smart-checkup-result-00000001.json",
+          "sizeBytes": 2148,
+          "contentType": "application/json",
+          "viewable": false,
+          "viewNote": null
+        }
+      ],
+      "references": [{ "label": "Guide: reading a result", "href": "/help#results" }]
+    },
+    "cmockjob0000000000000006": {
+      "pipelineId": "smart-checkup",
+      "summary": {
+        "runName": "Kidney focus walkthrough",
+        "focusArea": "KIDNEY",
+        "ageBand": "30-39",
+        "lifestyleFactors": ["POOR_SLEEP"],
+        "markerCount": 4,
+        "generatedAt": "2026-10-17T10:20:08.000+00:00"
+      },
+      "markers": [
+        {
+          "marker": "systolic_bp",
+          "value": 128,
+          "unit": "mmHg",
+          "min": 70,
+          "max": 250,
+          "midpoint": 160,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "diastolic_bp",
+          "value": 82,
+          "unit": "mmHg",
+          "min": 40,
+          "max": 150,
+          "midpoint": 95,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "bmi",
+          "value": 24.1,
+          "unit": "kg/m2",
+          "min": 10,
+          "max": 70,
+          "midpoint": 40,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        },
+        {
+          "marker": "creatinine",
+          "value": 1.1,
+          "unit": "mg/dL",
+          "min": 0.2,
+          "max": 15,
+          "midpoint": 7.6,
+          "band": "BELOW_TRAINING_MIDPOINT"
+        }
+      ],
+      "recommendation": {
+        "ruleId": "NO_MATCH",
+        "ruleVersion": "mock-rules-2026.10-1",
+        "packageLabel": "No mock recommendation",
+        "reason": "No mock rule matches this input, so no package is recommended.",
+        "matchedFactors": [],
+        "matched": false,
+        "disclaimer": "Training output only. Not a medical diagnosis or treatment advice."
+      },
+      "artifacts": [
+        {
+          "id": "cmockartifact00000000006",
+          "kind": "RESULT",
+          "category": "RESULT",
+          "displayName": "smart-checkup-result-00000006.json",
+          "sizeBytes": 1186,
+          "contentType": "application/json",
+          "viewable": false,
+          "viewNote": null
+        }
+      ],
+      "references": [{ "label": "Guide: reading a result", "href": "/help#results" }]
+    },
+    "cmockjob0000000000000003": {
+      "pipelineId": "wf-renamefastq",
+      "summary": {
+        "runName": "Barcode demo run",
+        "sampleCount": 2,
+        "totalReads": 2304,
+        "totalBases": 10214400,
+        "outputFileCount": 6,
+        "outputBytes": 2941112
+      },
+      "samples": [
+        {
+          "sample": "demo_alpha",
+          "numSeqs": 1200,
+          "sumLen": 5412000,
+          "minLen": 212,
+          "avgLen": 4510,
+          "maxLen": 18420,
+          "avgQual": 14.6
+        },
+        {
+          "sample": "demo_beta",
+          "numSeqs": 1104,
+          "sumLen": 4802400,
+          "minLen": 198,
+          "avgLen": 4350,
+          "maxLen": 16980,
+          "avgQual": 13.9
+        }
+      ],
+      "artifacts": [
+        {
+          "id": "cmockartifact00000000031",
+          "kind": "OUTPUT",
+          "category": "READS",
+          "displayName": "fastq/demo_alpha.fastq.gz",
+          "sizeBytes": 524000,
+          "contentType": "application/gzip",
+          "viewable": false,
+          "viewNote": null
+        },
+        {
+          "id": "cmockartifact00000000032",
+          "kind": "OUTPUT",
+          "category": "READS",
+          "displayName": "fastq/demo_beta.fastq.gz",
+          "sizeBytes": 497000,
+          "contentType": "application/gzip",
+          "viewable": false,
+          "viewNote": null
+        },
+        {
+          "id": "cmockartifact00000000033",
+          "kind": "OUTPUT",
+          "category": "STATS",
+          "displayName": "stats/all_fastq_statistics.tsv",
+          "sizeBytes": 312,
+          "contentType": "text/tab-separated-values",
+          "viewable": false,
+          "viewNote": null
+        },
+        {
+          "id": "cmockartifact00000000034",
+          "kind": "OUTPUT",
+          "category": "REPORT",
+          "displayName": "pipeline_info/execution_report_2026-10-18_02-00-04.html",
+          "sizeBytes": 1650000,
+          "contentType": "text/html",
+          "viewable": true,
+          "viewNote": null
+        },
+        {
+          "id": "cmockartifact00000000035",
+          "kind": "OUTPUT",
+          "category": "REPORT",
+          "displayName": "pipeline_info/execution_timeline_2026-10-18_02-00-04.html",
+          "sizeBytes": 260000,
+          "contentType": "text/html",
+          "viewable": true,
+          "viewNote": null
+        },
+        {
+          "id": "cmockartifact00000000036",
+          "kind": "OUTPUT",
+          "category": "REPORT",
+          "displayName": "pipeline_info/pipeline_dag_2026-10-18_02-00-04.html",
+          "sizeBytes": 9800,
+          "contentType": "text/html",
+          "viewable": false,
+          "viewNote": "This report loads scripts from the internet, so it can only be downloaded."
+        }
+      ],
+      "references": [
+        { "label": "Guide: reading a result", "href": "/help#results" },
+        { "label": "Nextflow documentation", "href": "https://www.nextflow.io/docs/latest/" },
+        { "label": "si-lol/wf-renamefastq", "href": "https://github.com/si-lol/wf-renamefastq" }
+      ]
+    }
+  }
+}
