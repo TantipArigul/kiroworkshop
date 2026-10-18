@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { FASTQ_EXTENSIONS } from '@portal/shared/constants';
+
 import {
   buildInputPreview,
   buildSheetPreview,
+  fastqPickerAccept,
   relativePathOf,
   type SelectedFile,
 } from './inputPreview';
@@ -129,5 +132,18 @@ describe('buildSheetPreview (P9 in the browser)', () => {
       match: null,
       rows: [],
     });
+  });
+});
+
+describe('fastqPickerAccept', () => {
+  it('offers only last extensions so .fastq.gz files are selectable in the file dialog', () => {
+    expect(fastqPickerAccept(FASTQ_EXTENSIONS)).toBe('.fastq,.fq,.gz');
+  });
+
+  it('still reports a non-FASTQ .gz file picked through the .gz filter', () => {
+    const preview = buildInputPreview('SINGLE_FILE', [{ relativePath: 'notes.txt.gz', size: 10 }]);
+
+    expect(preview.fileCount).toBe(0);
+    expect(preview.issues.length).toBeGreaterThan(0);
   });
 });

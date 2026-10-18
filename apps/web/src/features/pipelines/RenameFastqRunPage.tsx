@@ -30,6 +30,7 @@ import { formatBytes } from '../jobs/jobsApi';
 import {
   buildInputPreview,
   buildSheetPreview,
+  fastqPickerAccept,
   relativePathOf,
   type InputPreview,
   type SheetPreview,
@@ -333,7 +334,7 @@ export function RenameFastqRunPage({ pipeline }: { pipeline: PipelineDetail }) {
                 {folderMode ? 'FASTQ folder' : 'FASTQ file'}
               </label>
               <input
-                accept={folderMode ? undefined : extensions.join(',')}
+                accept={folderMode ? undefined : fastqPickerAccept(extensions)}
                 aria-describedby={errors.files ? 'run-files-error' : 'run-files-hint'}
                 aria-invalid={Boolean(errors.files)}
                 className="ui-input ui-file"

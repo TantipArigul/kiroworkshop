@@ -46,6 +46,17 @@ const EMPTY_PREVIEW: InputPreview = {
   uploadPaths: [],
 };
 
+/**
+ * `accept` value for the FASTQ file picker. File dialogs (macOS in particular) match only the
+ * last extension, so `.fastq.gz` would grey out `reads.fastq.gz`; offer `.gz` instead. The
+ * selection is still checked against the full FASTQ extensions by the preview and the API.
+ */
+export function fastqPickerAccept(extensions: readonly string[]): string {
+  return [...new Set(extensions.map((extension) => `.${extension.split('.').at(-1) ?? ''}`))]
+    .filter((extension) => extension.length > 1)
+    .join(',');
+}
+
 /** `webkitRelativePath` for folder selections (`folder/…/file`), the file name otherwise. */
 export function relativePathOf(file: File): string {
   return file.webkitRelativePath || file.name;
