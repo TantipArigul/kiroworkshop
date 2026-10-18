@@ -2,6 +2,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 
 import { createSuccessResponse } from '@portal/shared';
 
+import type { NextflowConfig } from '../config/config.js';
 import type { AppConfig } from '../config/index.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaSessionStore } from '../infrastructure/prisma-session-store.js';
@@ -11,11 +12,24 @@ import { createIdentityRouter } from '../modules/identity/identity.routes.js';
 import { createIdentityService } from '../modules/identity/identity.service.js';
 import { createSessionGuard } from '../modules/identity/session-guard.js';
 import { writeResultSummary, type JobCompletionHandler } from '../modules/jobs/completion.js';
+import { createExecutorDirectory } from '../modules/jobs/executor.js';
 import { createJobStorage } from '../modules/jobs/job-storage.js';
 import { createJobWorker, type JobWorker } from '../modules/jobs/job-worker.js';
 import { createJobService } from '../modules/jobs/job.service.js';
 import { createJobsRouter } from '../modules/jobs/jobs.routes.js';
 import { createRetentionSweeper } from '../modules/jobs/retention.js';
+import { createSimulatedAdapter } from '../modules/jobs/simulated-adapter.js';
+import {
+  createNextflowAdapter,
+  resolveNextflowConfig,
+} from '../modules/pipelines/nextflow-adapter.js';
+import {
+  createPipelineRunService,
+  recordOutputs,
+} from '../modules/pipelines/pipeline-run.service.js';
+import { createPipelinesRouter } from '../modules/pipelines/pipelines.routes.js';
+import { pipelineIdsForExecutor } from '../modules/pipelines/registry.js';
+import type { RunUploadLimits } from '../modules/pipelines/run-upload.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -40,10 +54,15 @@ export type ApiAppOptions = {
   completionHandler?: JobCompletionHandler;
   /** Test hook: overrides executor readiness when the worker loop is not started. */
   isExecutorReady?: () => boolean;
+  /** Test hook: smaller upload limits than the 1 GiB / 10 FASTQ / 64 KB requirement values. */
+  runUploadLimits?: RunUploadLimits;
 };
 
+/** Core settings plus the Nextflow settings (absent ones fall back to the config defaults). */
+export type ApiAppConfig = AppConfig & Partial<NextflowConfig>;
+
 export function createApiApp(
-  config: AppConfig,
+  config: ApiAppConfig,
   prisma: PrismaClient,
   runtimeState: ApiRuntimeState = { draining: false, startedAt: Date.now() },
   options: ApiAppOptions = {},
@@ -56,18 +75,58 @@ export function createApiApp(
   const identity = createIdentityService({ audit, config, prisma });
   const guard = createSessionGuard({ audit, config, identity });
   const storage = createJobStorage(config.storageRoot);
+  const simulatedAdapter = createSimulatedAdapter({
+    completionHandler: options.completionHandler ?? writeResultSummary,
+    config,
+    logger,
+    prisma,
+    storage,
+  });
+  const nextflowAdapter = createNextflowAdapter({
+    config: resolveNextflowConfig(config),
+    logger,
+    prisma,
+    recordOutputs: (tx, input) => recordOutputs(tx, { ...input, storage }),
+    storage,
+  });
+  const executors = createExecutorDirectory([
+    { adapter: simulatedAdapter, pipelineIds: pipelineIdsForExecutor('simulated') },
+    { adapter: nextflowAdapter, pipelineIds: pipelineIdsForExecutor('nextflow') },
+  ]);
   const jobs = createJobService({
     audit,
     config,
+    executors,
     isExecutorReady: () => executorReady(),
     logger,
     prisma,
     storage,
   });
+  const pipelines = createPipelineRunService({
+    audit,
+    availability: (pipelineId) => {
+      if (!executorReady()) {
+        return { available: false, unavailableReason: null };
+      }
+
+      const adapter = executors.adapterFor(pipelineId);
+
+      if (adapter === nextflowAdapter) {
+        const state = nextflowAdapter.readiness();
+        return { available: state.ready, unavailableReason: state.reason };
+      }
+
+      return { available: adapter?.isReady() ?? false, unavailableReason: null };
+    },
+    jobs,
+    logger,
+    storage,
+    uploadLimits: options.runUploadLimits,
+  });
   const sweepExpiredJobs = createRetentionSweeper({ audit, jobs, logger, prisma, storage });
   const worker = createJobWorker({
-    completionHandler: options.completionHandler ?? writeResultSummary,
     config,
+    executors,
     jobs,
     logger,
     prisma,
@@ -171,6 +230,15 @@ export function createApiApp(
       authenticatedApiLimiter: rateLimiters.authenticatedApi,
       guard,
       jobs,
+      submitLimiter: rateLimiters.submit,
+    }),
+  );
+  app.use(
+    '/api/v1/pipelines',
+    createPipelinesRouter({
+      authenticatedApiLimiter: rateLimiters.authenticatedApi,
+      guard,
+      pipelines,
       submitLimiter: rateLimiters.submit,
     }),
   );

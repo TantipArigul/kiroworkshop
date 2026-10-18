@@ -83,6 +83,8 @@ describe('Job lifecycle properties (fast-check)', () => {
             'QUEUED,RUNNING',
             'QUEUED,RUNNING,COMPLETED',
             'QUEUED,RUNNING,FAILED',
+            'QUEUED,CANCELLED',
+            'QUEUED,RUNNING,CANCELLED',
           ]).toContain(path.join(','));
         },
       ),

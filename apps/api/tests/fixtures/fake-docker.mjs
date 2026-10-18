@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+// Test double for the `docker` CLI commands the Nextflow adapter uses. Point DOCKER_BIN at this
+// file. Containers are the records `fake-nextflow.mjs` (scenario `hang`) writes to
+// `$TMPDIR/portal-fake-docker/containers.json`; nothing talks to a real Docker daemon.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+const args = process.argv.slice(2);
+const directory = join(tmpdir(), 'portal-fake-docker');
+const statePath = join(directory, 'containers.json');
+
+function load() {
+  return existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : [];
+}
+
+function save(containers) {
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(statePath, JSON.stringify(containers));
+}
+
+const [command, ...rest] = args;
+
+switch (command) {
+  case 'info':
+    console.log('Server Version: fake');
+    break;
+  case 'image':
+    // `docker image inspect <ref>`: every image is "present".
+    console.log('[]');
+    break;
+  case 'ps': {
+    const filter = rest[rest.indexOf('--filter') + 1] ?? '';
+    const name = filter.startsWith('name=') ? filter.slice('name='.length) : '';
+    for (const container of load().filter((item) => item.name.includes(name))) {
+      console.log(container.id.slice(0, 12));
+    }
+    break;
+  }
+  case 'inspect': {
+    const ids = rest.slice(rest.indexOf('--format') + 2);
+    let missing = false;
+    for (const id of ids) {
+      const container = load().find((item) => item.id.startsWith(id));
+      if (container) {
+        console.log(`${container.id} ${container.workingDir}`);
+      } else {
+        missing = true;
+        console.error(`Error: No such object: ${id}`);
+      }
+    }
+    process.exit(missing ? 1 : 0);
+    break;
+  }
+  case 'rm': {
+    const ids = rest.filter((value) => value !== '-f');
+    save(load().filter((item) => !ids.some((id) => item.id.startsWith(id))));
+    for (const id of ids) {
+      console.log(id);
+    }
+    break;
+  }
+  default:
+    process.exit(1);
+}

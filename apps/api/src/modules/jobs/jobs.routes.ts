@@ -12,6 +12,7 @@ import type { ActorContext } from '../../shared/authorization.js';
 import { validationError } from '../identity/identity.routes.js';
 import { getRequestId, type SessionGuard } from '../identity/session-guard.js';
 import {
+  ConflictError,
   InputValidationError,
   JobNotFoundError,
   ServiceUnavailableError,
@@ -107,6 +108,19 @@ export function createJobsRouter({
     }
   });
 
+  router.post('/:jobId/cancel', async (request, response, next) => {
+    try {
+      const job = await jobs.cancel(
+        actorOf(request.actor),
+        request.params.jobId,
+        getRequestId(response),
+      );
+      response.status(200).json(createSuccessResponse({ job }, getRequestId(response)));
+    } catch (error) {
+      next(toHttpError(error));
+    }
+  });
+
   router.delete('/:jobId', async (request, response, next) => {
     try {
       await jobs.remove({
@@ -137,6 +151,10 @@ function actorOf(actor: ActorContext | undefined): ActorContext {
 function toHttpError(error: unknown): unknown {
   if (error instanceof JobNotFoundError) {
     return new HttpError(404, 'NOT_FOUND', 'This job is unavailable.');
+  }
+
+  if (error instanceof ConflictError) {
+    return new HttpError(409, 'CONFLICT', 'This job has already finished.');
   }
 
   if (error instanceof ServiceUnavailableError) {

@@ -77,50 +77,50 @@
     - **Acceptance**: US-021 AC1, AC3–AC4 ด้วย mock; Delete เดิมยังใช้ได้
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (375/768/1440 px) ด้วย `VITE_API_MOCK=true`
 
-- [ ] 3. Backend + เชื่อม API จริง
-  - [ ] 3.1 Executor port และ SimulatedAdapter (refactor ไม่เปลี่ยนพฤติกรรม)
+- [x] 3. Backend + เชื่อม API จริง
+  - [x] 3.1 Executor port และ SimulatedAdapter (refactor ไม่เปลี่ยนพฤติกรรม)
     - **Deps**: 1.2, 1.4 | **Ref**: `design.md` — C6
     - `executor.ts` (types), `simulated-adapter.ts` (ห่อ logic เดิม + `JobCompletionHandler`); worker เลือก adapter ตาม `pipelineId` + capacity ต่อ adapter + ลำดับ `createdAt, id`; `JobService.createQueuedJob` (Smart Checkup ใช้ผ่านฟังก์ชันนี้, `runName = sampleLabel`), `transition(..., { actorId, inTx })`, `ALLOWED_TRANSITIONS` + `CANCELLED`, DTO ขยาย (pipeline, runName, queuePosition, progress, run, outputs, cancellable)
     - **Files**: `apps/api/src/modules/jobs/{executor.ts,simulated-adapter.ts,job-worker.ts,job.service.ts}`, `apps/api/src/http/app.ts`
     - **Acceptance**: test เดิมของ Unit 2 ผ่านโดยไม่แก้ assertion (ยกเว้น field ใหม่ใน DTO)
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test && pnpm lint`
-  - [ ] 3.2 Cancel flow และ delete ขณะ running
+  - [x] 3.2 Cancel flow และ delete ขณะ running
     - **Deps**: 3.1 | **Ref**: `design.md` — C6 (`cancel`, `remove`), C8; US-021
     - `JobService.cancel` (owner check → transition → `adapter.cancel` + `cleanup`), `ConflictError` → `409 CONFLICT`; `remove` หยุด run ก่อนลบ; `POST /jobs/:jobId/cancel`
     - **Files**: `apps/api/src/modules/jobs/{job.service.ts,jobs.routes.ts}`, `apps/api/src/http/errors.ts` (ถ้าจำเป็น)
     - **Acceptance**: US-021 AC1, AC3–AC5 กับ SimulatedAdapter; foreign → `404`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 3.3 Pipeline registry และ run input validator
+  - [x] 3.3 Pipeline registry และ run input validator
     - **Deps**: 1.2 | **Ref**: `design.md` — C2, C4; US-016, US-018
     - `registry.ts` (Smart Checkup + wf-renamefastq 1.0.3, images, required outputs, `buildParams` allowlist), `run-input-validator.ts` (`validateLaunch` ใช้กฎ shared + options schema + demultiplex/layout rule)
     - **Files**: `apps/api/src/modules/pipelines/{registry.ts,run-input-validator.ts}`
     - **Acceptance**: `buildParams` สร้างเฉพาะ key ใน allowlist; กฎ C4 ครบ
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.4 Upload receiver (busboy streaming)
+  - [x] 3.4 Upload receiver (busboy streaming)
     - **Deps**: 1.3, 3.3 | **Ref**: `design.md` — C3; US-018 AC1–AC2, AC6
     - Staging `uploads/{uploadId}/`, `preservePath`, segment/depth/extension checks ก่อนเปิด stream, ตัวนับ 10 ไฟล์ / 1 GiB, magic bytes, sample sheet ≤ 64 KB, abort + ลบ staging, audit `UNSAFE_PATH` / `LIMIT_EXCEEDED`; ขีดจำกัด inject ได้สำหรับ test
     - **Files**: `apps/api/src/modules/pipelines/run-upload.ts`, `apps/api/src/modules/jobs/job-storage.ts` (stream/rename helpers)
     - **Acceptance**: ไม่มีการเขียนไฟล์นอก staging; เกินขีดจำกัดไม่เหลือไฟล์
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.5 Pipeline run service, pipelines routes และ wiring
+  - [x] 3.5 Pipeline run service, pipelines routes และ wiring
     - **Deps**: 3.1, 3.3, 3.4 | **Ref**: `design.md` — C5, C8; US-016, US-017
     - `listPipelines`/`getPipeline`, `launch` (idempotency → availability `503` ก่อนรับไฟล์ → upload → validate → `createQueuedJob` + `JobInputFile` + move staging), `recordOutputs`; `pipelines.routes.ts`; mount `/api/v1/pipelines` ใน `app.ts`
     - **Files**: `apps/api/src/modules/pipelines/{pipeline-run.service.ts,pipelines.routes.ts}`, `apps/api/src/http/app.ts`
     - **Acceptance**: launch แบบ 1–3 สร้าง Job `QUEUED` + rows + ไฟล์ใน `jobs/{id}/input/`; replay `200`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 3.6 Nextflow adapter: start, poll, progress, outputs, cleanup
+  - [x] 3.6 Nextflow adapter: start, poll, progress, outputs, cleanup
     - **Deps**: 1.1, 3.1, 3.5 | **Ref**: `design.md` — C7; US-019, US-020
     - `nextflow-adapter.ts` (`params.json`, `spawn` ไม่ใช้ shell + `detached`, env allowlist, map ของ process), `nextflow-progress.ts` (trace + stdout parser ไม่รวม tag), `poll` → `succeeded` + `finalize = recordOutputs` / `failed` + summary จากขั้นตอน, `cleanup` ลบ `work/` และ `.nextflow/`; worker capacity `NEXTFLOW_MAX_CONCURRENT_RUNS`; fake `nextflow` fixture เบื้องต้นสำหรับพัฒนา
     - **Files**: `apps/api/src/modules/pipelines/{nextflow-adapter.ts,nextflow-progress.ts}`, `apps/api/src/http/app.ts`, `apps/api/tests/fixtures/fake-nextflow.mjs`
     - **Acceptance**: รัน case 1 กับ Nextflow จริงผ่าน API แล้วได้ `COMPLETED` + `JobOutputFile` + ไม่มี `work/`; env ของ child ไม่มี `SESSION_SECRET`/`DATABASE_URL`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test` + local run (`NEXTFLOW_ENABLED=true`)
-  - [ ] 3.7 Nextflow cancel, stopAll และ shutdown
+  - [x] 3.7 Nextflow cancel, stopAll และ shutdown
     - **Deps**: 3.2, 3.6 | **Ref**: `design.md` — C7 (`cancel`, `stopAll`), Operations (Shutdown)
     - SIGTERM process group → grace → SIGKILL → ลบ container ตามผล spike 1.1; ลบ `output/` บางส่วนเมื่อ `CANCELLED`/`FAILED`; `worker.stop()` เรียก `stopAll(SHUTDOWN_TIMEOUT_MS)`; fake `docker` fixture
     - **Files**: `apps/api/src/modules/pipelines/nextflow-adapter.ts`, `apps/api/src/modules/jobs/job-worker.ts`, `apps/api/src/server.ts`, `apps/api/tests/fixtures/fake-docker.mjs`
     - **Acceptance**: cancel run จริงขณะ `RUNNING` แล้วไม่มี process/container ค้าง; restart ระหว่าง run → `FAILED` (INTERRUPTED)
     - **Validation**: `pnpm --filter @portal/api test` + local cancel run (`docker ps` ว่าง)
-  - [ ] 3.8 เชื่อม web กับ API จริงและตรวจบน browser
+  - [x] 3.8 เชื่อม web กับ API จริงและตรวจบน browser
     - **Deps**: 2.2–2.5, 3.5–3.7 | **Ref**: `design.md` — C10; US-016–US-021
     - ปิด mock mode; แก้ mismatch ระหว่าง mock กับ DTO จริง; รัน flow catalog → launch (แบบ 1 และ 3 ด้วย test data ของ pipeline) → overview → detail → cancel บน browser
     - **Files**: `apps/web/src/features/{pipelines,jobs}/*` (ตามที่ต้องแก้), `apps/web/src/mocks/*` (ให้ตรง DTO)
@@ -189,14 +189,14 @@
 | 2.3 | Launch page | 2.1 | ✅ |
 | 2.4 | Overview | 2.1 | ✅ |
 | 2.5 | Detail + Cancel | 2.1, 2.4 | ✅ |
-| 3.1 | Executor port + SimulatedAdapter | 1.2, 1.4 | ⬜ |
-| 3.2 | Cancel flow + delete while running | 3.1 | ⬜ |
-| 3.3 | Registry + run input validator | 1.2 | ⬜ |
-| 3.4 | Upload receiver | 1.3, 3.3 | ⬜ |
-| 3.5 | Run service + routes + wiring | 3.1, 3.3, 3.4 | ⬜ |
-| 3.6 | Nextflow adapter (start/poll/outputs/cleanup) | 1.1, 3.1, 3.5 | ⬜ |
-| 3.7 | Nextflow cancel + shutdown | 3.2, 3.6 | ⬜ |
-| 3.8 | Web ↔ real API + browser check | 2.2–2.5, 3.5–3.7 | ⬜ |
+| 3.1 | Executor port + SimulatedAdapter | 1.2, 1.4 | ✅ |
+| 3.2 | Cancel flow + delete while running | 3.1 | ✅ |
+| 3.3 | Registry + run input validator | 1.2 | ✅ |
+| 3.4 | Upload receiver | 1.3, 3.3 | ✅ |
+| 3.5 | Run service + routes + wiring | 3.1, 3.3, 3.4 | ✅ |
+| 3.6 | Nextflow adapter (start/poll/outputs/cleanup) | 1.1, 3.1, 3.5 | ✅ |
+| 3.7 | Nextflow cancel + shutdown | 3.2, 3.6 | ✅ |
+| 3.8 | Web ↔ real API + browser check | 2.2–2.5, 3.5–3.7 | ✅ |
 | 4.1 | Readiness per pipeline | 3.6 | ⬜ |
 | 4.2 | CLI setup/check + docs | 3.3, 4.1 | ⬜ |
 | 4.3 | Retention/cleanup + logging | 3.5, 3.7 | ⬜ |

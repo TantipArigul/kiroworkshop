@@ -346,6 +346,8 @@ function cancelJob(job: MockJob): TransportResponse {
   job.status = 'CANCELLED';
   job.updatedAt = now.toISOString();
   job.cancellable = false;
+  // Like the API: progress is reported only while RUNNING.
+  job.progress = null;
   job.history.push({ status: 'CANCELLED', occurredAt: job.updatedAt, summary: CANCELLED_SUMMARY });
   rescheduleNextflowQueue(now.getTime());
 
@@ -426,6 +428,7 @@ function finish(job: MockJob, occurredAt: string) {
   job.status = failed ? 'FAILED' : 'COMPLETED';
   job.updatedAt = occurredAt;
   job.cancellable = false;
+  job.progress = null;
   job.failureSummary = failed ? summary : null;
   job.history.push({ status: job.status, occurredAt, summary });
 
@@ -619,7 +622,15 @@ async function launchRun(
     progress: null,
     queuePosition: null,
     run: {
+      // Same order as the API: FASTQ files by path, then the sample sheet.
       files: [
+        ...fastq
+          .map((file) => ({
+            kind: 'FASTQ' as const,
+            relativePath: file.name,
+            sizeBytes: file.size,
+          }))
+          .sort((a, b) => a.relativePath.localeCompare(b.relativePath)),
         ...(sheetSize === null
           ? []
           : [
@@ -629,11 +640,6 @@ async function launchRun(
                 sizeBytes: sheetSize,
               },
             ]),
-        ...fastq.map((file) => ({
-          kind: 'FASTQ' as const,
-          relativePath: file.name,
-          sizeBytes: file.size,
-        })),
       ],
       layout,
       options,

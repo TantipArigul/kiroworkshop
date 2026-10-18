@@ -1,15 +1,23 @@
 import { createServer, type Server } from 'node:http';
 
-import type { AppConfig } from './config/index.js';
-import { createApiApp, getJobWorker, type ApiRuntimeState } from './http/app.js';
+import { createApiApp, getJobWorker, type ApiAppConfig, type ApiRuntimeState } from './http/app.js';
 import { createPrismaClient } from './infrastructure/prisma.js';
 
-export function createApiRuntime(config: AppConfig) {
+export function createApiRuntime(config: ApiAppConfig) {
   const runtimeState: ApiRuntimeState = { draining: false, startedAt: Date.now() };
   const prisma = createPrismaClient(config.databaseUrl);
   const app = createApiApp(config, prisma, runtimeState);
   const server = createServer(app);
   const worker = getJobWorker(app);
+  let shuttingDown: Promise<void> | null = null;
+
+  async function shutdown(): Promise<void> {
+    runtimeState.draining = true;
+    // Stop the executor first so no transition is interrupted by the disconnect; this also
+    // stops running Nextflow runs (SIGTERM, then SIGKILL after SHUTDOWN_TIMEOUT_MS).
+    await worker.stop();
+    await shutdownServer(server, prisma, runtimeState, config.shutdownTimeoutMs);
+  }
 
   return {
     app,
@@ -19,11 +27,10 @@ export function createApiRuntime(config: AppConfig) {
       await startServer(server, config.port);
       await worker.start();
     },
-    shutdown: async () => {
-      runtimeState.draining = true;
-      // Stop the executor first so no transition is interrupted by the disconnect.
-      await worker.stop();
-      await shutdownServer(server, prisma, runtimeState, config.shutdownTimeoutMs);
+    /** Idempotent: a second SIGINT/SIGTERM while stopping waits for the same shutdown. */
+    shutdown: () => {
+      shuttingDown ??= shutdown();
+      return shuttingDown;
     },
   };
 }
@@ -45,14 +52,24 @@ async function shutdownServer(
   timeoutMs: number,
 ): Promise<void> {
   runtimeState.draining = true;
+  let timer: NodeJS.Timeout | undefined;
 
-  await Promise.race([
-    new Promise<void>((resolve, reject) =>
-      server.close((error) => (error ? reject(error) : resolve())),
-    ),
-    new Promise<void>((_resolve, reject) =>
-      setTimeout(() => reject(new Error('Graceful shutdown timeout exceeded.')), timeoutMs),
-    ),
-  ]);
+  try {
+    await Promise.race([
+      new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      ),
+      new Promise<void>((_resolve, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Graceful shutdown timeout exceeded.')),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    // A pending timer would keep the process alive for the whole timeout after a clean close.
+    clearTimeout(timer);
+  }
+
   await prisma.$disconnect();
 }

@@ -270,3 +270,8 @@
 - **Action**: wave-complete
 - **Artifacts**: web pipelines catalog/launch, jobs overview/detail/cancel, mock adapter
 - **Outcome**: all checks pass (one pre-existing parallel-run flake in identity P4 noted) — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T07:30:00Z] Implementation: pipeline-catalog-nextflow Wave 3 complete (18/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: executor port, cancel, registry, upload, run service, Nextflow adapter, shutdown, web/API wiring
+- **Outcome**: checks pass; real Nextflow runs (a)–(g) pass; offline-config deviation (`custom_config_base`) pending approval — details in `units/pipeline-catalog-nextflow/audit.md`

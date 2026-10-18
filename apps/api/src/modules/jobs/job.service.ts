@@ -1,20 +1,35 @@
 import {
+  ACTIVE_JOB_STATUSES,
   jobIdSchema,
   jobParametersSchema,
+  jobProgressSchema,
+  renamefastqOptionsSchema,
+  runInputFileKindSchema,
+  runInputLayoutSchema,
   type JobDetail,
   type JobInputFile,
   type JobParameters,
+  type JobProgress,
+  type JobRunInfo,
   type JobStatus,
   type JobSummary,
+  type PipelineId,
 } from '@portal/shared';
+import { z } from 'zod';
 
 import type { PrismaClient } from '../../generated/prisma/client.js';
 import { assertOwnedResourceAccess, type ActorContext } from '../../shared/authorization.js';
 import type { AuditService } from '../audit/audit.service.js';
+import { getPipelineDefinition, pipelineIdsSharingExecutor } from '../pipelines/registry.js';
+import type { ExecutorDirectory, TransactionClient } from './executor.js';
 import { INPUT_FILE_NAME, type JobStorage } from './job-storage.js';
 import { validateInputFile, type InputIssue, type InputRow } from './input-validator.js';
 
 const DAY_MS = 86_400_000;
+const SMART_CHECKUP_PIPELINE_ID = 'smart-checkup';
+const SMART_CHECKUP_REVISION = 'builtin';
+/** Upload paths are stored relative to `jobs/{id}/input`; FASTQ files live under `fastq/`. */
+const FASTQ_STORAGE_PREFIX = 'fastq/';
 
 export const STATUS_SUMMARIES = {
   QUEUED: 'Job accepted and queued.',
@@ -24,15 +39,18 @@ export const STATUS_SUMMARIES = {
     'Simulated pipeline failure requested by the training option. Submit again without it to complete.',
   HANDLER_FAILURE: 'The analysis could not produce a result. Please submit the job again.',
   INTERRUPTED: 'Processing was interrupted by a service restart. Please submit the job again.',
+  RUN_STARTED: 'Run started.',
+  RUN_COMPLETED: 'Run completed.',
+  START_FAILURE: 'The run could not start. Please submit it again.',
+  CANCELLED: 'Cancelled by the owner.',
 } as const;
 
-/** Allowed lifecycle transitions (US-007 AC4). Nothing else is ever written. */
+/** Allowed lifecycle transitions (US-007 AC4 as adjusted, US-021 AC1). Nothing else is written. */
 export const ALLOWED_TRANSITIONS: Readonly<Record<JobStatus, readonly JobStatus[]>> = {
-  QUEUED: ['RUNNING'],
-  RUNNING: ['COMPLETED', 'FAILED'],
+  QUEUED: ['RUNNING', 'CANCELLED'],
+  RUNNING: ['COMPLETED', 'FAILED', 'CANCELLED'],
   COMPLETED: [],
   FAILED: [],
-  // Transitions into CANCELLED arrive with the cancel flow (Pipeline Catalog Wave 3).
   CANCELLED: [],
 };
 
@@ -61,6 +79,14 @@ export class InvalidTransitionError extends Error {
   }
 }
 
+/** Cancel of a job that already reached a terminal status (`409 CONFLICT`). */
+export class ConflictError extends Error {
+  public constructor() {
+    super('This job has already finished.');
+    this.name = 'ConflictError';
+  }
+}
+
 export class InputValidationError extends Error {
   public constructor(public readonly issues: readonly InputIssue[]) {
     super('The input file is not valid.');
@@ -70,6 +96,35 @@ export class InputValidationError extends Error {
 
 export type DeletionReason = 'OWNER_REQUEST' | 'RETENTION';
 
+export type TransitionOptions = {
+  /** User who caused the transition (recorded as the audit actor), e.g. the canceller. */
+  actorId?: string | null;
+  /** Runs inside the status transaction (e.g. the Nextflow output manifest for COMPLETED). */
+  inTx?: (tx: TransactionClient) => Promise<void>;
+};
+
+export type QueuedJobInputFile = {
+  relativePath: string;
+  sizeBytes: number;
+  kind: 'FASTQ' | 'SAMPLE_SHEET';
+};
+
+export type CreateQueuedJobInput = {
+  actor: ActorContext;
+  pipelineId: PipelineId;
+  pipelineRevision: string;
+  runName: string;
+  parameters: unknown;
+  fileMetadata: unknown;
+  /** Relative storage key of the job input (file or directory), never an absolute path. */
+  storageKey: (jobId: string) => string;
+  inputFiles?: readonly QueuedJobInputFile[];
+  idempotencyKey: string;
+  requestId: string;
+  /** Writes or moves the input into `jobs/{jobId}/`; a failure rolls the job back. */
+  materialize: (jobId: string) => Promise<void>;
+};
+
 type FileMetadata = { name: string; sizeBytes: number; rowCount: number; markers: string[] };
 
 type JobServiceOptions = {
@@ -78,6 +133,8 @@ type JobServiceOptions = {
   storage: JobStorage;
   config: { jobRetentionDays: number };
   isExecutorReady: () => boolean;
+  /** Adapters that stop running work on cancel/delete; optional for tests of the lifecycle only. */
+  executors?: ExecutorDirectory;
   logger: { error: (object: Record<string, unknown>, message: string) => void };
   clock?: () => Date;
 };
@@ -88,11 +145,13 @@ export function createJobService({
   audit,
   clock = () => new Date(),
   config,
+  executors,
   isExecutorReady,
   logger,
   prisma,
   storage,
 }: JobServiceOptions) {
+  /** Smart Checkup submission (`POST /jobs`), now created through `createQueuedJob`. */
   async function submit(input: {
     actor: ActorContext;
     parameters: JobParameters;
@@ -129,13 +188,36 @@ export function createJobService({
       throw new ServiceUnavailableError();
     }
 
-    const now = clock();
     const metadata: FileMetadata = {
       markers: validated.rows.map((row) => row.marker),
       name: validated.sanitizedName,
       rowCount: validated.rows.length,
       sizeBytes: validated.sizeBytes,
     };
+
+    return createQueuedJob({
+      actor,
+      fileMetadata: metadata,
+      idempotencyKey,
+      materialize: (jobId) => storage.writeInput(jobId, input.file.content),
+      parameters: input.parameters,
+      pipelineId: SMART_CHECKUP_PIPELINE_ID,
+      pipelineRevision: SMART_CHECKUP_REVISION,
+      requestId,
+      runName: input.parameters.sampleLabel,
+      storageKey: (jobId) => storage.storageKey(jobId, INPUT_FILE_NAME),
+    });
+  }
+
+  /**
+   * Creates a QUEUED job with its input, input files, first status event and audit record in
+   * one transaction. `materialize` runs inside it, so a failed write leaves no job behind.
+   */
+  async function createQueuedJob(
+    input: CreateQueuedJobInput,
+  ): Promise<{ job: JobSummary; replayed: boolean }> {
+    const { actor, idempotencyKey, requestId } = input;
+    const now = clock();
     let createdJobId: string | null = null;
 
     try {
@@ -146,18 +228,28 @@ export function createJobService({
             expiresAt: new Date(now.getTime() + config.jobRetentionDays * DAY_MS),
             idempotencyKey,
             ownerId: actor.userId,
+            pipelineId: input.pipelineId,
+            pipelineRevision: input.pipelineRevision,
+            runName: input.runName,
             status: 'QUEUED',
           },
         });
         createdJobId = created.id;
         await tx.jobInput.create({
           data: {
-            fileMetadataJson: JSON.stringify(metadata),
+            fileMetadataJson: JSON.stringify(input.fileMetadata),
             jobId: created.id,
             parametersJson: JSON.stringify(input.parameters),
-            storageKey: storage.storageKey(created.id, INPUT_FILE_NAME),
+            storageKey: input.storageKey(created.id),
           },
         });
+
+        if (input.inputFiles && input.inputFiles.length > 0) {
+          await tx.jobInputFile.createMany({
+            data: input.inputFiles.map((file) => ({ ...file, jobId: created.id })),
+          });
+        }
+
         await tx.jobStatusEvent.create({
           data: {
             jobId: created.id,
@@ -170,7 +262,11 @@ export function createJobService({
           {
             actorId: actor.userId,
             eventType: 'JOB_SUBMITTED',
-            metadata: { status: 'QUEUED' },
+            // Smart Checkup keeps its Unit 2 metadata; catalog runs also name the pipeline.
+            metadata:
+              input.pipelineId === SMART_CHECKUP_PIPELINE_ID
+                ? { status: 'QUEUED' }
+                : { pipelineId: input.pipelineId, status: 'QUEUED' },
             outcome: 'SUCCESS',
             requestId,
             resourceId: created.id,
@@ -178,13 +274,12 @@ export function createJobService({
           },
           tx,
         );
-        // Written inside the transaction: a failed write rolls the job back.
-        await storage.writeInput(created.id, input.file.content);
+        await input.materialize(created.id);
 
         return created;
       });
 
-      return { job: toSummary(job, input.parameters.sampleLabel), replayed: false };
+      return { job: await toSummary(job), replayed: false };
     } catch (error) {
       if (createdJobId) {
         await storage.removeJob(createdJobId).catch(() => undefined);
@@ -217,9 +312,7 @@ export function createJobService({
     ]);
 
     return {
-      items: rows.map((row) =>
-        toSummary(row, readParameters(row.input?.parametersJson).sampleLabel),
-      ),
+      items: await Promise.all(rows.map((row) => toSummary(row))),
       limit,
       page,
       total,
@@ -233,7 +326,15 @@ export function createJobService({
     }
 
     const job = await prisma.job.findUnique({
-      include: { input: true, statusEvents: { orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }] } },
+      include: {
+        input: true,
+        inputFiles: {
+          orderBy: { relativePath: 'asc' },
+          select: { kind: true, relativePath: true, sizeBytes: true },
+        },
+        outputFiles: { select: { sizeBytes: true } },
+        statusEvents: { orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }] },
+      },
       where: { id: jobId },
     });
 
@@ -278,6 +379,7 @@ export function createJobService({
     to: JobStatus,
     safeSummary: string,
     requestId: string,
+    options: TransitionOptions = {},
   ): Promise<boolean> {
     if (!isAllowedTransition(from, to)) {
       throw new InvalidTransitionError();
@@ -298,7 +400,7 @@ export function createJobService({
       await tx.jobStatusEvent.create({ data: { jobId, occurredAt: now, safeSummary, status: to } });
       await audit.record(
         {
-          actorId: null,
+          actorId: options.actorId ?? null,
           eventType: 'JOB_STATUS_CHANGED',
           metadata: { from, to },
           outcome: 'SUCCESS',
@@ -309,13 +411,79 @@ export function createJobService({
         tx,
       );
 
+      if (options.inTx) {
+        await options.inTx(tx);
+      }
+
       return true;
     });
   }
 
+  /** Stores the latest progress of a RUNNING job (no status event; it is not a transition). */
+  async function recordProgress(jobId: string, progress: JobProgress): Promise<void> {
+    await prisma.job.updateMany({
+      data: { progressJson: JSON.stringify(progress) },
+      where: { id: jobId, status: 'RUNNING' },
+    });
+  }
+
+  /**
+   * Owner cancel (US-021): QUEUED → CANCELLED, or RUNNING → CANCELLED first and then the
+   * adapter stops the process and cleans up in the background, so the request never waits
+   * for the run to exit. Terminal jobs answer `ConflictError`.
+   */
+  async function cancel(actor: ActorContext, jobId: string, requestId: string) {
+    const job = await getOwnedJob(actor, jobId, requestId, 'POST /api/v1/jobs/:jobId/cancel');
+    let status = job.status as JobStatus;
+
+    // At most two attempts: the worker may move QUEUED → RUNNING between read and update.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (status !== 'QUEUED' && status !== 'RUNNING') {
+        throw new ConflictError();
+      }
+
+      const from = status;
+      const applied = await transition(
+        jobId,
+        from,
+        'CANCELLED',
+        STATUS_SUMMARIES.CANCELLED,
+        requestId,
+        { actorId: actor.userId },
+      );
+
+      if (applied) {
+        if (from === 'RUNNING') {
+          void _stopAndCleanUp(job.pipelineId, jobId);
+        }
+
+        const updated = await prisma.job.findUniqueOrThrow({
+          include: { input: { select: { parametersJson: true } } },
+          where: { id: jobId },
+        });
+
+        return toSummary(updated);
+      }
+
+      const current = await prisma.job.findUnique({
+        select: { status: true },
+        where: { id: jobId },
+      });
+
+      if (!current) {
+        throw new JobNotFoundError();
+      }
+
+      status = current.status as JobStatus;
+    }
+
+    throw new ConflictError();
+  }
+
   /**
    * Hard-deletes the job (cascading input, events, artifacts and recommendation) and then its
-   * directory. Only the audit record remains, and it holds no input or result content.
+   * directory. A RUNNING job's process is stopped first. Only the audit record remains, and it
+   * holds no input or result content.
    */
   async function remove(input: {
     jobId: string;
@@ -328,6 +496,17 @@ export function createJobService({
 
     if (input.actor) {
       await getOwnedJob(input.actor, jobId, requestId, input.route ?? 'DELETE /api/v1/jobs');
+    }
+
+    const current = await prisma.job.findUnique({
+      select: { pipelineId: true, status: true },
+      where: { id: jobId },
+    });
+    const adapter = current ? (executors?.adapterFor(current.pipelineId) ?? null) : null;
+
+    if (adapter && current?.status === 'RUNNING') {
+      // Waits up to the adapter's grace period so no process writes into a deleted directory.
+      await adapter.cancel(jobId);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -350,6 +529,10 @@ export function createJobService({
         tx,
       );
     });
+
+    if (adapter) {
+      await adapter.cleanup(jobId, 'CANCELLED').catch(() => undefined);
+    }
 
     try {
       await storage.removeJob(jobId);
@@ -374,24 +557,143 @@ export function createJobService({
       where: { ownerId_idempotencyKey: { idempotencyKey, ownerId } },
     });
 
-    return job ? toSummary(job, readParameters(job.input?.parametersJson).sampleLabel) : null;
+    return job ? toSummary(job) : null;
   }
 
-  return { get, getOwnedJob, list, remove, submit, transition };
+  async function toSummary(job: JobRow): Promise<JobSummary> {
+    const runName =
+      job.runName ||
+      (job.pipelineId === SMART_CHECKUP_PIPELINE_ID
+        ? readParameters(job.input?.parametersJson).sampleLabel
+        : '');
+
+    return {
+      createdAt: job.createdAt.toISOString(),
+      expiresAt: job.expiresAt.toISOString(),
+      id: job.id,
+      pipelineId: toPipelineId(job.pipelineId),
+      pipelineName: getPipelineDefinition(job.pipelineId)?.name ?? job.pipelineId,
+      // Progress describes a run in flight; finished jobs report their outcome instead.
+      progress: job.status === 'RUNNING' ? readProgress(job.progressJson) : null,
+      queuePosition: await queuePosition(job),
+      runName,
+      sampleLabel: runName,
+      status: job.status as JobStatus,
+      updatedAt: job.updatedAt.toISOString(),
+    };
+  }
+
+  /** 1-based position among QUEUED jobs of the same executor (all owners; count only). */
+  async function queuePosition(job: JobRow): Promise<number | null> {
+    if (job.status !== 'QUEUED') {
+      return null;
+    }
+
+    const ahead = await prisma.job.count({
+      where: {
+        OR: [
+          { createdAt: { lt: job.createdAt } },
+          { createdAt: job.createdAt, id: { lt: job.id } },
+        ],
+        pipelineId: { in: pipelineIdsSharingExecutor(job.pipelineId) },
+        status: 'QUEUED',
+      },
+    });
+
+    return ahead + 1;
+  }
+
+  async function toDetail(job: JobDetailRow): Promise<JobDetail> {
+    const smartCheckup = job.pipelineId === SMART_CHECKUP_PIPELINE_ID;
+    const metadata = safeJson(job.input?.fileMetadataJson) as Partial<FileMetadata> | null;
+    const failed = job.status === 'FAILED';
+    const lastEvent = job.statusEvents.at(-1);
+
+    return {
+      ...(await toSummary(job)),
+      cancellable: (ACTIVE_JOB_STATUSES as readonly string[]).includes(job.status),
+      failureSummary: failed ? (lastEvent?.safeSummary ?? STATUS_SUMMARIES.HANDLER_FAILURE) : null,
+      file: smartCheckup
+        ? {
+            name: String(metadata?.name ?? INPUT_FILE_NAME),
+            rowCount: Number(metadata?.rowCount ?? 0),
+            sizeBytes: Number(metadata?.sizeBytes ?? 0),
+          }
+        : null,
+      history: job.statusEvents.map((event) => ({
+        occurredAt: event.occurredAt.toISOString(),
+        status: event.status as JobStatus,
+        summary: event.safeSummary,
+      })),
+      outputs:
+        !smartCheckup && job.status === 'COMPLETED'
+          ? {
+              fileCount: job.outputFiles.length,
+              totalBytes: job.outputFiles.reduce((sum, file) => sum + file.sizeBytes, 0),
+            }
+          : null,
+      parameters: smartCheckup ? readParameters(job.input?.parametersJson) : null,
+      run: smartCheckup ? null : readRunInfo(job),
+      statusUrl: `/jobs/${job.id}`,
+    };
+  }
+
+  async function _stopAndCleanUp(pipelineId: string, jobId: string): Promise<void> {
+    const adapter = executors?.adapterFor(pipelineId);
+
+    if (!adapter) {
+      return;
+    }
+
+    try {
+      await adapter.cancel(jobId);
+      await adapter.cleanup(jobId, 'CANCELLED');
+    } catch (error) {
+      logger.error(
+        { errorType: error instanceof Error ? error.name : 'unknown', jobId },
+        'Failed to stop a cancelled job',
+      );
+    }
+  }
+
+  return {
+    cancel,
+    createQueuedJob,
+    findByIdempotencyKey,
+    get,
+    getOwnedJob,
+    list,
+    recordProgress,
+    remove,
+    submit,
+    transition,
+  };
 }
 
 type JobRow = {
   id: string;
   status: string;
+  pipelineId: string;
+  runName: string;
+  progressJson: string | null;
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;
+  input?: { parametersJson: string } | null;
 };
 
 type JobDetailRow = JobRow & {
   input: { parametersJson: string; fileMetadataJson: string } | null;
+  inputFiles: { relativePath: string; sizeBytes: number; kind: string }[];
+  outputFiles: { sizeBytes: number }[];
   statusEvents: { status: string; occurredAt: Date; safeSummary: string | null }[];
 };
+
+const runParametersSchema = z.object({
+  layout: runInputLayoutSchema,
+  sampleName: z.string().max(64).nullable(),
+  options: renamefastqOptionsSchema,
+});
 
 export function readParameters(json: string | undefined): JobParameters {
   const parsed = jobParametersSchema.safeParse(safeJson(json));
@@ -412,52 +714,46 @@ export function readInputRows(content: string): InputRow[] {
   return validated.ok ? validated.rows : [];
 }
 
-// Smart Checkup defaults for the Pipeline Catalog DTO fields until the executor port lands.
-const SMART_CHECKUP_PIPELINE = {
-  pipelineId: 'smart-checkup',
-  pipelineName: 'Smart Checkup',
-} as const;
+function readProgress(json: string | null): JobProgress | null {
+  const parsed = jobProgressSchema.safeParse(safeJson(json ?? undefined));
+  return parsed.success ? parsed.data : null;
+}
 
-function toSummary(job: JobRow, sampleLabel: string): JobSummary {
+/** Nextflow run summary; FASTQ paths are shown as uploaded (without the storage prefix). */
+function readRunInfo(job: JobDetailRow): JobRunInfo | null {
+  const parsed = runParametersSchema.safeParse(safeJson(job.input?.parametersJson));
+
+  if (!parsed.success) {
+    return null;
+  }
+
   return {
-    createdAt: job.createdAt.toISOString(),
-    expiresAt: job.expiresAt.toISOString(),
-    id: job.id,
-    ...SMART_CHECKUP_PIPELINE,
-    progress: null,
-    queuePosition: null,
-    runName: sampleLabel,
-    sampleLabel,
-    status: job.status as JobStatus,
-    updatedAt: job.updatedAt.toISOString(),
+    files: job.inputFiles.flatMap((file) => {
+      const kind = runInputFileKindSchema.safeParse(file.kind);
+
+      if (!kind.success) {
+        return [];
+      }
+
+      return [
+        {
+          kind: kind.data,
+          relativePath:
+            kind.data === 'FASTQ' && file.relativePath.startsWith(FASTQ_STORAGE_PREFIX)
+              ? file.relativePath.slice(FASTQ_STORAGE_PREFIX.length)
+              : file.relativePath,
+          sizeBytes: file.sizeBytes,
+        },
+      ];
+    }),
+    layout: parsed.data.layout,
+    options: parsed.data.options,
+    sampleName: parsed.data.sampleName,
   };
 }
 
-function toDetail(job: JobDetailRow): JobDetail {
-  const parameters = readParameters(job.input?.parametersJson);
-  const metadata = safeJson(job.input?.fileMetadataJson) as Partial<FileMetadata> | null;
-  const failed = job.status === 'FAILED';
-  const lastEvent = job.statusEvents.at(-1);
-
-  return {
-    ...toSummary(job, parameters.sampleLabel),
-    cancellable: false,
-    outputs: null,
-    run: null,
-    failureSummary: failed ? (lastEvent?.safeSummary ?? STATUS_SUMMARIES.HANDLER_FAILURE) : null,
-    file: {
-      name: String(metadata?.name ?? INPUT_FILE_NAME),
-      rowCount: Number(metadata?.rowCount ?? 0),
-      sizeBytes: Number(metadata?.sizeBytes ?? 0),
-    },
-    history: job.statusEvents.map((event) => ({
-      occurredAt: event.occurredAt.toISOString(),
-      status: event.status as JobStatus,
-      summary: event.safeSummary,
-    })),
-    parameters,
-    statusUrl: `/jobs/${job.id}`,
-  };
+function toPipelineId(value: string): PipelineId {
+  return getPipelineDefinition(value)?.id ?? SMART_CHECKUP_PIPELINE_ID;
 }
 
 function safeJson(value: string | undefined): unknown {
