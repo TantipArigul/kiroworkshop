@@ -371,3 +371,8 @@ apps/web/src/{App.tsx, app.css, styles/tokens.css, features/jobs/{JobDetailPage.
 | [Nextflow documentation](https://www.nextflow.io/docs/latest/) | Tool docs | C8 references |
 | [si-lol/wf-renamefastq](https://github.com/si-lol/wf-renamefastq) | Pipeline repo | C8 references |
 | [Open Source Initiative — MIT License](https://opensource.org/license/mit) | Licence text | C10 |
+
+## Add-on — Wave 1 findings (approved 2026-10-18)
+- **`listOutputFiles` wiring (C5)**: `createPipelineRunService` รับ option `prisma` (optional ใน Wave 1); task 3.5 ต้องส่ง `prisma` ใน `app.ts` — ถ้าไม่ได้ส่งแล้วเรียก `listOutputFiles` จะ throw "The output manifest reader is not configured."
+- **Safe summary เมื่อ `finalize` ล้ม (C3)**: `job-worker.ts` ใช้ข้อความของ Nextflow ("The pipeline did not produce the expected results…") กับทุก executor; task 3.2 ปรับให้ Smart Checkup (executor `simulated`) ใช้ `STATUS_SUMMARIES.HANDLER_FAILURE` และ Nextflow คงข้อความเดิม (แก้ใน jobs module — แจ้ง Developer 2)
+- **Contract details ที่เลือกใน Wave 1 (C1)**: `references[]` = `{ label, href }` (in-app path หรือ `https://` เท่านั้น); `recommendation.matched` ต้องเท่ากับ `ruleId !== 'NO_MATCH'` และ `NO_MATCH` มี `matchedFactors` ว่าง; `matchedFactors` รูปแบบ `focusArea|marker|lifestyle:<id>`; artifacts/samples ≤ 1000

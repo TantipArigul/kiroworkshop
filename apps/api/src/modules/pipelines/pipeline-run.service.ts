@@ -15,6 +15,7 @@ import {
   type PipelineUnavailableReason,
 } from '@portal/shared';
 
+import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { ActorContext } from '../../shared/authorization.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { TransactionClient } from '../jobs/executor.js';
@@ -60,8 +61,23 @@ export class OutputManifestError extends Error {
   }
 }
 
+const OUTPUT_CATEGORIES = ['READS', 'STATS', 'REPORT', 'OTHER'] as const;
+
+export type OutputCategory = (typeof OUTPUT_CATEGORIES)[number];
+
+/** One `JobOutputFile` row as exposed to other modules (paths relative to `jobs/{id}/output`). */
+export type JobOutputFileEntry = {
+  id: string;
+  relativePath: string;
+  sizeBytes: number;
+  contentType: string;
+  category: OutputCategory;
+};
+
 type PipelineRunServiceOptions = {
   audit: AuditService;
+  /** Read access to this module's `JobOutputFile` rows; required by `listOutputFiles`. */
+  prisma?: Pick<PrismaClient, 'jobOutputFile'>;
   jobs: JobService;
   storage: JobStorage;
   availability: (pipelineId: PipelineId) => PipelineAvailability;
@@ -219,7 +235,30 @@ export function createPipelineRunService(options: PipelineRunServiceOptions) {
     };
   }
 
-  return { getPipeline, launch, listPipelines, recordOutputs };
+  /**
+   * Read-only output manifest of a job for Results & Guidance (design C5). Does no owner or
+   * status check: the caller authorizes through `JobService.getOwnedJob` first. A job without
+   * rows (not COMPLETED, Smart Checkup or deleted) returns an empty list.
+   */
+  async function listOutputFiles(jobId: string): Promise<JobOutputFileEntry[]> {
+    if (!options.prisma) {
+      throw new Error('The output manifest reader is not configured.');
+    }
+
+    const rows = await options.prisma.jobOutputFile.findMany({
+      orderBy: { relativePath: 'asc' },
+      select: { category: true, contentType: true, id: true, relativePath: true, sizeBytes: true },
+      where: { jobId },
+    });
+
+    return rows.map((row) => ({
+      ...row,
+      // Rows are written by `recordOutputs`; an unexpected value is re-derived from the path.
+      category: isOutputCategory(row.category) ? row.category : outputCategory(row.relativePath),
+    }));
+  }
+
+  return { getPipeline, launch, listOutputFiles, listPipelines, recordOutputs };
 }
 
 /**
@@ -232,7 +271,7 @@ export async function recordOutputs(
   input: { jobId: string; storage: JobStorage; requiredOutputs: readonly string[] },
 ): Promise<void> {
   const root = input.storage.jobSubdirectory(input.jobId, 'output');
-  const files = await listOutputFiles(root);
+  const files = await walkOutputDirectory(root);
   const required = input.requiredOutputs.map(globToRegExp);
 
   if (!required.every((pattern) => files.some((file) => pattern.test(file.relativePath)))) {
@@ -252,7 +291,7 @@ export async function recordOutputs(
   }
 }
 
-async function listOutputFiles(
+async function walkOutputDirectory(
   root: string,
 ): Promise<{ relativePath: string; sizeBytes: number }[]> {
   const found: { relativePath: string; sizeBytes: number }[] = [];
@@ -304,7 +343,11 @@ function globToRegExp(pattern: string): RegExp {
   return new RegExp(`^${escaped}$`);
 }
 
-function outputCategory(relativePath: string): 'READS' | 'STATS' | 'REPORT' | 'OTHER' {
+function isOutputCategory(value: string): value is OutputCategory {
+  return (OUTPUT_CATEGORIES as readonly string[]).includes(value);
+}
+
+function outputCategory(relativePath: string): OutputCategory {
   if (relativePath.startsWith('fastq/')) {
     return 'READS';
   }

@@ -40,3 +40,8 @@
 - **Action**: mode-selection — parallel (recommended; user "go")
 - **Artifacts**: manifest `implementationMode: parallel`, `implementation: { totalTasks: 20, currentWave: 1 }`
 - **Outcome**: Wave 1 plan presented
+### [2026-10-18T17:00:00Z] Wave Complete: Wave 1
+- **Phase**: implementation
+- **Action**: spec baseline committed (`a093d63`); wave 1 executed (parallel mode, 1 sub-agent; Phase 1 Setup, tasks 1.1–1.4)
+- **Artifacts**: `packages/shared/src/schemas/results.ts` (+ constants, `GONE`, types, OpenAPI 3 paths), `jobs/completion.ts` + `simulated-adapter.ts` (`finalize`), `pipelines/pipeline-run.service.ts` (`listOutputFiles`, optional `prisma` option), `http/errors.ts` (`GoneError`), tokens `--color-band-low/high`, `--chart-track`, `--chart-bar-height`, `--report-frame-height` + steering Add-ons (Results UI Tokens, Cookie Rule), `LICENSE` + `features/legal/licenseText.ts` (+ test); tests `completion-finalize.test.ts`, `list-output-files.test.ts`
+- **Outcome**: pass — format, lint, typecheck, tokens, build; tests shared 70, web 42, api 270 (+6 opt-in), properties 26 (coordinator re-run green). Contrast: band-low 6.90–7.56:1, band-high 4.58–5.02:1 on intended surfaces; bands 1.51:1 apart → icon + label + legend required (steering). Follow-ups for Wave 3: pass `prisma` to `createPipelineRunService` in `app.ts`; `job-worker.ts` uses the Nextflow-worded summary when `finalize` throws for Smart Checkup. OpenAPI not validated by a tool (none installed). 20% overall

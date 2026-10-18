@@ -73,3 +73,15 @@ export {
   runNameSchema,
   sampleNameSchema,
 } from './pipelines.js';
+export {
+  artifactIdSchema,
+  jobResultSchema,
+  nextflowResultSchema,
+  recommendationSchema,
+  resultArtifactCategorySchema,
+  resultArtifactKindSchema,
+  resultArtifactSchema,
+  resultReferenceSchema,
+  smartCheckupResultSchema,
+  trainingBandSchema,
+} from './results.js';

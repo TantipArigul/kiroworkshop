@@ -147,3 +147,11 @@ export const RENAMEFASTQ_DEFAULT_KIT_NAME = 'BiK-HLA114-96';
 export const RENAMEFASTQ_Q_SCORE_MIN = 0;
 export const RENAMEFASTQ_Q_SCORE_MAX = 60;
 export const RENAMEFASTQ_DEFAULT_Q_SCORE = 14;
+
+// Results & Guidance (design C1).
+/** `RESULT` = file written by the portal (Smart Checkup `result.json`); `OUTPUT` = pipeline output. */
+export const RESULT_ARTIFACT_KINDS = ['RESULT', 'OUTPUT'] as const;
+/** Position of a marker against the synthetic training midpoint — not a clinical reference. */
+export const TRAINING_BANDS = ['BELOW_TRAINING_MIDPOINT', 'AT_OR_ABOVE_TRAINING_MIDPOINT'] as const;
+/** Rule ID stored when no mock rule matches; no package is recommended. */
+export const NO_MOCK_RECOMMENDATION_RULE_ID = 'NO_MATCH';

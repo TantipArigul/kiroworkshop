@@ -5,6 +5,13 @@ import {
   ACTIVE_JOB_STATUSES,
   INPUT_FILE_MAX_BYTES,
   JOB_STATUSES,
+  NO_MOCK_RECOMMENDATION_RULE_ID,
+  RESULT_ARTIFACT_KINDS,
+  TRAINING_BANDS,
+  jobResultSchema,
+  nextflowResultSchema,
+  resultArtifactSchema,
+  smartCheckupResultSchema,
   RENAMEFASTQ_KIT_NAMES,
   RUN_INPUT_MAX_BYTES,
   TERMINAL_JOB_STATUSES,
@@ -412,5 +419,180 @@ describe('pipeline catalog contracts', () => {
     expect(
       jobCancelResponseSchema.safeParse({ job: { ...summary, status: 'CANCELLED' } }).success,
     ).toBe(true);
+  });
+});
+
+describe('result contracts', () => {
+  const artifact = {
+    id: 'cmgq1z3b40000abcd1234efgh',
+    kind: 'RESULT',
+    category: 'RESULT',
+    displayName: 'smart-checkup-result-1234efgh.json',
+    sizeBytes: 512,
+    contentType: 'application/json',
+    viewable: false,
+    viewNote: null,
+  };
+  const references = [
+    { label: 'Guide: reading your result', href: '/help#results' },
+    { label: 'Nextflow documentation', href: 'https://www.nextflow.io/docs/latest/' },
+  ];
+  const smartCheckup = {
+    pipelineId: 'smart-checkup',
+    summary: {
+      runName: 'Training sample A',
+      focusArea: 'LIVER',
+      ageBand: '40-49',
+      lifestyleFactors: ['HIGH_ALCOHOL'],
+      markerCount: 1,
+      generatedAt: '2026-10-18T01:00:00.000Z',
+    },
+    markers: [
+      {
+        marker: 'alt',
+        value: 300,
+        unit: 'U/L',
+        min: 5,
+        max: 500,
+        midpoint: 252.5,
+        band: 'AT_OR_ABOVE_TRAINING_MIDPOINT',
+      },
+    ],
+    recommendation: {
+      ruleId: 'MOCK-LIVER-01',
+      ruleVersion: 'mock-rules-2026.10-1',
+      packageLabel: 'Training Package C — Liver',
+      reason: 'Focus area LIVER and alt at or above the training midpoint.',
+      matchedFactors: ['focusArea:LIVER', 'marker:alt'],
+      matched: true,
+      disclaimer: 'Training output only. Not a medical diagnosis or treatment advice.',
+    },
+    artifacts: [artifact],
+    references,
+  };
+  const nextflow = {
+    pipelineId: 'wf-renamefastq',
+    summary: {
+      runName: 'Run A',
+      sampleCount: 1,
+      totalReads: 1200,
+      totalBases: 1_500_000,
+      outputFileCount: 2,
+      outputBytes: 4096,
+    },
+    samples: [
+      {
+        sample: 'sample_01',
+        numSeqs: 1200,
+        sumLen: 1_500_000,
+        minLen: 200,
+        avgLen: 1250.5,
+        maxLen: 4000,
+        avgQual: 17.2,
+      },
+    ],
+    artifacts: [
+      {
+        ...artifact,
+        kind: 'OUTPUT',
+        category: 'REPORT',
+        displayName: 'pipeline_info/execution_report_2026.html',
+        contentType: 'text/html',
+        viewable: true,
+      },
+      {
+        ...artifact,
+        id: 'cmgq1z3b40000abcd1234efgi',
+        kind: 'OUTPUT',
+        category: 'REPORT',
+        displayName: 'pipeline_info/pipeline_dag_2026.html',
+        contentType: 'text/html',
+        viewNote: 'This report loads scripts from the internet, so it can only be downloaded.',
+      },
+    ],
+    references,
+  };
+
+  it('exposes dependency-free result constants and the GONE error code', () => {
+    expect(RESULT_ARTIFACT_KINDS).toEqual(['RESULT', 'OUTPUT']);
+    expect(TRAINING_BANDS).toEqual(['BELOW_TRAINING_MIDPOINT', 'AT_OR_ABOVE_TRAINING_MIDPOINT']);
+    expect(NO_MOCK_RECOMMENDATION_RULE_ID).toBe('NO_MATCH');
+    expect(errorCodeSchema.safeParse('GONE').success).toBe(true);
+  });
+
+  it('discriminates the job result by pipeline and keeps every shape strict', () => {
+    expect(jobResultSchema.parse(smartCheckup).pipelineId).toBe('smart-checkup');
+    expect(jobResultSchema.parse(nextflow).pipelineId).toBe('wf-renamefastq');
+    expect(jobResultSchema.safeParse({ ...smartCheckup, pipelineId: 'other' }).success).toBe(false);
+    expect(jobResultSchema.safeParse({ ...nextflow, pipelineId: 'smart-checkup' }).success).toBe(
+      false,
+    );
+    expect(smartCheckupResultSchema.safeParse({ ...smartCheckup, storagePath: '/x' }).success).toBe(
+      false,
+    );
+    expect(
+      nextflowResultSchema.safeParse({
+        ...nextflow,
+        summary: { ...nextflow.summary, outputDirectory: '/x' },
+      }).success,
+    ).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, absolutePath: '/x' }).success).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, id: '../etc' }).success).toBe(false);
+  });
+
+  it('keeps NO_MATCH the only unmatched recommendation and without matched factors', () => {
+    const noMatch = {
+      ...smartCheckup.recommendation,
+      ruleId: 'NO_MATCH',
+      packageLabel: 'No mock recommendation',
+      matchedFactors: [],
+      matched: false,
+    };
+
+    expect(
+      smartCheckupResultSchema.safeParse({ ...smartCheckup, recommendation: noMatch }).success,
+    ).toBe(true);
+    expect(
+      smartCheckupResultSchema.safeParse({
+        ...smartCheckup,
+        recommendation: { ...noMatch, matchedFactors: ['marker:alt'] },
+      }).success,
+    ).toBe(false);
+    expect(
+      smartCheckupResultSchema.safeParse({
+        ...smartCheckup,
+        recommendation: { ...smartCheckup.recommendation, matched: false },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects unsafe references, bands and non-finite statistics', () => {
+    for (const href of ['//evil.test', 'javascript:alert(1)', 'http://example.test']) {
+      expect(
+        smartCheckupResultSchema.safeParse({
+          ...smartCheckup,
+          references: [{ label: 'x', href }],
+        }).success,
+      ).toBe(false);
+    }
+
+    expect(
+      smartCheckupResultSchema.safeParse({
+        ...smartCheckup,
+        markers: [{ ...smartCheckup.markers[0], band: 'HIGH' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      nextflowResultSchema.safeParse({
+        ...nextflow,
+        samples: [{ ...nextflow.samples[0], avgQual: Number.NaN }],
+      }).success,
+    ).toBe(false);
+    expect(
+      nextflowResultSchema.safeParse({
+        ...nextflow,
+        samples: [{ ...nextflow.samples[0], numSeqs: -1 }],
+      }).success,
+    ).toBe(false);
   });
 });

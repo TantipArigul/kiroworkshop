@@ -22,6 +22,7 @@ import type {
   jobOutputsSummarySchema,
   jobParametersSchema,
   jobProgressSchema,
+  jobResultSchema,
   jobRunInfoSchema,
   jobStatusHistoryItemSchema,
   jobStatusSchema,
@@ -30,6 +31,7 @@ import type {
   jobSummarySchema,
   loginRequestSchema,
   loginResponseSchema,
+  nextflowResultSchema,
   paginationSchema,
   permissionSchema,
   pipelineDetailSchema,
@@ -41,12 +43,19 @@ import type {
   pipelineSummarySchema,
   pipelineUnavailableReasonSchema,
   readinessResponseSchema,
+  recommendationSchema,
   renamefastqKitNameSchema,
   renamefastqOptionsSchema,
+  resultArtifactCategorySchema,
+  resultArtifactKindSchema,
+  resultArtifactSchema,
+  resultReferenceSchema,
   runInputFileKindSchema,
   runInputLayoutSchema,
   runLaunchFieldsSchema,
   sampleInputSchema,
+  smartCheckupResultSchema,
+  trainingBandSchema,
   userRoleSchema,
 } from '../schemas/index.js';
 
@@ -104,6 +113,17 @@ export type RunInputLayout = z.infer<typeof runInputLayoutSchema>;
 /** Raw multipart text fields of a launch request. */
 export type RunLaunchFieldsInput = z.input<typeof runLaunchFieldsSchema>;
 export type RunLaunchFields = z.output<typeof runLaunchFieldsSchema>;
+
+// Results & Guidance
+export type JobResult = z.infer<typeof jobResultSchema>;
+export type NextflowResult = z.infer<typeof nextflowResultSchema>;
+export type Recommendation = z.infer<typeof recommendationSchema>;
+export type ResultArtifact = z.infer<typeof resultArtifactSchema>;
+export type ResultArtifactCategory = z.infer<typeof resultArtifactCategorySchema>;
+export type ResultArtifactKind = z.infer<typeof resultArtifactKindSchema>;
+export type ResultReference = z.infer<typeof resultReferenceSchema>;
+export type SmartCheckupResult = z.infer<typeof smartCheckupResultSchema>;
+export type TrainingBand = z.infer<typeof trainingBandSchema>;
 
 export type ApiSuccess<T> = {
   data: T;

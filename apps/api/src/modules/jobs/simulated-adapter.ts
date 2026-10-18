@@ -16,7 +16,8 @@ type SimulatedAdapterOptions = {
 /**
  * Smart Checkup's simulated executor (Unit 2 behaviour, unchanged): a job stays RUNNING for
  * `EXECUTOR_RUNNING_DELAY_MS`, then either fails on request (`simulateFailure`) or runs the
- * completion handler, which must succeed before the job may become COMPLETED.
+ * completion handler, which must succeed before the job may become COMPLETED. A `finalize`
+ * step returned by the handler is passed on in the `succeeded` poll result.
  */
 export function createSimulatedAdapter(options: SimulatedAdapterOptions): ExecutorAdapter {
   const { clock = Date.now, completionHandler, config, logger, prisma, storage } = options;
@@ -43,7 +44,7 @@ export function createSimulatedAdapter(options: SimulatedAdapterOptions): Execut
         throw new Error('Stored input could not be read.');
       }
 
-      await completionHandler({
+      const completion = await completionHandler({
         jobId: context.jobId,
         ownerId: context.ownerId,
         parameters,
@@ -52,7 +53,11 @@ export function createSimulatedAdapter(options: SimulatedAdapterOptions): Execut
         storage,
       });
 
-      return { state: 'succeeded' };
+      // Same mechanism as Nextflow `recordOutputs`: the worker runs `finalize` inside the
+      // COMPLETED transaction, and a throw there rolls back and marks the job FAILED.
+      return completion
+        ? { state: 'succeeded', finalize: (tx) => completion.finalize(tx) }
+        : { state: 'succeeded' };
     } catch (error) {
       // Only the error type is logged: never input values or storage paths.
       logger.error(

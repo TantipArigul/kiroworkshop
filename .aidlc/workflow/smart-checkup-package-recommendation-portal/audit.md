@@ -320,3 +320,8 @@
 - **Action**: approval
 - **Artifacts**: `units/results-guidance/tasks.md`
 - **Outcome**: next — implement (mode selection)
+### [2026-10-18T17:00:00Z] Implementation: results-guidance Wave 1 complete (4/20)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: result contracts + GONE, completion finalize port, listOutputFiles, result tokens, LICENSE
+- **Outcome**: all checks pass — details in `units/results-guidance/audit.md`

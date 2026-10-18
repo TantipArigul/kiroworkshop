@@ -285,6 +285,95 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+  /jobs/{jobId}/result:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      summary: Result of a COMPLETED job (owner only), one shape per pipeline
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Result summary, visualization data, artifacts and references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResultResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          description: PASSWORD_CHANGE_REQUIRED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /jobs/{jobId}/artifacts/{artifactId}/download:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      summary: Download one artifact of a COMPLETED job as an attachment (owner only)
+      description: >-
+        Always `Content-Disposition: attachment` with a sanitized file name. HTML and unknown
+        types are sent as application/octet-stream with `X-Content-Type-Options: nosniff`,
+        `Content-Security-Policy: sandbox; default-src 'none'` and `Cache-Control: private,
+        no-store`. A successful download is audited as RESULT_DOWNLOADED.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: File stream
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: attachment; filename="<ascii>"; filename*=UTF-8''<encoded>
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /jobs/{jobId}/artifacts/{artifactId}/view:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      summary: Show an allowlisted HTML report of a COMPLETED job in a sandbox (owner only)
+      description: >-
+        Only artifacts with `viewable: true` (execution report and timeline). The response
+        carries `Content-Security-Policy: sandbox allow-scripts; default-src 'none';
+        script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:;
+        base-uri 'none'; form-action 'none'; frame-ancestors 'self'` so the report runs in an
+        opaque origin without network access. Not audited.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: HTML report
+          content:
+            text/html:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
   /pipelines:
     get:
       summary: Pipeline catalog with current availability
@@ -380,6 +469,18 @@ components:
       required: true
       schema:
         type: string
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      description: Cuid; any other value is answered with 404
+      schema: { type: string, pattern: '^[a-z0-9]{20,40}$' }
+    ArtifactId:
+      name: artifactId
+      in: path
+      required: true
+      description: Cuid of an artifact of this job; any other value is answered with 404
+      schema: { type: string, pattern: '^[a-z0-9]{20,40}$' }
   schemas:
     RequestMeta:
       type: object
@@ -896,6 +997,158 @@ components:
           maxItems: 10
           description: .fastq, .fq, .fastq.gz or .fq.gz; at most 1 GiB in total
           items: { type: string, format: binary }
+    ResultArtifact:
+      type: object
+      additionalProperties: false
+      required: [id, kind, category, displayName, sizeBytes, contentType, viewable, viewNote]
+      properties:
+        id: { type: string, pattern: '^[a-z0-9]{20,40}$' }
+        kind: { type: string, enum: [RESULT, OUTPUT] }
+        category: { type: string, enum: [RESULT, READS, STATS, REPORT, OTHER] }
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 400
+          description: Relative output path or generated file name; never an absolute path
+        sizeBytes: { type: integer, minimum: 0 }
+        contentType: { type: string, maxLength: 128 }
+        viewable:
+          type: boolean
+          description: True only for allowlisted HTML reports (sandboxed view endpoint)
+        viewNote: { type: [string, 'null'], maxLength: 256 }
+    ResultReference:
+      type: object
+      additionalProperties: false
+      required: [label, href]
+      properties:
+        label: { type: string, maxLength: 128 }
+        href:
+          type: string
+          maxLength: 256
+          description: In-app path (e.g. /help#results) or an https documentation URL
+    TrainingBand:
+      type: string
+      enum: [BELOW_TRAINING_MIDPOINT, AT_OR_ABOVE_TRAINING_MIDPOINT]
+      description: Position against the synthetic training midpoint; not a clinical reference
+    Recommendation:
+      type: object
+      additionalProperties: false
+      required: [ruleId, ruleVersion, packageLabel, reason, matchedFactors, matched, disclaimer]
+      properties:
+        ruleId:
+          type: string
+          pattern: '^[A-Z0-9_-]{1,64}$'
+          description: Mock rule identifier; NO_MATCH when no rule matched (matched=false)
+        ruleVersion: { type: string, maxLength: 64, example: mock-rules-2026.10-1 }
+        packageLabel: { type: string, maxLength: 128 }
+        reason: { type: string, maxLength: 512 }
+        matchedFactors:
+          type: array
+          description: Only the factors that made the rule match; empty for NO_MATCH
+          items:
+            type: string
+            pattern: '^(focusArea|marker|lifestyle):[A-Za-z0-9_]{1,64}$'
+        matched: { type: boolean }
+        disclaimer: { type: string, maxLength: 256 }
+    SmartCheckupResult:
+      type: object
+      additionalProperties: false
+      required: [pipelineId, summary, markers, recommendation, artifacts, references]
+      properties:
+        pipelineId: { type: string, enum: [smart-checkup] }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [runName, focusArea, ageBand, lifestyleFactors, markerCount, generatedAt]
+          properties:
+            runName: { type: string, maxLength: 64 }
+            focusArea: { type: string, enum: [GENERAL, CARDIOMETABOLIC, LIVER, KIDNEY] }
+            ageBand: { type: string, enum: ['18-29', '30-39', '40-49', '50-59', '60+'] }
+            lifestyleFactors:
+              type: array
+              maxItems: 4
+              items: { type: string, enum: [SMOKING, LOW_ACTIVITY, HIGH_ALCOHOL, POOR_SLEEP] }
+            markerCount: { type: integer, minimum: 0, maximum: 50 }
+            generatedAt: { type: string, format: date-time }
+        markers:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [marker, value, unit, min, max, midpoint, band]
+            properties:
+              marker: { type: string }
+              value: { type: number }
+              unit: { type: string }
+              min: { type: number }
+              max: { type: number }
+              midpoint: { type: number }
+              band: { $ref: '#/components/schemas/TrainingBand' }
+        recommendation: { $ref: '#/components/schemas/Recommendation' }
+        artifacts:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/ResultArtifact' }
+        references:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ResultReference' }
+    NextflowResult:
+      type: object
+      additionalProperties: false
+      required: [pipelineId, summary, samples, artifacts, references]
+      properties:
+        pipelineId: { type: string, enum: [wf-renamefastq] }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [runName, sampleCount, totalReads, totalBases, outputFileCount, outputBytes]
+          properties:
+            runName: { type: string, maxLength: 64 }
+            sampleCount: { type: integer, minimum: 0 }
+            totalReads: { type: integer, minimum: 0 }
+            totalBases: { type: integer, minimum: 0 }
+            outputFileCount: { type: integer, minimum: 0 }
+            outputBytes: { type: integer, minimum: 0 }
+        samples:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+            additionalProperties: false
+            required: [sample, numSeqs, sumLen, minLen, avgLen, maxLen, avgQual]
+            properties:
+              sample: { type: string, maxLength: 400 }
+              numSeqs: { type: integer, minimum: 0 }
+              sumLen: { type: integer, minimum: 0 }
+              minLen: { type: integer, minimum: 0 }
+              avgLen: { type: number, minimum: 0 }
+              maxLen: { type: integer, minimum: 0 }
+              avgQual: { type: number, minimum: 0 }
+        artifacts:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/ResultArtifact' }
+        references:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ResultReference' }
+    JobResult:
+      oneOf:
+        - $ref: '#/components/schemas/SmartCheckupResult'
+        - $ref: '#/components/schemas/NextflowResult'
+      discriminator:
+        propertyName: pipelineId
+        mapping:
+          smart-checkup: '#/components/schemas/SmartCheckupResult'
+          wf-renamefastq: '#/components/schemas/NextflowResult'
+    JobResultResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/JobResult' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
     ApiError:
       type: object
       additionalProperties: false
@@ -914,6 +1167,7 @@ components:
                 - AUTHORIZATION_DENIED
                 - CONFLICT
                 - CSRF_INVALID
+                - GONE
                 - INTERNAL_ERROR
                 - NOT_FOUND
                 - NOT_IMPLEMENTED
@@ -980,6 +1234,27 @@ components:
             $ref: '#/components/schemas/ApiError'
     NotFound:
       description: Resource is missing, deleted, expired or not accessible (indistinguishable)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ResultNotReady:
+      description: >-
+        The job is not COMPLETED (CONFLICT); details carry { field: status, message: <status> }
+        and no output is returned
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Gone:
+      description: >-
+        The result files were removed by the retention policy or are no longer available (GONE)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    InternalError:
+      description: The stored result is damaged; a safe message without internal detail
       content:
         application/json:
           schema:

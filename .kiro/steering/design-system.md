@@ -73,3 +73,18 @@ Tokens follow three layers: primitive values → semantic aliases → component 
 - **`--border-hairline`** (`1px`): row separators inside data tables.
 - **`--font-mono`**: system monospace stack for identifiers (actor/resource/request IDs) in the audit table; no font files are added.
 - **Identity screens**: Sign in, Change password and Audit viewer reuse `Button`, `Input`, `Select`, `FeedbackMessage` and the shared status pattern (label + SVG icon + colour). Loading states use tokenized skeletons; tables scroll horizontally only inside their own focusable region.
+
+## Add-on — Results UI Tokens (2026-10-18)
+- **Source**: Results & Guidance design C8/C10. Built from existing primitives only; no new primitive, no existing token renamed or changed.
+- **`--color-band-low`** → `--color-blue-800` (`#075985`): bar fill, icon and optional label text for `BELOW_TRAINING_MIDPOINT`. Contrast 7.56:1 on `--color-surface`, 7.23:1 on `--color-page`, 7.09:1 on `--color-surface-subtle`, 6.90:1 on `--chart-track`.
+- **`--color-band-high`** → `--color-amber-600` (`#b45309`): bar fill, icon and optional label text for `AT_OR_ABOVE_TRAINING_MIDPOINT`. Contrast 5.02:1 on `--color-surface`, 4.80:1 on `--color-page`, 4.71:1 on `--color-surface-subtle`, 4.58:1 on `--chart-track`.
+- **Bands are never colour-only**: the two band colours are only 1.51:1 apart, so every band always shows a distinct SVG icon shape, a text label and a legend; the paired `<table>` carries the same values. Band colours mean "position against the synthetic training midpoint", never a clinical judgement.
+- **`--chart-track`** → `--color-slate-100` (`#f1f5f9`): decorative range track behind bars (1.10:1 on `--color-surface`). The range itself is conveyed by min/max labels and the paired table, so the track carries no information; bars on it meet ≥ 3:1 (non-text) and ≥ 4.5:1 (text) as listed above. Midpoint lines and axis labels use `--color-text-muted` (6.92:1 on the track).
+- **`--chart-bar-height`** → `--space-4`: height of one horizontal bar.
+- **`--report-frame-height`** → `clamp(24rem, 70vh, 48rem)`: height of the sandboxed HTML report `<iframe>`; the viewer also offers "Open in new tab" for small screens.
+- **Motion**: bar width transitions use `--dur-normal`/`--ease-standard` and are removed by the existing reduced-motion override.
+
+## Add-on — Cookie Rule (US-013 AC3, 2026-10-18)
+- The portal sets one essential, `HttpOnly`, `SameSite=strict`, `Secure` session cookie for sign-in; there is no consent banner because no other cookie exists.
+- **Future permanent cookies** (any cookie that outlives the browser session) must not be set until the user has given consent through a consent notice designed in a new spec change; the notice must allow refusing with equal prominence.
+- **Third-party, analytics and tracking cookies are opt-in only**: off by default, never set before explicit consent, and withdrawable at any time.

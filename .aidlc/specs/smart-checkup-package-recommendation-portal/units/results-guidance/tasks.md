@@ -20,8 +20,8 @@
 
 ---
 
-- [ ] 1. Setup — contracts, ports, tokens, licence
-  - [ ] 1.1 Shared result contracts และ error code `GONE`
+- [x] 1. Setup — contracts, ports, tokens, licence
+  - [x] 1.1 Shared result contracts และ error code `GONE`
     - **Deps**: None | **Ref**: `design.md` — C1, API Specification
     - Constants:
       - `RESULT_ARTIFACT_KINDS`
@@ -36,7 +36,7 @@
     - **Files**: `packages/shared/src/{constants.ts,schemas/results.ts,schemas/common.ts,schemas/index.ts,index.ts,contracts.test.ts}`, `packages/shared/openapi/openapi.yaml`
     - **Acceptance**: schema เป็น strict; constants ไม่มี dependency; ไม่ import application code
     - **Validation**: `pnpm --filter @portal/shared typecheck && pnpm --filter @portal/shared test && pnpm --filter @portal/shared build`
-  - [ ] 1.2 Port `JobCompletionHandler.finalize` และ `PipelineRunService.listOutputFiles`
+  - [x] 1.2 Port `JobCompletionHandler.finalize` และ `PipelineRunService.listOutputFiles`
     - **Deps**: 1.1 | **Ref**: `design.md` — C3 (Port change), C5, Integration Points
     - `JobCompletionHandler` คืน `Promise<void | { finalize(tx) }>`
     - `SimulatedAdapter.poll` ส่ง `finalize` ต่อใน `PollResult` (กลไกเดียวกับ Nextflow)
@@ -45,7 +45,7 @@
     - **Files**: `apps/api/src/modules/jobs/{completion.ts,simulated-adapter.ts}`, `apps/api/src/modules/pipelines/pipeline-run.service.ts`, `apps/api/src/http/errors.ts`
     - **Acceptance**: `writeResultSummary` ยังทำงานเหมือนเดิม; ไม่เปลี่ยนพฤติกรรมของ Smart Checkup หรือ Nextflow
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test && pnpm test:properties`
-  - [ ] 1.3 Design tokens และ `design-system.md` Add-on
+  - [x] 1.3 Design tokens และ `design-system.md` Add-on
     - **Deps**: None | **Ref**: `design.md` — C8 (Design system), C10 (cookie rule)
     - Tokens:
       - `--color-band-low`
@@ -58,7 +58,7 @@
     - **Files**: `apps/web/src/styles/tokens.css`, `.kiro/steering/design-system.md`
     - **Acceptance**: ชื่อ token เดิมไม่เปลี่ยน; token ใหม่ sync ทั้งสองไฟล์
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build`
-  - [ ] 1.4 `LICENSE` และ licence text ฝั่ง web
+  - [x] 1.4 `LICENSE` และ licence text ฝั่ง web
     - **Deps**: None | **Ref**: `design.md` — C10; requirements Add-on (US-013 AC1)
     - ข้อความ MIT มาตรฐาน "Copyright (c) 2026 SamNohserver contributors"
     - `licenseText.ts` มีข้อความเดียวกันและมี test ตรวจว่าตรงกับ `LICENSE`
@@ -252,10 +252,10 @@
 
 | Task | Title | Deps | Status |
 |---|---|---|---|
-| 1.1 | Shared result contracts + `GONE` | — | ⬜ |
-| 1.2 | Port `finalize` + `listOutputFiles` | 1.1 | ⬜ |
-| 1.3 | Design tokens + steering Add-on | — | ⬜ |
-| 1.4 | `LICENSE` + licence text | — | ⬜ |
+| 1.1 | Shared result contracts + `GONE` | — | ✅ |
+| 1.2 | Port `finalize` + `listOutputFiles` | 1.1 | ✅ |
+| 1.3 | Design tokens + steering Add-on | — | ✅ |
+| 1.4 | `LICENSE` + licence text | — | ✅ |
 | 2.1 | Results API client + mock | 1.1 | ⬜ |
 | 2.2 | BarChart + RecommendationCard | 1.3 | ⬜ |
 | 2.3 | ArtifactList + ReportViewer | 2.1, 1.3 | ⬜ |
