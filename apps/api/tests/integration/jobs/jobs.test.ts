@@ -248,6 +248,10 @@ describe('GET /api/v1/jobs and /api/v1/jobs/:jobId (US-006, US-007, US-002)', ()
     );
     expect(result.markers).toHaveLength(10);
     expect(result.parameters).not.toHaveProperty('simulateFailure');
+    // Default completion handler is the Results & Guidance builder (result.json v2 + rows).
+    expect(result.schemaVersion).toBe(2);
+    expect(await context.prisma.resultArtifact.count({ where: { jobId } })).toBe(1);
+    expect(await context.prisma.packageRecommendation.count({ where: { jobId } })).toBe(1);
     const transitions = (await auditRows('JOB_STATUS_CHANGED', jobId)).map(
       (row) => row.metadataJson,
     );

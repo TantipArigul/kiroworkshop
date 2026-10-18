@@ -77,6 +77,10 @@ describe('JobCompletionHandler.finalize (Results & Guidance port)', () => {
 
     const detail = await session.get(`/api/v1/jobs/${jobId}`);
     expect(detail.body.data.status).toBe('FAILED');
+    // Simulated executor: same safe summary as a failed completion handler (not Nextflow's).
+    expect(detail.body.data.failureSummary).toBe(
+      'The analysis could not produce a result. Please submit the job again.',
+    );
     expect(JSON.stringify(detail.body)).not.toContain('/secret/path');
     expect(await context.prisma.packageRecommendation.count({ where: { jobId } })).toBe(0);
   });

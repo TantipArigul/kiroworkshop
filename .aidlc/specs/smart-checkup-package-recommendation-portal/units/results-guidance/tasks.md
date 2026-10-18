@@ -119,7 +119,7 @@
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (375/768/1440 px) ด้วย `VITE_API_MOCK=true`
 
 - [ ] 3. Backend + เชื่อม API จริง
-  - [ ] 3.1 Mock rule engine
+  - [x] 3.1 Mock rule engine
     - **Deps**: 1.1 | **Ref**: `design.md` — C2; US-010 AC1, AC3–4
     - `RULESET_VERSION = 'mock-rules-2026.10-1'`, append-only
     - Training midpoint คำนวณจาก `INPUT_MARKERS`
@@ -128,7 +128,7 @@
     - **Files**: `apps/api/src/modules/results/recommendation-rules.ts`
     - **Acceptance**: ตรงตารางใน C2 ทุกข้อ; `ageBand` ไม่ถูกใช้
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.2 Smart Checkup result builder และ wiring
+  - [x] 3.2 Smart Checkup result builder และ wiring
     - **Deps**: 1.2, 3.1 | **Ref**: `design.md` — C3; US-009 AC4, US-010 AC4
     - เขียน `result.json` แบบ `schemaVersion: 2`
     - `finalize(tx)` สร้าง `ResultArtifact` + `PackageRecommendation` (รวม `NO_MATCH`) ใน transaction เดียวกับ `COMPLETED`
@@ -136,7 +136,7 @@
     - **Files**: `apps/api/src/modules/results/smart-checkup-result.ts`, `apps/api/src/http/app.ts`, `apps/api/tests/integration/jobs/jobs.test.ts` (assertion เท่านั้น)
     - **Acceptance**: handler/finalize throw → `FAILED` ไม่มีแถว; test เดิมผ่าน
     - **Validation**: `pnpm --filter @portal/api test && pnpm test:properties`
-  - [ ] 3.3 Nextflow stats reader
+  - [x] 3.3 Nextflow stats reader
     - **Deps**: 1.1 | **Ref**: `design.md` — C4; US-009 AC1, AC4
     - Header ต้องตรงตัว (seqkit stats)
     - ไฟล์ ≤ 1 MiB และ ≤ 1,000 แถว; ตัวเลข finite ≥ 0
@@ -145,7 +145,7 @@
     - **Files**: `apps/api/src/modules/results/nextflow-stats.ts`
     - **Acceptance**: parse output จริงของ wf-renamefastq 1.0.3 ได้ (header ตาม design)
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.4 Result service
+  - [x] 3.4 Result service
     - **Deps**: 1.2, 3.2, 3.3 | **Ref**: `design.md` — C5; US-009 AC1–2, AC4, US-011 AC1–2
     - `getResult`:
       - owner check ผ่าน `getOwnedJob`
@@ -158,7 +158,7 @@
     - **Files**: `apps/api/src/modules/results/{result.service.ts,references.ts}`
     - **Acceptance**: ไม่ query `Job`, `JobInput` หรือ `JobOutputFile` ผ่าน Prisma โดยตรง
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm lint`
-  - [ ] 3.5 Artifact delivery, report policy และ routes
+  - [x] 3.5 Artifact delivery, report policy และ routes
     - **Deps**: 3.4 | **Ref**: `design.md` — C6, C7, API Specification; US-009 AC5–6, US-011 AC1–4
     - Download: sanitized filename + `filename*`, content-type allowlist (`.html` → octet-stream), `nosniff`, CSP `sandbox`, `no-store`, stream หลัง containment + `lstat`
     - ไฟล์หาย → `410`; audit `RESULT_DOWNLOADED`
@@ -261,11 +261,11 @@
 | 2.3 | ArtifactList + ReportViewer | 2.1, 1.3 | ✅ |
 | 2.4 | Result page + View result button | 2.1–2.3 | ✅ |
 | 2.5 | Guide, `/license`, footer, cookie notice | 1.4 | ✅ |
-| 3.1 | Mock rule engine | 1.1 | ⬜ |
-| 3.2 | Smart Checkup result builder + wiring | 1.2, 3.1 | ⬜ |
-| 3.3 | Nextflow stats reader | 1.1 | ⬜ |
-| 3.4 | Result service | 1.2, 3.2, 3.3 | ⬜ |
-| 3.5 | Artifact delivery + report policy + routes | 3.4 | ⬜ |
+| 3.1 | Mock rule engine | 1.1 | ✅ |
+| 3.2 | Smart Checkup result builder + wiring | 1.2, 3.1 | ✅ |
+| 3.3 | Nextflow stats reader | 1.1 | ✅ |
+| 3.4 | Result service | 1.2, 3.2, 3.3 | ✅ |
+| 3.5 | Artifact delivery + report policy + routes | 3.4 | ✅ |
 | 3.6 | Web ↔ real API + browser check | 2.4, 2.5, 3.5 | ⬜ |
 | 4.1 | Operational logging + error mapping | 3.5 | ⬜ |
 | 4.2 | Retention/delete + docs | 3.5 | ⬜ |

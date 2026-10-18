@@ -11,7 +11,7 @@ import { createAuditService } from '../modules/audit/audit.service.js';
 import { createIdentityRouter } from '../modules/identity/identity.routes.js';
 import { createIdentityService } from '../modules/identity/identity.service.js';
 import { createSessionGuard } from '../modules/identity/session-guard.js';
-import { writeResultSummary, type JobCompletionHandler } from '../modules/jobs/completion.js';
+import type { JobCompletionHandler } from '../modules/jobs/completion.js';
 import { createExecutorDirectory } from '../modules/jobs/executor.js';
 import { createJobStorage } from '../modules/jobs/job-storage.js';
 import { createJobWorker, type JobWorker } from '../modules/jobs/job-worker.js';
@@ -30,6 +30,9 @@ import {
 import { createPipelinesRouter } from '../modules/pipelines/pipelines.routes.js';
 import { pipelineIdsForExecutor } from '../modules/pipelines/registry.js';
 import type { RunUploadLimits } from '../modules/pipelines/run-upload.js';
+import { createResultService } from '../modules/results/result.service.js';
+import { createResultsRouter } from '../modules/results/results.routes.js';
+import { createSmartCheckupResultBuilder } from '../modules/results/smart-checkup-result.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -50,7 +53,7 @@ export type ApiRuntimeState = {
 };
 
 export type ApiAppOptions = {
-  /** Replaces the default `result.json` handler (Results & Guidance plugs in here). */
+  /** Replaces the default Smart Checkup result builder (Results & Guidance C3); tests only. */
   completionHandler?: JobCompletionHandler;
   /** Test hook: overrides executor readiness when the worker loop is not started. */
   isExecutorReady?: () => boolean;
@@ -76,7 +79,7 @@ export function createApiApp(
   const guard = createSessionGuard({ audit, config, identity });
   const storage = createJobStorage(config.storageRoot);
   const simulatedAdapter = createSimulatedAdapter({
-    completionHandler: options.completionHandler ?? writeResultSummary,
+    completionHandler: options.completionHandler ?? createSmartCheckupResultBuilder(),
     config,
     logger,
     prisma,
@@ -121,9 +124,11 @@ export function createApiApp(
     },
     jobs,
     logger,
+    prisma,
     storage,
     uploadLimits: options.runUploadLimits,
   });
+  const results = createResultService({ jobs, pipelines, prisma, storage });
   const sweepExpiredJobs = createRetentionSweeper({ audit, jobs, logger, prisma, storage });
   const worker = createJobWorker({
     config,
@@ -244,6 +249,17 @@ export function createApiApp(
     }),
   );
   app.use('/api/v1/audit-events', createAuditRouter({ audit, guard, prisma }));
+  // Mounted before the Jobs router: its paths do not clash, and its per-route auth + limiter
+  // chain must not run twice (the Jobs router applies its chain to every `/jobs` request).
+  app.use(
+    '/api/v1/jobs',
+    createResultsRouter({
+      audit,
+      authenticatedApiLimiter: rateLimiters.authenticatedApi,
+      guard,
+      results,
+    }),
+  );
   app.use(
     '/api/v1/jobs',
     createJobsRouter({

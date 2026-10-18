@@ -388,8 +388,8 @@ units:
     implementationMode: "parallel"
     implementation:
       totalTasks: 20
-      completedTasks: 9
-      currentTask: null
+      completedTasks: 14
+      currentTask: "3.6"
       currentWave: 3
     decisions:
       design:

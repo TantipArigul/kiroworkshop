@@ -487,7 +487,7 @@ const NEXTFLOW_REFERENCES = fixtureResults.cmockjob0000000000000003?.references 
  */
 function resultFor(job: MockJob): TransportResponse {
   if (job.status !== 'COMPLETED') {
-    return fail(409, 'CONFLICT', 'The result is available when the job is completed.', [
+    return fail(409, 'CONFLICT', 'The result is available only after the job has completed.', [
       { field: 'status', message: job.status },
     ]);
   }

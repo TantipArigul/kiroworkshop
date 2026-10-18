@@ -163,7 +163,13 @@ export function createJobWorker(options: JobWorkerOptions) {
           { errorType: error instanceof Error ? error.name : 'unknown', jobId: job.id },
           'Job finalization failed',
         );
-        await finish(adapter, job.id, 'FAILED', OUTPUT_FAILURE_SUMMARY);
+        // Smart Checkup's result rows failed: same message as a failed completion handler.
+        await finish(
+          adapter,
+          job.id,
+          'FAILED',
+          adapter.id === 'simulated' ? STATUS_SUMMARIES.HANDLER_FAILURE : OUTPUT_FAILURE_SUMMARY,
+        );
       }
     }
   }
