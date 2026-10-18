@@ -6,6 +6,7 @@ import {
   checkLaunchRules,
   classifyLayout,
   classifyLayoutAs,
+  isBarcodeName,
   isFastqFileName,
   isSafePathSegment,
   isValidSampleName,
@@ -247,6 +248,46 @@ describe('matchSheetToFolders', () => {
         expect(matchSheetToFolders(sheet, folders).ok).toBe(equal);
       }),
     );
+  });
+});
+
+describe('barcode names and issue limits', () => {
+  it('accepts barcode folders with two or more digits only', () => {
+    expect(isBarcodeName('barcode01')).toBe(true);
+    expect(isBarcodeName('barcode123')).toBe(true);
+    expect(isBarcodeName('barcode1')).toBe(false);
+    expect(isBarcodeName('Barcode01')).toBe(false);
+    expect(isBarcodeName('barcode01 ')).toBe(false);
+    expect(isBarcodeName('unclassified')).toBe(false);
+  });
+
+  it('reports at most 20 sheet issues', () => {
+    const rows = Array.from({ length: 30 }, (_, index) => `barcode${index + 10},bad alias`);
+    const result = parseSampleSheet(['barcode,alias', ...rows].join('\n'));
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? [] : result.issues).toHaveLength(20);
+  });
+
+  it('never counts unclassified as a folder barcode', () => {
+    expect(matchSheetToFolders(['barcode01'], ['barcode01', 'unclassified']).ok).toBe(true);
+    expect(matchSheetToFolders(['barcode01', 'unclassified'], ['barcode01'])).toEqual({
+      missingFolders: ['unclassified'],
+      ok: false,
+      unlistedFolders: [],
+    });
+  });
+
+  it('rejects over-long relative paths', () => {
+    expect(splitRelativePath(`${'a'.repeat(100)}/${'b'.repeat(100)}/${'c'.repeat(100)}`)).toEqual([
+      'a'.repeat(100),
+      'b'.repeat(100),
+      'c'.repeat(100),
+    ]);
+    // Each segment is valid (≤ 128) but the whole path exceeds the 400-character limit.
+    const longPath = ['a'.repeat(128), 'b'.repeat(128), 'c'.repeat(128), `${'d'.repeat(20)}.fq`];
+    expect(longPath.join('/').length).toBeGreaterThan(400);
+    expect(splitRelativePath(longPath.join('/'))).toBeNull();
   });
 });
 

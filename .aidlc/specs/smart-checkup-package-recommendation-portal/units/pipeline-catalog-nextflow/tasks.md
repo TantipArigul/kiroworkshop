@@ -147,26 +147,26 @@
     - **Acceptance**: หลัง retention ไม่เหลือแถว/ไฟล์ของ Job; log ไม่มีข้อมูลต้องห้าม
     - **Validation**: `pnpm --filter @portal/api test`
 
-- [ ] 5. Tests และ Verify
-  - [ ] 5.1 Unit tests (API + shared + web)
+- [x] 5. Tests และ Verify
+  - [x] 5.1 Unit tests (API + shared + web)
     - **Deps**: 4.3 | **Ref**: `design.md` — Testing Strategy
     - shared validation (layout, sheet, safe names), registry `buildParams`, trace/stdout parser, upload path checks, safe summary mapping; web `inputPreview`, client validation, upload/polling helpers
     - **Files**: `packages/shared/src/validation/run-input.test.ts`, `apps/api/tests/unit/pipelines/*.test.ts`, `apps/web/src/features/pipelines/*.test.ts`
     - **Acceptance**: ครอบคลุมทุก component C1–C7 ที่เป็น pure logic
     - **Validation**: `pnpm test`
-  - [ ] 5.2 Integration tests (fake `nextflow`/`docker`)
+  - [x] 5.2 Integration tests (fake `nextflow`/`docker`)
     - **Deps**: 5.1 | **Ref**: `design.md` — Testing Strategy (Integration cases หลัก)
     - `tests/support/pipelines-context.ts` (fake bins, multipart helper ที่ส่ง CSRF), scenarios: catalog/availability, launch 1/2/3, replay, `503` ก่อนรับไฟล์, over-limit, traversal + audit, sheet mismatch, demultiplex + แบบ 3, queue position, success + outputs + ไม่มี `work/`, fail-step, missing-output, cancel `QUEUED`/`RUNNING`, cancel terminal `409`, delete ขณะ running, foreign `404`, Smart Checkup regression
     - **Files**: `apps/api/tests/integration/pipelines/*.test.ts`, `apps/api/tests/support/pipelines-context.ts`, `apps/api/tests/fixtures/*`
     - **Acceptance**: ทุก endpoint ใหม่/ขยายมี integration test; test ไม่ต้องมี Nextflow/Docker
     - **Validation**: `pnpm --filter @portal/api test`
-  - [ ] 5.3 Property-based tests P7–P13
+  - [x] 5.3 Property-based tests P7–P13
     - **Deps**: 5.2 | **Ref**: `design.md` — Correctness Properties
     - P7 แทน P1 เดิม; P8–P13 ตามตาราง; generators ของ path/sheet/upload ใน shared testing
     - **Files**: `apps/api/tests/properties/{job-lifecycle.test.ts,pipeline-run.test.ts}`, `packages/shared/src/testing/generators.ts`
     - **Acceptance**: ทุก property ผ่านด้วยจำนวนรอบ default ของ fast-check
     - **Validation**: `pnpm test:properties`
-  - [ ] 5.4 Real-run suite และ verification ก่อน push
+  - [x] 5.4 Real-run suite และ verification ก่อน push
     - **Deps**: 5.3 | **Ref**: `design.md` — Testing Strategy (Local real-run); requirements Add-on; plan Step 4
     - `real-nextflow.test.ts` (`NEXTFLOW_IT=1`): แบบ 1–3, demultiplex, bad alias (ถูกปฏิเสธก่อนรัน), cancel ระหว่าง run; full checks (`pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:properties && pnpm build`); browser smoke ทุก flow; ตรวจว่าไม่มี FASTQ/upload/work/`.env` ใน `git status`; อัปเดต Add-on ใน spec ที่เกี่ยวข้อง + `audit.md`; เตรียม commit message/PR description (push เมื่อผู้ใช้ยืนยันเท่านั้น)
     - **Files**: `apps/api/tests/integration/pipelines/real-nextflow.test.ts`, `.aidlc/**` (Add-on/status)
@@ -200,22 +200,22 @@
 | 4.1 | Readiness per pipeline | 3.6 | ✅ |
 | 4.2 | CLI setup/check + docs | 3.3, 4.1 | ✅ |
 | 4.3 | Retention/cleanup + logging | 3.5, 3.7 | ✅ |
-| 5.1 | Unit tests | 4.3 | ⬜ |
-| 5.2 | Integration tests | 5.1 | ⬜ |
-| 5.3 | PBT P7–P13 | 5.2 | ⬜ |
-| 5.4 | Real-run suite + verification | 5.3 | ⬜ |
+| 5.1 | Unit tests | 4.3 | ✅ |
+| 5.2 | Integration tests | 5.1 | ✅ |
+| 5.3 | PBT P7–P13 | 5.2 | ✅ |
+| 5.4 | Real-run suite + verification | 5.3 | ✅ |
 
 ## Requirements Coverage
 
 | Story | Tasks | Status |
 |---|---|---|
-| US-016 Browse the Pipeline Catalog | 1.2, 2.1, 2.2, 3.3, 3.5, 4.1, 5.2 | ⬜ |
-| US-017 Launch a Nextflow Run | 1.2, 1.5, 2.3, 3.4, 3.5, 3.8, 5.2, 5.4 | ⬜ |
-| US-018 Validate FASTQ Input and Sample Sheet | 1.2, 2.3, 3.3, 3.4, 5.1, 5.2, 5.3 | ⬜ |
-| US-019 Execute Locally, Offline, in Order | 1.1, 1.3, 3.1, 3.6, 3.7, 4.1, 4.2, 5.2, 5.3, 5.4 | ⬜ |
-| US-020 Monitor Runs in the Overview | 2.4, 2.5, 3.1, 3.6, 5.2 | ⬜ |
-| US-021 Cancel a Queued or Running Job | 1.2, 1.5, 2.5, 3.2, 3.7, 5.2, 5.3, 5.4 | ⬜ |
-| US-004/005/007/008/009/011/014 (ปรับตาม Add-on) | 1.4, 3.1, 3.2, 3.5, 4.3, 5.2 | ⬜ |
+| US-016 Browse the Pipeline Catalog | 1.2, 2.1, 2.2, 3.3, 3.5, 4.1, 5.2 | ✅ |
+| US-017 Launch a Nextflow Run | 1.2, 1.5, 2.3, 3.4, 3.5, 3.8, 5.2, 5.4 | ✅ |
+| US-018 Validate FASTQ Input and Sample Sheet | 1.2, 2.3, 3.3, 3.4, 5.1, 5.2, 5.3 | ✅ |
+| US-019 Execute Locally, Offline, in Order | 1.1, 1.3, 3.1, 3.6, 3.7, 4.1, 4.2, 5.2, 5.3, 5.4 | ✅ |
+| US-020 Monitor Runs in the Overview | 2.4, 2.5, 3.1, 3.6, 5.2 | ✅ |
+| US-021 Cancel a Queued or Running Job | 1.2, 1.5, 2.5, 3.2, 3.7, 5.2, 5.3, 5.4 | ✅ |
+| US-004/005/007/008/009/011/014 (ปรับตาม Add-on) | 1.4, 3.1, 3.2, 3.5, 4.3, 5.2 | ✅ |
 
 ## Design Coverage
 
@@ -244,18 +244,18 @@
 - **Summary**: components ที่มี test 10/10 (C9 ทดสอบผ่าน `pipelines:check` ใน 4.2); endpoints ที่มี integration test 7/7
 
 ## Definition of Done
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:properties && pnpm build` ผ่าน
-- [ ] Real-run suite (`NEXTFLOW_IT=1`) ผ่านบนเครื่อง local หลัง `pipelines:setup`
-- [ ] Catalog แสดง 2 pipelines; Smart Checkup ทำงานเหมือนเดิม
-- [ ] Launch แบบ 1–3 ด้วย test data ของ pipeline → `COMPLETED` + `JobOutputFile` ครบ + ไม่มี `work/`
-- [ ] Sheet ไม่ตรง / alias มีช่องว่างหรือ `$` ถูกปฏิเสธก่อนรัน; upload เกินขีดจำกัดไม่เหลือไฟล์
-- [ ] Queue: run ที่สองแสดง queue position 1; progress อัปเดตระหว่าง `RUNNING`
-- [ ] Input ผิด → `FAILED` + ชื่อขั้นตอนที่ปลอดภัย, ไม่แสดง raw log
-- [ ] Cancel ขณะ `RUNNING` → `CANCELLED`, ไม่มี process/container ค้าง, record ยังอยู่; Delete ขณะ `RUNNING` ทำงานได้
-- [ ] ผู้ใช้อื่นได้ `404` ทุก route ของ Job/Pipeline run
-- [ ] Run ผ่านแบบ `NXF_OFFLINE=true`; env ของ child ไม่มี secret
-- [ ] HTML report ไม่ถูก render inline; log/audit ไม่มีชื่อไฟล์/alias/path
-- [ ] ไม่มี FASTQ, uploads, work directory หรือ `.env` ใน git
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:properties && pnpm build` ผ่าน
+- [x] Real-run suite (`NEXTFLOW_IT=1`) ผ่านบนเครื่อง local หลัง `pipelines:setup`
+- [x] Catalog แสดง 2 pipelines; Smart Checkup ทำงานเหมือนเดิม
+- [x] Launch แบบ 1–3 ด้วย test data ของ pipeline → `COMPLETED` + `JobOutputFile` ครบ + ไม่มี `work/`
+- [x] Sheet ไม่ตรง / alias มีช่องว่างหรือ `$` ถูกปฏิเสธก่อนรัน; upload เกินขีดจำกัดไม่เหลือไฟล์
+- [x] Queue: run ที่สองแสดง queue position 1; progress อัปเดตระหว่าง `RUNNING`
+- [x] Input ผิด → `FAILED` + ชื่อขั้นตอนที่ปลอดภัย, ไม่แสดง raw log
+- [x] Cancel ขณะ `RUNNING` → `CANCELLED`, ไม่มี process/container ค้าง, record ยังอยู่; Delete ขณะ `RUNNING` ทำงานได้
+- [x] ผู้ใช้อื่นได้ `404` ทุก route ของ Job/Pipeline run
+- [x] Run ผ่านแบบ `NXF_OFFLINE=true`; env ของ child ไม่มี secret
+- [x] HTML report ไม่ถูก render inline; log/audit ไม่มีชื่อไฟล์/alias/path
+- [x] ไม่มี FASTQ, uploads, work directory หรือ `.env` ใน git
 - [ ] ทุก task ใน `tasks.md` ติ๊ก `[x]`; Add-on และ `audit.md` อัปเดต; ผู้ใช้ยืนยันก่อน push/PR
 
 ## Execution Waves

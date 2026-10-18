@@ -2,7 +2,9 @@
 // Test double for the `docker` CLI commands the Nextflow adapter uses. Point DOCKER_BIN at this
 // file. Containers are the records `fake-nextflow.mjs` (scenario `hang`) writes to
 // `$TMPDIR/portal-fake-docker/containers.json`; nothing talks to a real Docker daemon.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+// Test knobs in the same directory: every call is appended to `docker-calls.log` (one JSON
+// argument array per line) and refs listed in `missing-images.txt` are "not pulled".
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,10 +17,23 @@ function load() {
 }
 
 function save(containers) {
+  if (!existsSync(tmpdir())) {
+    return;
+  }
   mkdirSync(directory, { recursive: true });
   writeFileSync(statePath, JSON.stringify(containers));
 }
 
+// Never re-create a test sandbox that was already removed (a late readiness call after
+// teardown): record only while the private TMPDIR still exists.
+const recording = existsSync(tmpdir());
+if (recording) {
+  mkdirSync(directory, { recursive: true });
+  appendFileSync(join(directory, 'docker-calls.log'), `${JSON.stringify(args)}\n`);
+}
+const missingImages = existsSync(join(directory, 'missing-images.txt'))
+  ? readFileSync(join(directory, 'missing-images.txt'), 'utf8').split('\n').filter(Boolean)
+  : [];
 const [command, ...rest] = args;
 
 switch (command) {
@@ -28,6 +43,10 @@ switch (command) {
   case 'image': {
     // `docker image inspect [--format …] <ref>`: every image is "present" with a fake digest.
     const ref = rest[rest.length - 1] ?? '';
+    if (missingImages.includes(ref)) {
+      console.error(`Error: No such image: ${ref}`);
+      process.exit(1);
+    }
     const repository = ref.replace(/:[^/:]+$/, '');
     console.log(rest.includes('--format') ? `["${repository}@sha256:${'0'.repeat(64)}"]` : '[]');
     break;

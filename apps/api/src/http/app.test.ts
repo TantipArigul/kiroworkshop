@@ -1,3 +1,4 @@
+import { createServer, type Server } from 'node:http';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
@@ -16,6 +17,23 @@ let database: TestDatabaseContext;
 let config: AppConfig;
 let prisma: PrismaClient;
 let app: Express;
+let server: Server;
+
+// Bind test servers to 127.0.0.1: SuperTest's default `listen(0)` on `::` can share a port that
+// another local process holds on 127.0.0.1 (macOS), so requests reached that process instead.
+// Mirrors `tests/support/loopback-server.ts` (tsc rootDir is `src`, so it is not imported).
+async function listenOnLoopback(handler: Express): Promise<Server> {
+  const instance = createServer(handler);
+  await new Promise<void>((resolve) => instance.listen(0, '127.0.0.1', resolve));
+  return instance;
+}
+
+async function closeServer(instance: Server): Promise<void> {
+  await new Promise<void>((resolve) => {
+    instance.close(() => resolve());
+    instance.closeAllConnections();
+  });
+}
 
 beforeAll(async () => {
   // An isolated, migrated SQLite file per run — never a developer's local database.
@@ -38,17 +56,19 @@ beforeAll(async () => {
   });
   prisma = createPrismaClient(config.databaseUrl);
   app = createApiApp(config, prisma, undefined, { isExecutorReady: () => true });
+  server = await listenOnLoopback(app);
 });
 
 afterAll(async () => {
+  await closeServer(server);
   await prisma.$disconnect();
   await database.cleanup();
 });
 
 describe('Foundation API runtime', () => {
   it('returns safe health and readiness envelopes with request IDs', async () => {
-    const healthResponse = await request(app).get('/health').expect(200);
-    const readinessResponse = await request(app).get('/health/ready').expect(200);
+    const healthResponse = await request(server).get('/health').expect(200);
+    const readinessResponse = await request(server).get('/health/ready').expect(200);
 
     expect(healthResponse.body.data.status).toBe('ok');
     expect(healthResponse.body.meta.requestId).toMatch(/^[0-9a-f-]{36}$/i);
@@ -63,14 +83,16 @@ describe('Foundation API runtime', () => {
     const drainingState: ApiRuntimeState = { draining: true, startedAt: Date.now() };
     const drainingApp = createApiApp(config, prisma, drainingState);
 
-    const response = await request(drainingApp).get('/health/ready').expect(503);
+    const drainingServer = await listenOnLoopback(drainingApp);
+    const response = await request(drainingServer).get('/health/ready').expect(503);
+    await closeServer(drainingServer);
 
     expect(response.body.data.status).toBe('not_ready');
     expect(response.body).not.toHaveProperty('databaseUrl');
   });
 
   it('uses a stateful CSRF token and safe auth errors', async () => {
-    const agent = request.agent(app);
+    const agent = request.agent(server);
     const csrfResponse = await agent.get('/api/v1/auth/csrf-token').expect(200);
     const csrfToken = csrfResponse.body.data.csrfToken as string;
     const csrfDeniedResponse = await agent.post('/api/v1/auth/login').expect(403);
@@ -89,7 +111,7 @@ describe('Foundation API runtime', () => {
   });
 
   it('rejects disallowed origins without leaking internal details', async () => {
-    const response = await request(app)
+    const response = await request(server)
       .get('/health')
       .set('Origin', 'https://untrusted.example')
       .expect(403);

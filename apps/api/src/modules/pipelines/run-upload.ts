@@ -117,8 +117,10 @@ export async function receiveRunUpload(input: {
         stream.destroy();
       }
 
-      void storage
-        .removeUpload(uploadId)
+      // Remove staging only after every file task has settled: a write stream still being
+      // created would otherwise re-create `uploads/{id}/…` after the removal.
+      void _settle(pending)
+        .then(() => storage.removeUpload(uploadId))
         .catch(() => undefined)
         .finally(() => reject(new UploadRejectedError([issue], auditReason)));
     };
@@ -237,7 +239,8 @@ export async function receiveRunUpload(input: {
           }
 
           if (settled) {
-            writer.destroy();
+            stream.resume();
+            await _discard(writer);
             return;
           }
 
@@ -408,6 +411,35 @@ export async function receiveRunUpload(input: {
       }
     });
     request.pipe(parser);
+  });
+}
+
+/** Waits for every pending task, including tasks added while waiting. Never rejects. */
+async function _settle(pending: readonly Promise<void>[]): Promise<void> {
+  let count: number;
+
+  do {
+    count = pending.length;
+    await Promise.allSettled(pending);
+  } while (pending.length !== count);
+}
+
+/**
+ * Destroys a write stream that is no longer needed and waits until it is closed. The error
+ * listener keeps a failed open (its directory may already be gone) from becoming an uncaught
+ * exception.
+ */
+function _discard(writer: Writable): Promise<void> {
+  return new Promise((resolve) => {
+    writer.on('error', () => undefined);
+
+    if (writer.closed) {
+      resolve();
+      return;
+    }
+
+    writer.once('close', () => resolve());
+    writer.destroy();
   });
 }
 

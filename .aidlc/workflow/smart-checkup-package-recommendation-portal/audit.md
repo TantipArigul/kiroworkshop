@@ -280,3 +280,8 @@
 - **Action**: wave-complete
 - **Artifacts**: per-pipeline readiness, `pipelines:setup`/`pipelines:check` CLI, README host-run docs, upload staging retention; MultiQC image source Add-on (option b)
 - **Outcome**: checks pass; real `pipelines:check` 11/11 and `/health/ready` pipeline ok — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T13:30:00Z] Implementation: pipeline-catalog-nextflow Wave 5 complete (25/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: unit/integration/PBT/real-run suites, flaky-test fix (test support), upload race fix (BUG-1/1b)
+- **Outcome**: full chain green; real-run 6/6 offline — details in `units/pipeline-catalog-nextflow/audit.md`

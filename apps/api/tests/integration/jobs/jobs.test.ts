@@ -153,7 +153,9 @@ describe('POST /api/v1/jobs (US-004, US-005, US-008)', () => {
       field: 'file.line 2',
       message: 'Line 2: The value must be between 10 and 70.',
     });
-    expect(JSON.stringify(badFile.body)).not.toContain('999');
+    // Only the error must not echo the input; `meta.requestId` is a random UUID that can
+    // legitimately contain "999" (was a ~1% flake when the whole body was checked).
+    expect(JSON.stringify(badFile.body.error)).not.toContain('999');
     expect(await context.prisma.job.count()).toBe(before);
   });
 

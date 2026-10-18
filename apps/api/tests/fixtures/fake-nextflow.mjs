@@ -2,7 +2,9 @@
 // Test double for the `nextflow` CLI (design Testing Strategy). Point NEXTFLOW_BIN at this file.
 // `run` reads `-params-file` and an optional `.scenario` file in the launch directory
 // (`run/.scenario`): `<name> [delayMs]` where name is success | fail-step | missing-output | hang.
-// It never touches the network, Docker or real FASTQ data.
+// It never touches the network, Docker or real FASTQ data. Test knobs live in
+// `$TMPDIR/portal-fake-docker/` (shared with fake-docker.mjs): non-run calls are appended to
+// `nextflow-calls.log`, and an `unpulled` marker makes `info` report no pulled revision.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -14,13 +16,20 @@ const TRACE_HEADER = 'task_id\thash\tnative_id\tname\tstatus\texit\n';
 const PROCESS_NAME = 'WF_RENAMEFASTQ:RENAMEFASTQ:FASTCAT';
 const HASH = 'ab/cdef12';
 
+const stateDirectory = join(tmpdir(), 'portal-fake-docker');
+// Record only while the private TMPDIR still exists (never re-create a removed sandbox).
+if (args[0] !== 'run' && existsSync(tmpdir())) {
+  mkdirSync(stateDirectory, { recursive: true });
+  appendFileSync(join(stateDirectory, 'nextflow-calls.log'), `${JSON.stringify(args)}\n`);
+}
 if (args[0] === '-version') {
   console.log('nextflow version 26.10.2 (fake)');
   process.exit(0);
 }
 
 if (args[0] === 'info') {
-  console.log(JSON.stringify({ revisions: { pulled: ['1.0.3'] } }));
+  const pulled = existsSync(join(stateDirectory, 'unpulled')) ? [] : ['1.0.3'];
+  console.log(JSON.stringify({ revisions: { pulled } }));
   process.exit(0);
 }
 
