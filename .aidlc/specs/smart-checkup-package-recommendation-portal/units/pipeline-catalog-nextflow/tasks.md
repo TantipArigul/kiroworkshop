@@ -127,20 +127,20 @@
     - **Acceptance**: ทุก flow คลิกได้จริง, ไม่มี error ใน console/terminal, Smart Checkup ยังใช้ได้
     - **Validation**: `pnpm build && pnpm lint && pnpm typecheck` + browser check
 
-- [ ] 4. CLI, readiness, retention และ operations
-  - [ ] 4.1 Readiness ต่อ pipeline
+- [x] 4. CLI, readiness, retention และ operations
+  - [x] 4.1 Readiness ต่อ pipeline
     - **Deps**: 3.6 | **Ref**: `design.md` — C7 (`isReady`), API (Readiness); US-016 AC2, US-019 AC6
     - Cached checks ทุก `NEXTFLOW_READINESS_INTERVAL_MS` (Nextflow, Docker, images, asset ตามผล spike, plugin), reason codes, `checks["pipeline:wf-renamefastq"]` ใน `/health/ready` (ไม่ทำให้ readiness รวมเป็น 503), availability ใน catalog
     - **Files**: `apps/api/src/modules/pipelines/readiness.ts`, `apps/api/src/http/app.ts`, `apps/api/src/modules/pipelines/pipeline-run.service.ts`
     - **Acceptance**: ปิด Docker / ตั้ง `NEXTFLOW_BIN` ผิด → catalog แสดง unavailable + launch ได้ `503` ก่อนรับไฟล์
     - **Validation**: `pnpm --filter @portal/api test` + ตรวจ `GET /health/ready` local
-  - [ ] 4.2 CLI `pipelines:setup` / `pipelines:check` และเอกสาร
+  - [x] 4.2 CLI `pipelines:setup` / `pipelines:check` และเอกสาร
     - **Deps**: 3.3, 4.1 | **Ref**: `design.md` — C9, Implementation (Configuration)
     - `cli/pipelines.ts` (pull, plugin install, docker pull `--platform`, สรุป digest; check offline), script `pipelines` ใน `apps/api/package.json`; README: ติดตั้ง Java/Nextflow, `STORAGE_ROOT` ใต้ path ที่ Docker Desktop แชร์, `NEXTFLOW_ENABLED`, disk/เวลา demultiplex, version ที่ทดสอบแล้ว
     - **Files**: `apps/api/src/cli/pipelines.ts`, `apps/api/package.json`, `docker/README.md`
     - **Acceptance**: `pipelines:check` ผ่านบนเครื่องที่ setup แล้วและ exit 1 เมื่อขาด asset; ไม่รับ repo/revision จาก argument
     - **Validation**: `pnpm --filter @portal/api build && pnpm --filter @portal/api pipelines pipelines:check`
-  - [ ] 4.3 Retention/cleanup และ operational logging
+  - [x] 4.3 Retention/cleanup และ operational logging
     - **Deps**: 3.5, 3.7 | **Ref**: `design.md` — C3 (Staging cleanup), C7 (`cleanup`), Operations; US-014 (ปรับ)
     - Sweep ลบ `uploads/*` อายุ > 1 ชั่วโมง; delete/retention ลบ `jobs/{id}/` ทั้งหมด (รวม `run/`, `output/`); log events ตามตาราง Operations โดยไม่มีชื่อไฟล์/alias/path
     - **Files**: `apps/api/src/modules/jobs/retention.ts`, `apps/api/src/modules/pipelines/*` (log calls)
@@ -197,9 +197,9 @@
 | 3.6 | Nextflow adapter (start/poll/outputs/cleanup) | 1.1, 3.1, 3.5 | ✅ |
 | 3.7 | Nextflow cancel + shutdown | 3.2, 3.6 | ✅ |
 | 3.8 | Web ↔ real API + browser check | 2.2–2.5, 3.5–3.7 | ✅ |
-| 4.1 | Readiness per pipeline | 3.6 | ⬜ |
-| 4.2 | CLI setup/check + docs | 3.3, 4.1 | ⬜ |
-| 4.3 | Retention/cleanup + logging | 3.5, 3.7 | ⬜ |
+| 4.1 | Readiness per pipeline | 3.6 | ✅ |
+| 4.2 | CLI setup/check + docs | 3.3, 4.1 | ✅ |
+| 4.3 | Retention/cleanup + logging | 3.5, 3.7 | ✅ |
 | 5.1 | Unit tests | 4.3 | ⬜ |
 | 5.2 | Integration tests | 5.1 | ⬜ |
 | 5.3 | PBT P7–P13 | 5.2 | ⬜ |

@@ -6,7 +6,8 @@ import {
   classifyLayoutAs,
   renamefastqOptionsSchema,
   runInputLayoutSchema,
-  type PipelineUnavailableReason,
+  type RenamefastqOptions,
+  type RunInputLayout,
 } from '@portal/shared';
 import { z } from 'zod';
 
@@ -23,7 +24,18 @@ import type {
 import type { JobStorage } from '../jobs/job-storage.js';
 import { STATUS_SUMMARIES } from '../jobs/job.service.js';
 import { buildProgress, failureSummary } from './nextflow-progress.js';
-import { getPipelineDefinition } from './registry.js';
+import {
+  childEnvironment,
+  createPipelineReadiness,
+  offlineNextflowEnvironment,
+  type PipelineReadinessState,
+} from './readiness.js';
+import {
+  getPipelineDefinition,
+  PIPELINE_REGISTRY,
+  type NextflowParams,
+  type NextflowPipelineSpec,
+} from './registry.js';
 import { FASTQ_DIRECTORY, SAMPLE_SHEET_FILE_NAME } from './run-input-validator.js';
 
 /** Matches the defaults in `config.ts`; used when a caller passes only the core settings. */
@@ -57,14 +69,7 @@ const STDOUT_FILE = 'nextflow.out.log';
 const WORK_DIRECTORY = 'work';
 const NEXTFLOW_STATE_DIRECTORY = '.nextflow';
 /** Never created: points the pipeline's institutional-config includes at nothing (offline). */
-const NO_CUSTOM_CONFIG_DIRECTORY = 'no-custom-config';
-/** Inherited from the API process only when set; nothing else (no portal secrets) is passed. */
-const INHERITED_ENV = ['PATH', 'HOME', 'JAVA_HOME', 'TMPDIR', 'LANG'] as const;
-const FIXED_NEXTFLOW_ENV = {
-  NXF_DISABLE_CHECK_LATEST: 'true',
-  NXF_OFFLINE: 'true',
-  NXF_OPTS: '-Xms512m -Xmx2g',
-} as const;
+export const NO_CUSTOM_CONFIG_DIRECTORY = 'no-custom-config';
 const KILL_WAIT_MS = 5_000;
 const GROUP_POLL_MS = 200;
 const DOCKER_TIMEOUT_MS = 20_000;
@@ -119,8 +124,51 @@ export class RunInputMissingError extends Error {
 }
 
 export type NextflowAdapter = ExecutorAdapter & {
-  readiness(): { ready: boolean; reason: PipelineUnavailableReason | null };
+  /** Cached readiness of one Nextflow pipeline (no process is started by this call). */
+  readiness(pipelineId: string): PipelineReadinessState;
+  /** Runs the readiness checks now (tests; the background refresh runs on its own interval). */
+  refreshReadiness(): Promise<void>;
 };
+
+/**
+ * `params.json` of a job (C2 `buildParams` with the job's absolute paths). Shared with
+ * `pipelines:check`, which verifies the offline-config guard on exactly this output.
+ */
+export function buildRunParams(input: {
+  config: NextflowConfig;
+  spec: NextflowPipelineSpec;
+  storage: JobStorage;
+  jobId: string;
+  layout: RunInputLayout;
+  sampleName: string | null;
+  options: RenamefastqOptions;
+  /** FASTQ file (SINGLE_FILE) or folder, relative to `input/fastq/`. */
+  fastqRoot: string;
+}): NextflowParams {
+  const { config, storage } = input;
+  const inputDirectory = storage.jobSubdirectory(input.jobId, 'input');
+  const runDirectory = storage.jobSubdirectory(input.jobId, 'run');
+
+  return input.spec.buildParams(
+    {
+      customConfigBase: join(runDirectory, NO_CUSTOM_CONFIG_DIRECTORY),
+      fastqPath: resolvePrivateStoragePath(inputDirectory, `${FASTQ_DIRECTORY}/${input.fastqRoot}`),
+      layout: input.layout,
+      options: input.options,
+      outdir: storage.jobSubdirectory(input.jobId, 'output'),
+      sampleName: input.sampleName,
+      sampleSheetPath:
+        input.layout === 'BARCODE_FOLDERS'
+          ? resolvePrivateStoragePath(inputDirectory, SAMPLE_SHEET_FILE_NAME)
+          : null,
+    },
+    {
+      maxCpus: config.nextflowMaxCpus,
+      maxMemoryGb: config.nextflowMaxMemoryGb,
+      maxTimeHours: config.nextflowMaxTimeHours,
+    },
+  );
+}
 
 /**
  * Local Nextflow executor (design C7). Each run is `nextflow run <repo> -r <revision>` spawned
@@ -131,6 +179,15 @@ export type NextflowAdapter = ExecutorAdapter & {
 export function createNextflowAdapter(options: NextflowAdapterOptions): NextflowAdapter {
   const { config, logger, prisma, storage } = options;
   const runs = new Map<string, RunEntry>();
+  const nextflowPipelines = PIPELINE_REGISTRY.filter((definition) => definition.nextflow);
+  const nextflowPipelineIds = nextflowPipelines.map((definition) => definition.id);
+  // Cached tooling/asset checks on their own interval; started only when Nextflow is enabled.
+  const readinessMonitor = createPipelineReadiness({
+    config,
+    logger,
+    pipelines: nextflowPipelines,
+  });
+  readinessMonitor.start();
 
   // ---------- public (port) ----------
 
@@ -169,30 +226,19 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
       throw new RunInputMissingError();
     }
 
-    const inputDirectory = storage.jobSubdirectory(context.jobId, 'input');
     const runDirectory = storage.jobSubdirectory(context.jobId, 'run');
     const outputDirectory = storage.jobSubdirectory(context.jobId, 'output');
-    const fastqRoot =
-      layout.layout === 'SINGLE_FILE' ? (layout.usedPaths[0] ?? '') : (layout.rootFolder ?? '');
-    const params = spec.buildParams(
-      {
-        fastqPath: resolvePrivateStoragePath(inputDirectory, `${prefix}${fastqRoot}`),
-        layout: parameters.data.layout,
-        options: parameters.data.options,
-        customConfigBase: join(runDirectory, NO_CUSTOM_CONFIG_DIRECTORY),
-        outdir: outputDirectory,
-        sampleName: parameters.data.sampleName,
-        sampleSheetPath:
-          parameters.data.layout === 'BARCODE_FOLDERS'
-            ? resolvePrivateStoragePath(inputDirectory, SAMPLE_SHEET_FILE_NAME)
-            : null,
-      },
-      {
-        maxCpus: config.nextflowMaxCpus,
-        maxMemoryGb: config.nextflowMaxMemoryGb,
-        maxTimeHours: config.nextflowMaxTimeHours,
-      },
-    );
+    const params = buildRunParams({
+      config,
+      fastqRoot:
+        layout.layout === 'SINGLE_FILE' ? (layout.usedPaths[0] ?? '') : (layout.rootFolder ?? ''),
+      jobId: context.jobId,
+      layout: parameters.data.layout,
+      options: parameters.data.options,
+      sampleName: parameters.data.sampleName,
+      spec,
+      storage,
+    });
 
     await mkdir(runDirectory, { mode: 0o700, recursive: true });
     await mkdir(outputDirectory, { mode: 0o700, recursive: true });
@@ -225,7 +271,7 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
         {
           cwd: runDirectory,
           detached: true,
-          env: _childEnvironment({ ...spec.env, ...FIXED_NEXTFLOW_ENV }, true),
+          env: offlineNextflowEnvironment(config, spec),
           shell: false,
           stdio: ['ignore', log.fd, log.fd],
         },
@@ -360,6 +406,7 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
 
   /** Shutdown (D3-15): SIGTERM every active run, then SIGKILL and container removal at timeout. */
   async function stopAll(timeoutMs: number): Promise<void> {
+    readinessMonitor.stop();
     const active = [...runs.entries()].filter(([, entry]) => !entry.exit);
 
     for (const [jobId, entry] of active) {
@@ -379,34 +426,11 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
     );
   }
 
-  function readiness(): { ready: boolean; reason: PipelineUnavailableReason | null } {
-    // Tooling/asset checks (Nextflow, Docker, images, assets, plugin) arrive with task 4.1.
-    return config.nextflowEnabled
-      ? { ready: true, reason: null }
-      : { ready: false, reason: 'NEXTFLOW_DISABLED' };
+  function readiness(pipelineId: string): PipelineReadinessState {
+    return readinessMonitor.state(pipelineId);
   }
 
   // ---------- private ----------
-
-  function _childEnvironment(extra: Record<string, string>, withNextflowHome: boolean) {
-    const environment: NodeJS.ProcessEnv = {};
-
-    for (const key of INHERITED_ENV) {
-      const value = process.env[key];
-
-      if (value) {
-        environment[key] = value;
-      }
-    }
-
-    const nextflowHome = config.nextflowHome ?? process.env.NXF_HOME;
-
-    if (withNextflowHome && nextflowHome) {
-      environment.NXF_HOME = nextflowHome;
-    }
-
-    return { ...environment, ...extra };
-  }
 
   function _signalGroup(jobId: string, pid: number, signal: NodeJS.Signals) {
     try {
@@ -502,7 +526,7 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
         args,
         {
           encoding: 'utf8',
-          env: _childEnvironment({}, false),
+          env: childEnvironment(config, {}, false),
           maxBuffer: 1_048_576,
           shell: false,
           timeout: DOCKER_TIMEOUT_MS,
@@ -524,9 +548,10 @@ export function createNextflowAdapter(options: NextflowAdapterOptions): Nextflow
     capacity: config.nextflowMaxConcurrentRuns,
     cleanup,
     id: 'nextflow',
-    isReady: () => readiness().ready,
+    isReady: () => nextflowPipelineIds.every((pipelineId) => readiness(pipelineId).ready),
     poll,
     readiness,
+    refreshReadiness: () => readinessMonitor.refresh(),
     start,
     stopAll,
   };

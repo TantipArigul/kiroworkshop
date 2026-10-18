@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createWriteStream } from 'node:fs';
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { lstat, mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import { jobIdSchema } from '@portal/shared';
 
@@ -108,6 +108,41 @@ export function createJobStorage(storageRoot: string) {
     writeResult: (jobId: string, content: string) => writeJobFile(jobId, RESULT_FILE_NAME, content),
     writeJobFile,
     removeJob: (jobId: string) => rm(jobDirectory(jobId), { force: true, recursive: true }),
+    /**
+     * Upload IDs under `uploads/` whose newest write (directory or any file, without following
+     * symlinks) is older than `olderThan` — staging left behind by an interrupted upload (C3).
+     */
+    async listStaleUploadIds(olderThan: Date): Promise<string[]> {
+      let entries;
+
+      try {
+        entries = await readdir(resolvePrivateStoragePath(storageRoot, UPLOADS_DIRECTORY), {
+          withFileTypes: true,
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return [];
+        }
+
+        throw error;
+      }
+
+      const stale: string[] = [];
+
+      for (const entry of entries) {
+        if (!entry.isDirectory() || !UPLOAD_ID_PATTERN.test(entry.name)) {
+          continue;
+        }
+
+        const newest = await _newestWriteMs(uploadDirectory(entry.name));
+
+        if (newest !== null && newest < olderThan.getTime()) {
+          stale.push(entry.name);
+        }
+      }
+
+      return stale;
+    },
     /** Job IDs that have a directory on disk (used to find orphans after failed deletions). */
     async listJobIds(): Promise<string[]> {
       try {
@@ -142,4 +177,28 @@ export function createJobStorage(storageRoot: string) {
       }
     },
   };
+}
+
+/** Newest mtime of a directory tree (lstat, symlinks not followed); `null` when it is gone. */
+async function _newestWriteMs(directory: string): Promise<number | null> {
+  try {
+    let newest = (await lstat(directory)).mtimeMs;
+    const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+
+    for (const entry of entries) {
+      const stats = await lstat(join(entry.parentPath, entry.name)).catch(() => null);
+
+      if (stats && stats.mtimeMs > newest) {
+        newest = stats.mtimeMs;
+      }
+    }
+
+    return newest;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+
+    throw error;
+  }
 }

@@ -25,9 +25,22 @@ switch (command) {
   case 'info':
     console.log('Server Version: fake');
     break;
-  case 'image':
-    // `docker image inspect <ref>`: every image is "present".
-    console.log('[]');
+  case 'image': {
+    // `docker image inspect [--format …] <ref>`: every image is "present" with a fake digest.
+    const ref = rest[rest.length - 1] ?? '';
+    const repository = ref.replace(/:[^/:]+$/, '');
+    console.log(rest.includes('--format') ? `["${repository}@sha256:${'0'.repeat(64)}"]` : '[]');
+    break;
+  }
+  case 'pull':
+    // `docker pull --platform <platform> <ref>` (pipelines:setup); nothing is downloaded.
+    console.log(`fake pull ${rest[rest.length - 1] ?? ''}`);
+    break;
+  case 'tag':
+    // `docker tag <source> <ref>` (pipelines:setup, registry `source`); nothing is changed.
+    break;
+  case 'run':
+    // `docker run --rm … test -d <target>` (pipelines:check file-sharing check).
     break;
   case 'ps': {
     const filter = rest[rest.indexOf('--filter') + 1] ?? '';

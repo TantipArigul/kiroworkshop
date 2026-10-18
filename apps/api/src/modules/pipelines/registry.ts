@@ -39,7 +39,11 @@ export type NextflowPipelineSpec = {
   profiles: readonly ['docker', 'arm'];
   env: { NXF_SYNTAX_PARSER: 'v1' };
   plugins: readonly ['nf-validation@1.1.3'];
-  images: readonly { ref: string; platform: 'linux/amd64' }[];
+  /**
+   * `ref` is the name the pipeline uses (checked by readiness). `source`, when set, is the name
+   * `pipelines:setup` pulls before tagging it as `ref` (the module's name is not pullable).
+   */
+  images: readonly { ref: string; source?: string; platform: 'linux/amd64' }[];
   requiredOutputs: readonly ['fastq/*.fastq.gz', 'stats/all_fastq_statistics.tsv'];
   buildParams(input: RunParamsInput, caps: ResourceCaps): NextflowParams;
 };
@@ -174,7 +178,14 @@ export const PIPELINE_REGISTRY: readonly PipelineDefinition[] = [
         { platform: 'linux/amd64', ref: 'quay.io/biocontainers/seqkit:2.9.0--h9ee0642_0' },
         { platform: 'linux/amd64', ref: 'piroonj/dorado:hla-v1.2.0' },
         { platform: 'linux/amd64', ref: 'quay.io/nf-core/ubuntu:24.04' },
-        { platform: 'linux/amd64', ref: 'biocontainers/multiqc:1.21--pyhdfd78af_0' },
+        {
+          // The module names this image without a registry and the pipeline's
+          // `docker.registry = 'quay.io'` is commented out, so Docker resolves it to Docker Hub,
+          // where it cannot be pulled. Setup pulls it from quay.io and tags it with this name.
+          platform: 'linux/amd64',
+          ref: 'biocontainers/multiqc:1.21--pyhdfd78af_0',
+          source: 'quay.io/biocontainers/multiqc:1.21--pyhdfd78af_0',
+        },
       ],
       plugins: ['nf-validation@1.1.3'],
       profiles: ['docker', 'arm'],

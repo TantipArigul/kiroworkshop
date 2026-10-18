@@ -82,8 +82,9 @@ export function createApiApp(
     prisma,
     storage,
   });
+  const nextflowConfig = resolveNextflowConfig(config);
   const nextflowAdapter = createNextflowAdapter({
-    config: resolveNextflowConfig(config),
+    config: nextflowConfig,
     logger,
     prisma,
     recordOutputs: (tx, input) => recordOutputs(tx, { ...input, storage }),
@@ -112,7 +113,7 @@ export function createApiApp(
       const adapter = executors.adapterFor(pipelineId);
 
       if (adapter === nextflowAdapter) {
-        const state = nextflowAdapter.readiness();
+        const state = nextflowAdapter.readiness(pipelineId);
         return { available: state.ready, unavailableReason: state.reason };
       }
 
@@ -142,6 +143,21 @@ export function createApiApp(
   // server.ts starts/stops the worker with the HTTP server; tests drive `tick()` directly.
   app.locals.jobWorker = worker;
   const executorReady = () => (options.isExecutorReady ?? worker.isReady)();
+  /**
+   * `checks["pipeline:<id>"]` (cached Nextflow readiness) for `/health/ready`. Informational
+   * only: it never makes overall readiness 503, because Smart Checkup still works. Omitted when
+   * `NEXTFLOW_ENABLED=false`, where the Nextflow pipelines are intentionally not part of the
+   * deployment (e.g. Docker Compose).
+   */
+  const pipelineChecks = (): Record<string, 'ok' | 'failed'> =>
+    nextflowConfig.nextflowEnabled
+      ? Object.fromEntries(
+          pipelineIdsForExecutor('nextflow').map((pipelineId) => [
+            `pipeline:${pipelineId}`,
+            nextflowAdapter.readiness(pipelineId).ready ? 'ok' : 'failed',
+          ]),
+        )
+      : {};
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -184,7 +200,7 @@ export function createApiApp(
       response.status(executor === 'ok' ? 200 : 503).json(
         createSuccessResponse(
           {
-            checks: { database: 'ok', executor },
+            checks: { database: 'ok', executor, ...pipelineChecks() },
             status: executor === 'ok' ? 'ready' : 'not_ready',
           },
           getRequestId(response),
@@ -194,7 +210,11 @@ export function createApiApp(
       response.status(503).json(
         createSuccessResponse(
           {
-            checks: { database: 'failed', executor: executorReady() ? 'ok' : 'failed' },
+            checks: {
+              database: 'failed',
+              executor: executorReady() ? 'ok' : 'failed',
+              ...pipelineChecks(),
+            },
             status: 'not_ready',
           },
           getRequestId(response),

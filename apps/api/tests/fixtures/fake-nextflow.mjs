@@ -24,6 +24,17 @@ if (args[0] === 'info') {
   process.exit(0);
 }
 
+// `pipelines:setup`: `pull <repo> -r <revision>` and `plugin install <plugin>` (no network).
+if (args[0] === 'pull') {
+  console.log(`Checking ${args[1]} ... done - revision: fake [${args[3]}]`);
+  process.exit(0);
+}
+
+if (args[0] === 'plugin' && args[1] === 'install') {
+  console.log(`Plugin ${args[2]} installed (fake)`);
+  process.exit(0);
+}
+
 if (args[0] !== 'run') {
   process.exit(1);
 }

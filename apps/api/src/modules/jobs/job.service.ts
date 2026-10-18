@@ -538,7 +538,11 @@ export function createJobService({
       await storage.removeJob(jobId);
     } catch (error) {
       // The retention sweep removes orphaned directories on its next run.
-      logger.error({ err: error, jobId }, 'Failed to remove job storage after deletion');
+      // Error type only: file-system errors carry absolute storage paths in their message.
+      logger.error(
+        { errorType: error instanceof Error ? error.name : 'unknown', jobId },
+        'Failed to remove job storage after deletion',
+      );
       await audit.recordSafely({
         actorId: input.actor?.userId ?? null,
         eventType: 'JOB_DELETED',

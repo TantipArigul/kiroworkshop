@@ -224,7 +224,11 @@ export function createJobWorker(options: JobWorkerOptions) {
 
         lastHeartbeatAt = clock();
       } catch (error) {
-        logger.error({ err: error }, 'Executor tick failed');
+        // Error type only: file-system errors carry absolute storage paths in their message.
+        logger.error(
+          { errorType: error instanceof Error ? error.name : 'unknown' },
+          'Executor tick failed',
+        );
       } finally {
         current = null;
       }

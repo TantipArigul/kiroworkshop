@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-18T07:30:00Z"
+updated: "2026-10-18T10:30:00Z"
 state:
   status: "active"
   scope: "new"
@@ -323,9 +323,9 @@ units:
     implementationMode: "parallel"
     implementation:
       totalTasks: 25
-      completedTasks: 18
+      completedTasks: 21
       currentTask: null
-      currentWave: 4
+      currentWave: 5
     decisions:
       design:
         upload: "busboy streaming to staging with byte/file counters; abort and delete on limit"

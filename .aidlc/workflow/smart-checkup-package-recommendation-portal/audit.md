@@ -275,3 +275,8 @@
 - **Action**: wave-complete
 - **Artifacts**: executor port, cancel, registry, upload, run service, Nextflow adapter, shutdown, web/API wiring
 - **Outcome**: checks pass; real Nextflow runs (a)–(g) pass; offline-config deviation (`custom_config_base`) pending approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T10:30:00Z] Implementation: pipeline-catalog-nextflow Wave 4 complete (21/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: per-pipeline readiness, `pipelines:setup`/`pipelines:check` CLI, README host-run docs, upload staging retention; MultiQC image source Add-on (option b)
+- **Outcome**: checks pass; real `pipelines:check` 11/11 and `/health/ready` pipeline ok — details in `units/pipeline-catalog-nextflow/audit.md`

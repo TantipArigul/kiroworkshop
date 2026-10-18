@@ -94,13 +94,71 @@ state; `EXECUTOR_ENABLED=false` stops processing and makes `/health/ready` repor
 `executor: failed`, so new submissions are refused with `503` instead of queueing silently. A job
 left `Running` by a restart is marked `Failed` with a safe message when the API starts again.
 
+### Nextflow pipelines (host-run mode)
+
+The `wf-renamefastq` pipeline runs local, offline Nextflow + Docker child processes. That works only
+when the API runs on the host (`pnpm --filter @portal/api build && node --env-file=.env
+apps/api/dist/main.js`); Docker Compose keeps `NEXTFLOW_ENABLED=false`, so the catalog shows the
+pipeline as unavailable there and the Docker socket is never mounted. Use test or public FASTQ only
+(no patient data), at most 1 GB and 10 FASTQ files per run.
+
+1. **Install the tested tools** (macOS arm64): `brew install openjdk@25 nextflow` and Docker Desktop.
+   Tested with Nextflow 26.10.2 (OpenJDK 25), Docker Desktop with Docker Engine 29.6.1, pipeline
+   `si-lol/wf-renamefastq` 1.0.3 and plugin `nf-validation@1.1.3`. A Homebrew upgrade of Nextflow can
+   break the pinned pipeline: `pipelines:check` prints the version in use.
+2. **Choose one narrow data parent.** Containers bind-mount the common root of the job directory and
+   the pipeline assets, so keep `NEXTFLOW_HOME` and `STORAGE_ROOT` under one dedicated folder, e.g.
+   `~/portal-data/nxf-home` and `~/portal-data/storage` (`chmod 700 ~/portal-data`, on an encrypted
+   volume as in step 1). If both stay under your home folder the whole home folder is mounted into
+   pipeline containers. Docker Desktop must share that folder (Settings → Resources → File sharing;
+   `/Users` is shared by default).
+3. **Configure** `.env`: `NEXTFLOW_ENABLED=true`, `NEXTFLOW_HOME`, `STORAGE_ROOT`, and optionally
+   `NEXTFLOW_BIN`/`DOCKER_BIN` (absolute paths), `NEXTFLOW_MAX_CONCURRENT_RUNS` (default 1),
+   `NEXTFLOW_MAX_CPUS`/`NEXTFLOW_MAX_MEMORY_GB`/`NEXTFLOW_MAX_TIME_HOURS`,
+   `NEXTFLOW_CANCEL_GRACE_MS` and `NEXTFLOW_READINESS_INTERVAL_MS`.
+4. **Set up once, online** (an administrator; this is the only step that uses the network). It pulls
+   the registry revision, plugin and every registry image (`--platform linux/amd64`) and prints the
+   image digests for review. An image the pipeline names without a pullable registry (MultiQC in
+   1.0.3) is pulled from the source in the registry (`quay.io`) and tagged with the pipeline's name. Repository, revision and images come from the reviewed registry
+   (`apps/api/src/modules/pipelines/registry.ts`) and cannot be passed as arguments.
+   ```zsh
+   pnpm --filter @portal/api build
+   node --env-file=.env apps/api/dist/cli/pipelines.js pipelines:setup
+   ```
+5. **Check, offline** (any time; exits 1 when something is missing). It runs the same checks as the
+   API readiness (Nextflow, Docker, every image, cached revision via `nextflow info`, plugin), the
+   offline-config guard (`custom_config_base` is a local path that does not exist, and the newest
+   run's `.nextflow.log` shows no remote config load) and a Docker file-sharing test of
+   `STORAGE_ROOT` (`--pull never`, no network).
+   ```zsh
+   node --env-file=.env apps/api/dist/cli/pipelines.js pipelines:check
+   ```
+6. **Readiness**: the API re-runs those checks in the background every
+   `NEXTFLOW_READINESS_INTERVAL_MS` (each tool call times out after 20 s). `/health/ready` adds
+   `checks["pipeline:wf-renamefastq"]` (`ok`/`failed`) when Nextflow is enabled; it never makes the
+   overall status `503`, because Smart Checkup still works. While a pipeline is unavailable the
+   catalog shows the reason and a launch returns `503` before any file is received.
+
+**Network exposure (warning).** In host-run mode the API listens on all interfaces
+(`server.listen(PORT)`), so it is reachable from your local network. Use it only on a trusted
+network with the macOS firewall on, and do not forward the port. A bind-host setting is a follow-up
+change request.
+
+**Disk and time.** Per run expect up to 1 GB input, about the same again for output, plus a
+temporary `work/` directory that is deleted as soon as the run ends. Demultiplexing (Dorado under
+amd64 emulation) can take about 8 minutes per run. Jobs, uploads, run logs and outputs follow the
+7-day retention; upload staging (`uploads/*`) that has not been written for an hour is removed by
+the same sweep.
+
 ## 5. Incident playbook (local MVP)
 
 1. **Detect** — in the Audit viewer (`AUDITOR`/`ADMIN`) filter `Login failure`, `Account locked`,
    `Authorization denied`, `Job input rejected` and `Job deleted` with outcome `Failure`; note actor
    IDs and request IDs.
 2. **Contain** — `user:disable` the affected account; this revokes all of its sessions. For an
-   executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`).
+   executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`); for a
+   Nextflow fault set `NEXTFLOW_ENABLED=false`, restart, then run `pipelines:check` (and
+   `pipelines:setup` if assets are missing) before enabling it again.
 3. **Remediate** — `user:reset-password` with a new temporary password; review role with `user:set-role`.
 4. **Recover** — `user:enable` once the user has been contacted out of band.
 5. **Review** — record the timeline from audit events and request IDs; logs never contain passwords,

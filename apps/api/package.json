@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "identity": "node dist/cli/identity.js",
     "jobs": "node dist/cli/jobs.js",
+    "pipelines": "node dist/cli/pipelines.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
