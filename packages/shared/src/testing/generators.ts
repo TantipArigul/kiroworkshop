@@ -2,7 +2,10 @@ import fc from 'fast-check';
 
 import {
   BARCODE_PATTERN,
+  FOCUS_AREAS,
+  INPUT_MARKERS,
   JOB_STATUSES,
+  LIFESTYLE_FACTORS,
   PATH_SEGMENT_PATTERN,
   RENAMEFASTQ_KIT_NAMES,
   RENAMEFASTQ_Q_SCORE_MAX,
@@ -206,4 +209,175 @@ export const uploadViolationGenerator: fc.Arbitrary<UploadViolation> = fc.oneof(
     ),
     position: fc.integer({ max: 2, min: 0 }),
   }),
+);
+
+// ---------- Results & Guidance generators (P14–P18) ----------
+
+export type MarkerRange = (typeof INPUT_MARKERS)[number];
+
+export const focusAreaGenerator = fc.constantFrom(...FOCUS_AREAS);
+
+export const lifestyleFactorsGenerator = fc.subarray([...LIFESTYLE_FACTORS]);
+
+/**
+ * A synthetic value of a marker inside its validation range with one decimal (so it is also a
+ * valid CSV value), biased towards the range ends and the training midpoint so both bands and
+ * the exact threshold are exercised.
+ */
+export function markerValueGenerator(range: MarkerRange): fc.Arbitrary<number> {
+  const tenths = (value: number) => Math.round(value * 10);
+  const midpoint = (range.min + range.max) / 2;
+  return fc.oneof(
+    fc.constantFrom(range.min, range.max, midpoint),
+    fc.integer({ max: tenths(midpoint), min: tenths(midpoint) - 1 }).map((value) => value / 10),
+    fc.integer({ max: tenths(range.max), min: tenths(range.min) }).map((value) => value / 10),
+  );
+}
+
+/** Rows of distinct markers (any subset, in any order) with in-range synthetic values. */
+export const markerRowsGenerator = fc
+  .shuffledSubarray([...INPUT_MARKERS], { maxLength: INPUT_MARKERS.length })
+  .chain((ranges) =>
+    fc.tuple(...ranges.map((range) => markerValueGenerator(range))).map((values) =>
+      ranges.map((range, index) => ({
+        marker: range.marker,
+        unit: range.unit,
+        value: values[index] ?? range.min,
+      })),
+    ),
+  );
+
+/** Input of the mock rule engine (`ageBand` is not used by any rule). */
+export const recommendationInputGenerator = fc.record({
+  focusArea: focusAreaGenerator,
+  lifestyleFactors: lifestyleFactorsGenerator,
+  rows: markerRowsGenerator,
+});
+
+export const FASTQ_SUFFIXES = ['.fastq.gz', '.fq.gz', '.fastq', '.fq'] as const;
+
+/** One valid row of seqkit stats (`all_fastq_statistics.tsv`) and the sample it describes. */
+export type StatsRow = {
+  folder: string;
+  suffix: (typeof FASTQ_SUFFIXES)[number];
+  sample: string;
+  numSeqs: number;
+  sumLen: number;
+  minLen: number;
+  avgLen: number;
+  maxLen: number;
+  avgQual: number;
+};
+
+const statsCountGenerator = fc.oneof(
+  fc.constantFrom(0, 1, 999_999_999_999_999),
+  fc.nat({ max: 10_000_000 }),
+);
+/** Decimals with up to two fraction digits; `String(value)` never uses an exponent. */
+const statsDecimalGenerator = fc.oneof(
+  fc.nat({ max: 100_000_000 }).map((value) => value / 100),
+  fc.nat({ max: 1000 }),
+);
+
+export const statsRowGenerator: fc.Arbitrary<StatsRow> = fc.record({
+  avgLen: statsDecimalGenerator,
+  avgQual: statsDecimalGenerator,
+  folder: fc.constantFrom('', 'all_fastq/', 'out/all_fastq/'),
+  maxLen: statsCountGenerator,
+  minLen: statsCountGenerator,
+  numSeqs: statsCountGenerator,
+  sample: sampleNameGenerator,
+  suffix: fc.constantFrom(...FASTQ_SUFFIXES),
+  sumLen: statsCountGenerator,
+});
+
+export const STATS_TSV_HEADER =
+  'file\tformat\ttype\tnum_seqs\tsum_len\tmin_len\tavg_len\tmax_len\tAvgQual';
+
+/** seqkit stats TSV text for the given rows (optionally CRLF and without a final newline). */
+export function statsTsvFor(
+  rows: readonly StatsRow[],
+  options: { crlf?: boolean; finalNewline?: boolean } = {},
+): string {
+  const lines = [
+    STATS_TSV_HEADER,
+    ...rows.map((row) =>
+      [
+        `${row.folder}${row.sample}${row.suffix}`,
+        'FASTQ',
+        'DNA',
+        row.numSeqs,
+        row.sumLen,
+        row.minLen,
+        row.avgLen,
+        row.maxLen,
+        row.avgQual,
+      ].join('\t'),
+    ),
+  ];
+  const newline = options.crlf ? '\r\n' : '\n';
+  return lines.join(newline) + (options.finalNewline === false ? '' : newline);
+}
+
+/** Arbitrary text plus near-valid stats files (valid TSV with one character changed). */
+export const statsContentGenerator: fc.Arbitrary<string> = fc.oneof(
+  fc.string({ maxLength: 200, unit: 'binary' }),
+  fc.array(fc.string({ maxLength: 20 }), { maxLength: 9 }).map((cells) => cells.join('\t')),
+  fc
+    .tuple(
+      fc.array(statsRowGenerator, { maxLength: 4, minLength: 1 }),
+      fc.nat(),
+      fc.string({ maxLength: 2, minLength: 1, unit: 'binary' }),
+    )
+    .map(([rows, position, insert]) => {
+      const text = statsTsvFor(rows);
+      const at = position % (text.length + 1);
+      return `${text.slice(0, at)}${insert}${text.slice(at)}`;
+    }),
+  fc
+    .array(statsRowGenerator, { maxLength: 4 })
+    .map((rows) => `${STATS_TSV_HEADER}\n${statsTsvFor(rows).split('\n').slice(1).join('\t')}`),
+);
+
+/** Display names meant to break a Content-Disposition header, plus arbitrary text. */
+export const displayNameGenerator: fc.Arbitrary<string> = fc.oneof(
+  fc.string({ maxLength: 60, unit: 'binary' }),
+  fc.string({ maxLength: 60, unit: 'grapheme' }),
+  fc
+    .array(
+      fc.oneof(
+        fc.constantFrom(
+          '\r',
+          '\n',
+          '\r\n',
+          '"',
+          '\\',
+          '/',
+          '\u0000',
+          '\u007f',
+          '\t',
+          ';',
+          ' ',
+          '..',
+        ),
+        fc.string({ maxLength: 6 }),
+      ),
+      { maxLength: 8 },
+    )
+    .map((parts) => parts.join('')),
+);
+
+/** Output paths of a job: safe nested paths and paths meant to escape the job directory. */
+export const artifactRelativePathGenerator: fc.Arbitrary<string> = fc.oneof(
+  fc
+    .array(pathSegmentGenerator, { maxLength: 3, minLength: 1 })
+    .map((segments) => segments.join('/')),
+  unsafePathGenerator,
+  fc.constantFrom(
+    '../../result.json',
+    '../input/input.csv',
+    '../../../jobs/other/output/x.tsv',
+    '/etc/passwd',
+    'fastq/../../run/params.json',
+  ),
 );

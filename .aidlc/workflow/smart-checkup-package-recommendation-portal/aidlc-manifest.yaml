@@ -388,9 +388,9 @@ units:
     implementationMode: "parallel"
     implementation:
       totalTasks: 20
-      completedTasks: 17
-      currentTask: "5.1"
-      currentWave: 5
+      completedTasks: 20
+      currentTask: null
+      currentWave: 6
     decisions:
       design:
         generation: "Results & Guidance JobCompletionHandler writes result.json and finalize(tx) creates ResultArtifact + PackageRecommendation before COMPLETED"

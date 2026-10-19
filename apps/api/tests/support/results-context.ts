@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 
 import { INPUT_FILE_HEADER } from '@portal/shared';
 
@@ -45,7 +46,92 @@ export type ResultsTestContext = JobsTestContext & {
   /** Moves the job's expiry into the past. */
   expire: (jobId: string) => Promise<void>;
   resultFileExists: (jobId: string) => boolean;
+  /**
+   * A Smart Checkup job row seeded directly with the given status and no result rows (e.g. a
+   * job completed before Results & Guidance existed). Never ticked by the worker in tests.
+   */
+  seedSmartCheckupJob: (ownerId: string, status: string) => Promise<string>;
+  /** Sets a job's status directly (no transition, no status event) for read-only checks. */
+  setJobStatus: (jobId: string, status: string) => Promise<void>;
+  /** `jobs/{jobId}/` of the context's storage root. */
+  jobDirectory: (jobId: string) => string;
+  /** `jobs/{jobId}/output/{relativePath}` of a seeded Nextflow output. */
+  outputPath: (jobId: string, relativePath: string) => string;
 };
+
+/** Self-contained execution report with an inline script (no external resource). */
+export const REPORT_HTML_INLINE_SCRIPT =
+  '<!doctype html><html><head><title>Synthetic execution report</title>' +
+  '<style>body{font-family:sans-serif}</style></head><body><h1>Report</h1>' +
+  '<script>document.body.dataset.rendered = "yes";</script></body></html>';
+
+/** DAG-like report that imports an external script (blocked by the viewer CSP). */
+export const DAG_HTML_EXTERNAL =
+  '<!doctype html><html><head><title>Synthetic DAG</title>' +
+  '<script src="https://cdn.example.test/mermaid.min.js"></script></head>' +
+  '<body><pre class="mermaid">flowchart TD; A-->B</pre></body></html>';
+
+/** A gzip-compressed synthetic FASTQ record (not sequencing data). */
+export function fakeFastqGz(readName: string): Buffer {
+  return gzipSync(Buffer.from(`@${readName}\nACGTACGT\n+\nIIIIIIII\n`, 'utf8'));
+}
+
+export const NEXTFLOW_PATHS = {
+  dag: 'pipeline_info/pipeline_dag_2026-10-19_10-00-00.html',
+  params: 'pipeline_info/params_2026-10-19_10-00-00.yml',
+  report: 'pipeline_info/execution_report_2026-10-19_10-00-00.html',
+  stats: 'stats/all_fastq_statistics.tsv',
+  timeline: 'pipeline_info/execution_timeline_2026-10-19_10-00-00.html',
+  trace: 'pipeline_info/execution_trace_2026-10-19_10-00-00.txt',
+} as const;
+
+/** The output set of a synthetic wf-renamefastq run: reads per sample, stats and reports. */
+export function nextflowOutputs(samples: readonly string[]): OutputFixture[] {
+  return [
+    ...samples.map((sample) => ({
+      category: 'READS' as const,
+      content: fakeFastqGz(sample),
+      contentType: 'application/gzip',
+      relativePath: `fastq/${sample}.fastq.gz`,
+    })),
+    {
+      category: 'STATS',
+      content: statsTsv(samples),
+      contentType: 'text/tab-separated-values',
+      relativePath: NEXTFLOW_PATHS.stats,
+    },
+    {
+      category: 'REPORT',
+      content: REPORT_HTML_INLINE_SCRIPT,
+      contentType: 'text/html',
+      relativePath: NEXTFLOW_PATHS.report,
+    },
+    {
+      category: 'REPORT',
+      content: REPORT_HTML_INLINE_SCRIPT.replace('execution report', 'execution timeline'),
+      contentType: 'text/html',
+      relativePath: NEXTFLOW_PATHS.timeline,
+    },
+    {
+      category: 'REPORT',
+      content: DAG_HTML_EXTERNAL,
+      contentType: 'text/html',
+      relativePath: NEXTFLOW_PATHS.dag,
+    },
+    {
+      category: 'OTHER',
+      content: 'task_id\tname\tstatus\n1\tRENAME\tCOMPLETED\n',
+      contentType: 'text/plain',
+      relativePath: NEXTFLOW_PATHS.trace,
+    },
+    {
+      category: 'OTHER',
+      content: 'demultiplex: false\n',
+      contentType: 'text/plain',
+      relativePath: NEXTFLOW_PATHS.params,
+    },
+  ];
+}
 
 /** Synthetic Smart Checkup input (training values; no personal data). */
 export function smartCheckupBody(sampleLabel: string, rows: readonly string[]) {
@@ -125,7 +211,25 @@ export async function createResultsTestContext(
         where: { id: jobId },
       });
     },
+    jobDirectory: (jobId) => storage.jobDirectory(jobId),
+    outputPath: (jobId, relativePath) =>
+      join(storage.jobSubdirectory(jobId, 'output'), relativePath),
     resultFileExists: (jobId) => existsSync(join(storage.jobDirectory(jobId), 'result.json')),
+    seedSmartCheckupJob: async (ownerId, status) => {
+      const job = await context.prisma.job.create({
+        data: {
+          expiresAt: new Date(Date.now() + 7 * 86_400_000),
+          ownerId,
+          pipelineId: 'smart-checkup',
+          runName: 'Seeded Smart Checkup job',
+          status,
+        },
+      });
+      return job.id;
+    },
+    setJobStatus: async (jobId, status) => {
+      await context.prisma.job.update({ data: { status }, where: { id: jobId } });
+    },
     seedNextflowJob: async (ownerId, outputs) => {
       const job = await context.prisma.job.create({
         data: {

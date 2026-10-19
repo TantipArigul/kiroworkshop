@@ -318,6 +318,8 @@ h1 span {
 }
 
 .trust-strip {
+  /* Centre the plain labels on the 44px licence link so all three share one text line. */
+  align-items: center;
   background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   display: flex;

@@ -91,3 +91,20 @@
 - **Action**: wave 4 executed (parallel mode, 1 sub-agent; tasks 4.1–4.2); coordinator wired `createSmartCheckupResultBuilder({ logger })` in `http/app.ts` (sub-agent finding, shared file of this unit); host API restarted
 - **Artifacts**: `modules/results/{results-log.ts (new),smart-checkup-result.ts,artifact-delivery.ts,results.routes.ts}`, `http/app.ts`, `tests/support/results-context.ts`, `tests/integration/results/{operations-logging,lifecycle}.test.ts`, `tests/unit/results/operations-log.test.ts`, `docker/README.md` (Results, reports and licence)
 - **Outcome**: pass — format, lint, typecheck, build; tests shared 70, web 48, api 284 (+6 skipped), properties 26; delete + retention leave no result rows/files and URLs 404; conflicts: none. Pending user decision: Add-on for (a) corrupt `result.json` (500) logged as `Result unavailable` reason `INVALID`, (b) `Artifact served` counts a download as served when all bytes were written even if the client closes early. 85% overall
+
+### [2026-10-19T05:10:00Z] Wave 5: tasks 5.1–5.2 complete; 5.3 automated part done, browser smoke pending
+- **Phase**: implementation
+- **Action**: wave 5 executed (parallel mode, 1 sub-agent; tasks 5.1–5.3); coordinator re-ran full checks
+- **Artifacts**: unit `tests/unit/results/{recommendation-rules,smart-checkup-result,nextflow-stats,artifact-delivery,report-policy}.test.ts`; `packages/shared/src/{contracts.test.ts,testing/generators.ts}`; web `features/results/{BarChart,RecommendationCard,ArtifactList,ResultReferences}.test.tsx`, `resultsApi.test.ts`; `tests/integration/results/results-api.test.ts`; `tests/support/results-context.ts`; `tests/properties/results.test.ts` (P14–P18, 100/25 runs); `tests/integration/pipelines/real-nextflow.test.ts` (`/result` stats, `/view` CSP, DAG `/view` 404)
+- **Outcome**: pass — format, lint, typecheck, build; tests shared 75, web 71, api 430 (+6 opt-in), properties 34; real-run `NEXTFLOW_IT=1` 6/6 in 43.8 s (layouts 1–3 + demultiplex COMPLETED, bad alias 400, cancel CANCELLED; no leftover containers); no production defect; `git status` clean of FASTQ/output/`.env`. Notes: `result.json` stays on disk when `finalize` throws (rows rolled back; removed by delete/retention); NO_MATCH reason shown in English (UI copy language) for the design's Thai text. Pending: user browser smoke 375/768/1440 px. 95% overall
+
+### [2026-10-19T05:20:00Z] Wave 5 browser smoke: landing trust strip alignment fixed
+- **Phase**: implementation (task 5.3 visual check)
+- **Action**: user found "Private by default / HTTPS delivery / MIT licensed source" not on one line; `.trust-strip` gets `align-items: center` (the licence link is a 44px-tall inline-flex target, the two labels were top-aligned)
+- **Artifacts**: `apps/web/src/app.css`
+- **Outcome**: validate:tokens, format, web tests 71, web build pass; browser re-check pending
+
+### [2026-10-19T05:30:00Z] Wave Complete: Wave 5
+- **Phase**: implementation
+- **Action**: user browser smoke "pass" (375/768/1440 px, after trust-strip fix); Wave 5 notes recorded as `design.md` Add-on — Wave 5 findings; tasks 5.1–5.3 and DoD ticked (push confirmation still pending)
+- **Outcome**: pass — format, lint, typecheck, build; tests shared 75, web 71, api 430 (+6 opt-in), properties 34; 20/20 tasks; awaiting finalize approval ("done")

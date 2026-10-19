@@ -8,10 +8,15 @@ import {
   NO_MOCK_RECOMMENDATION_RULE_ID,
   RESULT_ARTIFACT_KINDS,
   TRAINING_BANDS,
+  artifactIdSchema,
   jobResultSchema,
   nextflowResultSchema,
+  recommendationSchema,
+  resultArtifactCategorySchema,
   resultArtifactSchema,
+  resultReferenceSchema,
   smartCheckupResultSchema,
+  trainingBandSchema,
   RENAMEFASTQ_KIT_NAMES,
   RUN_INPUT_MAX_BYTES,
   TERMINAL_JOB_STATUSES,
@@ -593,6 +598,128 @@ describe('result contracts', () => {
         ...nextflow,
         samples: [{ ...nextflow.samples[0], numSeqs: -1 }],
       }).success,
+    ).toBe(false);
+  });
+});
+
+describe('result contract building blocks (Results & Guidance C1)', () => {
+  const recommendation = {
+    ruleId: 'MOCK-GENERAL-01',
+    ruleVersion: 'mock-rules-2026.10-1',
+    packageLabel: 'Training Package A — General',
+    reason: 'Focus area is General.',
+    matchedFactors: ['focusArea:GENERAL'],
+    matched: true,
+    disclaimer: 'Training output only. Not a medical diagnosis or treatment advice.',
+  };
+  const artifact = {
+    id: 'cmgq1z3b40000abcd1234efgh',
+    kind: 'OUTPUT',
+    category: 'STATS',
+    displayName: 'stats/all_fastq_statistics.tsv',
+    sizeBytes: 0,
+    contentType: 'text/tab-separated-values',
+    viewable: false,
+    viewNote: null,
+  };
+
+  it('accepts only cuid-like artifact identifiers', () => {
+    for (const id of ['cmgq1z3b40000abcd1234efgh', 'a'.repeat(20), 'a'.repeat(40)]) {
+      expect(artifactIdSchema.safeParse(id).success).toBe(true);
+    }
+    for (const id of ['', 'a'.repeat(19), 'a'.repeat(41), 'CMGQ1Z3B40000ABCD1234EFGH', '../x']) {
+      expect(artifactIdSchema.safeParse(id).success).toBe(false);
+    }
+  });
+
+  it('limits categories, bands and artifact fields', () => {
+    expect(resultArtifactCategorySchema.options).toEqual([
+      'RESULT',
+      'READS',
+      'STATS',
+      'REPORT',
+      'OTHER',
+    ]);
+    expect(trainingBandSchema.safeParse('BELOW_TRAINING_MIDPOINT').success).toBe(true);
+    expect(trainingBandSchema.safeParse('LOW').success).toBe(false);
+    expect(resultArtifactSchema.safeParse(artifact).success).toBe(true);
+    expect(resultArtifactSchema.safeParse({ ...artifact, kind: 'INPUT' }).success).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, viewNote: '' }).success).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, sizeBytes: -1 }).success).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, sizeBytes: 1.5 }).success).toBe(false);
+    expect(resultArtifactSchema.safeParse({ ...artifact, displayName: '' }).success).toBe(false);
+  });
+
+  it('accepts in-app paths and https links only as references', () => {
+    for (const href of ['/help#results', '/license', 'https://www.nextflow.io/docs/latest/']) {
+      expect(resultReferenceSchema.safeParse({ label: 'x', href }).success).toBe(true);
+    }
+    for (const href of [
+      '',
+      'help',
+      '//cdn.test/x',
+      'https://',
+      'https://a b',
+      'ftp://x.test',
+      'data:text/html,x',
+    ]) {
+      expect(resultReferenceSchema.safeParse({ label: 'x', href }).success).toBe(false);
+    }
+    expect(resultReferenceSchema.safeParse({ label: '', href: '/help' }).success).toBe(false);
+  });
+
+  it('constrains rule ids and matched factor identifiers', () => {
+    expect(recommendationSchema.safeParse(recommendation).success).toBe(true);
+    for (const factor of ['marker:alt', 'lifestyle:HIGH_ALCOHOL', 'focusArea:LIVER']) {
+      expect(
+        recommendationSchema.safeParse({ ...recommendation, matchedFactors: [factor] }).success,
+      ).toBe(true);
+    }
+    for (const factor of ['age:40-49', 'marker:', 'marker:a b', 'marker:<script>', 'alt']) {
+      expect(
+        recommendationSchema.safeParse({ ...recommendation, matchedFactors: [factor] }).success,
+      ).toBe(false);
+    }
+    expect(recommendationSchema.safeParse({ ...recommendation, ruleId: 'mock rule' }).success).toBe(
+      false,
+    );
+    expect(recommendationSchema.safeParse({ ...recommendation, extra: true }).success).toBe(false);
+  });
+
+  it('caps per-sample rows and listed artifacts at 1000', () => {
+    const sample = {
+      sample: 's',
+      numSeqs: 1,
+      sumLen: 1,
+      minLen: 1,
+      avgLen: 1,
+      maxLen: 1,
+      avgQual: 1,
+    };
+    const nextflow = {
+      pipelineId: 'wf-renamefastq',
+      summary: {
+        runName: '',
+        sampleCount: 0,
+        totalReads: 0,
+        totalBases: 0,
+        outputFileCount: 0,
+        outputBytes: 0,
+      },
+      samples: [],
+      artifacts: [],
+      references: [],
+    };
+    expect(nextflowResultSchema.safeParse(nextflow).success).toBe(true);
+    expect(
+      nextflowResultSchema.safeParse({ ...nextflow, samples: Array(1000).fill(sample) }).success,
+    ).toBe(true);
+    expect(
+      nextflowResultSchema.safeParse({ ...nextflow, samples: Array(1001).fill(sample) }).success,
+    ).toBe(false);
+    expect(
+      nextflowResultSchema.safeParse({ ...nextflow, artifacts: Array(1001).fill(artifact) })
+        .success,
     ).toBe(false);
   });
 });

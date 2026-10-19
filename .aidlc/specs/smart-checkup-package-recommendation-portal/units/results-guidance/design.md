@@ -392,3 +392,8 @@ apps/web/src/{App.tsx, app.css, styles/tokens.css, features/jobs/{JobDetailPage.
 - **Operations — corrupt result**: a `COMPLETED` Smart Checkup result whose `result.json` fails schema validation (`500 INTERNAL_ERROR`, safe message) logs `Result unavailable` (warn) with `reason: INVALID`; a missing file (`410`) logs the same event with `reason: MISSING`.
 - **C6 — served**: `Artifact served` is logged when every byte of the file was written to the response, also when the client closes the connection right after receiving `Content-Length` bytes; a read failure or client abort before that destroys the response and logs nothing.
 - **Wiring**: `http/app.ts` passes the application logger to `createSmartCheckupResultBuilder({ logger })`.
+
+## Add-on — Wave 5 findings (approved 2026-10-19)
+- **C2 — `NO_MATCH` reason copy**: UI text is English, so the reason is "No mock rule matches this input, so no package is recommended." (same meaning as the Thai text in the C2 table).
+- **C3 — failed finalize**: when `finalize(tx)` throws, the rows roll back and the Job becomes `FAILED`, but the already written `result.json` stays in `jobs/{jobId}/` until owner delete or 7-day retention removes the directory; `/result` answers `409` for the `FAILED` Job, so the file is never served.
+- **C8 — landing trust strip**: `.trust-strip` centres its items vertically (`align-items: center`) so the plain labels and the 44px licence link share one text line.

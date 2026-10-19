@@ -195,8 +195,8 @@
     - **Acceptance**: หลัง retention ไม่เหลือแถวหรือไฟล์ผลลัพธ์
     - **Validation**: `pnpm --filter @portal/api test`
 
-- [ ] 5. Tests และ Verify
-  - [ ] 5.1 Unit tests (API + shared + web)
+- [x] 5. Tests และ Verify
+  - [x] 5.1 Unit tests (API + shared + web)
     - **Deps**: 4.2 | **Ref**: `design.md` — Testing Strategy
     - **API**:
       - rule engine (ทุก rule + `NO_MATCH` + midpoint)
@@ -214,7 +214,7 @@
     - **Files**: `apps/api/tests/unit/results/*.test.ts`, `packages/shared/src/contracts.test.ts`, `apps/web/src/features/results/*.test.ts`
     - **Acceptance**: ครอบคลุม pure logic ของ C1–C6 และ C8
     - **Validation**: `pnpm test`
-  - [ ] 5.2 Integration tests
+  - [x] 5.2 Integration tests
     - **Deps**: 5.1 | **Ref**: `design.md` — Testing Strategy (Integration cases หลัก)
     - **Support**: `tests/support/results-context.ts` (fixtures สังเคราะห์: TSV, HTML inline script, HTML import ภายนอก, `.fastq.gz` ปลอม)
     - **Smart Checkup**:
@@ -232,7 +232,7 @@
     - **Files**: `apps/api/tests/integration/results/*.test.ts`, `apps/api/tests/support/results-context.ts`
     - **Acceptance**: ทุก endpoint ใหม่มี integration test; ไม่ต้องใช้ Nextflow หรือ Docker
     - **Validation**: `pnpm --filter @portal/api test`
-  - [ ] 5.3 Property tests P14–P18 และ real-run + verification
+  - [x] 5.3 Property tests P14–P18 และ real-run + verification
     - **Deps**: 5.2 | **Ref**: `design.md` — Correctness Properties, Testing Strategy (Real-run); Definition of Done
     - **PBT**: `tests/properties/results.test.ts` (P14–P18) + generators ใน shared testing
     - **Real-run** (`real-nextflow.test.ts`):
@@ -269,19 +269,19 @@
 | 3.6 | Web ↔ real API + browser check | 2.4, 2.5, 3.5 | ✅ |
 | 4.1 | Operational logging + error mapping | 3.5 | ✅ |
 | 4.2 | Retention/delete + docs | 3.5 | ✅ |
-| 5.1 | Unit tests | 4.2 | ⬜ |
-| 5.2 | Integration tests | 5.1 | ⬜ |
-| 5.3 | PBT P14–P18 + real-run + verification | 5.2 | ⬜ |
+| 5.1 | Unit tests | 4.2 | ✅ |
+| 5.2 | Integration tests | 5.1 | ✅ |
+| 5.3 | PBT P14–P18 + real-run + verification | 5.2 | ✅ |
 
 ## Requirements Coverage
 
 | Story | Tasks | Status |
 |---|---|---|
-| US-009 View Rich Completed Results (AC1–6 รวม Add-on) | 1.1, 1.3, 2.2, 2.3, 2.4, 3.2, 3.3, 3.4, 3.5, 3.6, 5.1, 5.2, 5.3 | ⬜ |
-| US-010 Explain Transparent Mock Package Recommendations | 1.1, 2.2, 3.1, 3.2, 5.1, 5.2, 5.3 | ⬜ |
-| US-011 Download an Authorized Result Artifact | 1.1, 1.2, 2.3, 3.4, 3.5, 4.2, 5.1, 5.2, 5.3 | ⬜ |
-| US-012 Follow an Interactive Tutorial and Sample Output | 2.5, 3.6 | ⬜ |
-| US-013 Show Licence and Privacy-Preserving Cookie Behavior | 1.3, 1.4, 2.5, 3.6, 4.2 | ⬜ |
+| US-009 View Rich Completed Results (AC1–6 รวม Add-on) | 1.1, 1.3, 2.2, 2.3, 2.4, 3.2, 3.3, 3.4, 3.5, 3.6, 5.1, 5.2, 5.3 | ✅ |
+| US-010 Explain Transparent Mock Package Recommendations | 1.1, 2.2, 3.1, 3.2, 5.1, 5.2, 5.3 | ✅ |
+| US-011 Download an Authorized Result Artifact | 1.1, 1.2, 2.3, 3.4, 3.5, 4.2, 5.1, 5.2, 5.3 | ✅ |
+| US-012 Follow an Interactive Tutorial and Sample Output | 2.5, 3.6 | ✅ |
+| US-013 Show Licence and Privacy-Preserving Cookie Behavior | 1.3, 1.4, 2.5, 3.6, 4.2 | ✅ |
 
 ## Design Coverage
 
@@ -310,17 +310,17 @@
 - **Summary**: components ที่มี test 10/10 (C9/C10 ผ่าน browser smoke + licence test); endpoints ที่มี integration test 3/3
 
 ## Definition of Done
-- [ ] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:properties && pnpm build` ผ่าน
-- [ ] Real-run suite (`NEXTFLOW_IT=1`) ผ่าน รวม `/result` และ `/view`
-- [ ] Smart Checkup: sample → `COMPLETED` → หน้าผลลัพธ์ (summary, bars + legend, recommendation หรือ `No mock recommendation`, disclaimer, references) → download `result.json`
-- [ ] wf-renamefastq: หน้าผลลัพธ์แสดง per-sample stats + bars + รายการไฟล์; execution report/timeline เปิดใน iframe sandbox ได้; DAG แสดงหมายเหตุและ download ได้
-- [ ] ผลลัพธ์/download/view ก่อน `COMPLETED` ได้ `409`; ผู้ใช้อื่นได้ `404`; ไฟล์หายได้ `410`
-- [ ] Download เป็น attachment; `.html` ไม่ถูก render ตอน download; header ตรง C6
-- [ ] `/help` ครบตาม US-012 และ "Try the sample" ใช้ได้; `/license` และ cookie notice แสดงบน landing; ไม่มี consent banner
-- [ ] Log/audit ไม่มีชื่อไฟล์/alias/path/ค่า marker
-- [ ] UI ผ่าน Visual Quality Bar (§4.1) และ responsive 375/768/1440 px
-- [ ] ไม่มี output จาก run จริง, FASTQ หรือ `.env` ใน git
-- [ ] ทุก task ใน `tasks.md` ติ๊ก `[x]`; Add-on และ `audit.md` อัปเดต; ผู้ใช้ยืนยันก่อน push
+- [x] `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:properties && pnpm build` ผ่าน
+- [x] Real-run suite (`NEXTFLOW_IT=1`) ผ่าน รวม `/result` และ `/view`
+- [x] Smart Checkup: sample → `COMPLETED` → หน้าผลลัพธ์ (summary, bars + legend, recommendation หรือ `No mock recommendation`, disclaimer, references) → download `result.json`
+- [x] wf-renamefastq: หน้าผลลัพธ์แสดง per-sample stats + bars + รายการไฟล์; execution report/timeline เปิดใน iframe sandbox ได้; DAG แสดงหมายเหตุและ download ได้
+- [x] ผลลัพธ์/download/view ก่อน `COMPLETED` ได้ `409`; ผู้ใช้อื่นได้ `404`; ไฟล์หายได้ `410`
+- [x] Download เป็น attachment; `.html` ไม่ถูก render ตอน download; header ตรง C6
+- [x] `/help` ครบตาม US-012 และ "Try the sample" ใช้ได้; `/license` และ cookie notice แสดงบน landing; ไม่มี consent banner
+- [x] Log/audit ไม่มีชื่อไฟล์/alias/path/ค่า marker
+- [x] UI ผ่าน Visual Quality Bar (§4.1) และ responsive 375/768/1440 px
+- [x] ไม่มี output จาก run จริง, FASTQ หรือ `.env` ใน git
+- [ ] ทุก task ใน `tasks.md` ติ๊ก `[x]`; Add-on และ `audit.md` อัปเดต; ผู้ใช้ยืนยันก่อน push (tasks/Add-on/audit done 2026-10-19; push confirmation pending)
 
 ## Execution Waves
 

@@ -5,6 +5,7 @@ import type { Server } from 'node:http';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+import { jobResultSchema } from '@portal/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadConfig } from '../../../src/config/index.js';
@@ -12,6 +13,10 @@ import type { PrismaClient } from '../../../src/generated/prisma/client.js';
 import { createApiApp, getJobWorker } from '../../../src/http/app.js';
 import { createPrismaClient } from '../../../src/infrastructure/prisma.js';
 import { applyTestMigrations } from '../../../src/infrastructure/test-database.js';
+import {
+  DOWNLOAD_ONLY_REPORT_NOTE,
+  VIEW_CONTENT_SECURITY_POLICY,
+} from '../../../src/modules/results/report-policy.js';
 import { createAuditService } from '../../../src/modules/audit/audit.service.js';
 import { createIdentityService } from '../../../src/modules/identity/identity.service.js';
 import { createJobStorage, type JobStorage } from '../../../src/modules/jobs/job-storage.js';
@@ -196,6 +201,83 @@ async function expectCompletedRun(name: string, jobId: string, startedAt: number
   return outputs;
 }
 
+/** Columns of seqkit stats `-T` output (design C4), read here independently of the API parser. */
+const STATS_COLUMNS = 'file\tformat\ttype\tnum_seqs\tsum_len\tmin_len\tavg_len\tmax_len\tAvgQual';
+
+/**
+ * Results & Guidance on a real run (design Testing Strategy — Real-run, task 5.3): `/result`
+ * matches the seqkit stats file, the execution report is served by `/view` with the sandbox CSP,
+ * and the DAG report (which loads scripts from a CDN) is download-only (`/view` → 404).
+ */
+async function expectResultAndReports(name: string, jobId: string) {
+  const response = await owner.get(`/api/v1/jobs/${jobId}/result`);
+  expect(response.status).toBe(200);
+  const result = jobResultSchema.parse(response.body.data);
+  if (result.pipelineId !== 'wf-renamefastq') {
+    throw new Error('Expected a wf-renamefastq result.');
+  }
+  const statsText = await readFile(
+    join(storage.jobSubdirectory(jobId, 'output'), 'stats', 'all_fastq_statistics.tsv'),
+    'utf8',
+  );
+  const [header, ...rows] = statsText.trimEnd().split(/\r?\n/);
+  expect(header).toBe(STATS_COLUMNS);
+  const expected = rows.map((row) => {
+    const [file = '', , , numSeqs, sumLen, minLen, avgLen, maxLen, avgQual] = row.split('\t');
+    return {
+      avgLen: Number(avgLen),
+      avgQual: Number(avgQual),
+      maxLen: Number(maxLen),
+      minLen: Number(minLen),
+      numSeqs: Number(numSeqs),
+      sample: (file.split('/').at(-1) ?? '').replace(/\.(fastq|fq)(\.gz)?$/, ''),
+      sumLen: Number(sumLen),
+    };
+  });
+  expect(result.samples).toEqual(expected);
+  expect(result.summary.sampleCount).toBe(expected.length);
+  expect(result.summary.totalReads).toBe(expected.reduce((sum, row) => sum + row.numSeqs, 0));
+  expect(result.summary.totalBases).toBe(expected.reduce((sum, row) => sum + row.sumLen, 0));
+  expect(result.summary.outputFileCount).toBe(result.artifacts.length);
+
+  const report = result.artifacts.find((artifact) =>
+    /^pipeline_info\/execution_report_[^/]*\.html$/.test(artifact.displayName),
+  );
+  const dag = result.artifacts.find((artifact) =>
+    /^pipeline_info\/pipeline_dag_[^/]*\.html$/.test(artifact.displayName),
+  );
+  expect(report).toMatchObject({ category: 'REPORT', viewable: true });
+  expect(dag).toMatchObject({
+    category: 'REPORT',
+    viewable: false,
+    viewNote: DOWNLOAD_ONLY_REPORT_NOTE,
+  });
+
+  const view = await owner.agent
+    .get(`/api/v1/jobs/${jobId}/artifacts/${report?.id}/view`)
+    .responseType('blob');
+  expect(view.status).toBe(200);
+  expect(view.headers['content-type']).toBe('text/html; charset=utf-8');
+  expect(view.headers['content-security-policy']).toBe(VIEW_CONTENT_SECURITY_POLICY);
+  expect(String(view.headers['content-security-policy'])).not.toContain('allow-same-origin');
+  expect(view.headers['x-content-type-options']).toBe('nosniff');
+  expect(view.headers['referrer-policy']).toBe('no-referrer');
+  expect((view.body as Buffer).length).toBe(report?.sizeBytes);
+
+  const dagView = await owner.get(`/api/v1/jobs/${jobId}/artifacts/${dag?.id}/view`);
+  expect(dagView.status).toBe(404);
+  const dagDownload = await owner.agent
+    .get(`/api/v1/jobs/${jobId}/artifacts/${dag?.id}/download`)
+    .responseType('blob');
+  expect(dagDownload.status).toBe(200);
+  expect(dagDownload.headers['content-type']).toBe('application/octet-stream');
+  expect(String(dagDownload.headers['content-disposition'])).toMatch(/^attachment; /);
+  log(
+    `${name}: /result 200 (${expected.length} samples, ${result.summary.totalReads} reads, stats match); ` +
+      `/view report 200 (${view.headers['content-type']}, sandbox CSP); DAG /view ${dagView.status}, download ${dagDownload.status}`,
+  );
+}
+
 describe.skipIf(!ENABLED)('real Nextflow runs of wf-renamefastq 1.0.3 (NEXTFLOW_IT=1)', () => {
   beforeAll(async () => {
     testData = findTestData();
@@ -291,8 +373,10 @@ describe.skipIf(!ENABLED)('real Nextflow runs of wf-renamefastq 1.0.3 (NEXTFLOW_
       });
       expect(response.status).toBe(201);
 
-      const outputs = await expectCompletedRun('layout 1', response.body.data.job.id, startedAt);
+      const jobId = response.body.data.job.id as string;
+      const outputs = await expectCompletedRun('layout 1', jobId, startedAt);
       expect(outputs.map((file) => file.relativePath)).toContain('fastq/it_single.fastq.gz');
+      await expectResultAndReports('layout 1', jobId);
     },
     TEST_TIMEOUT_MS,
   );
@@ -318,8 +402,10 @@ describe.skipIf(!ENABLED)('real Nextflow runs of wf-renamefastq 1.0.3 (NEXTFLOW_
       });
       expect(response.status).toBe(201);
 
-      const outputs = await expectCompletedRun('layout 2', response.body.data.job.id, startedAt);
+      const jobId = response.body.data.job.id as string;
+      const outputs = await expectCompletedRun('layout 2', jobId, startedAt);
       expect(outputs.map((file) => file.relativePath)).toContain('fastq/it_folder.fastq.gz');
+      await expectResultAndReports('layout 2', jobId);
     },
     TEST_TIMEOUT_MS,
   );
@@ -345,13 +431,15 @@ describe.skipIf(!ENABLED)('real Nextflow runs of wf-renamefastq 1.0.3 (NEXTFLOW_
       });
       expect(response.status).toBe(201);
 
-      const outputs = await expectCompletedRun('layout 3', response.body.data.job.id, startedAt);
+      const jobId = response.body.data.job.id as string;
+      const outputs = await expectCompletedRun('layout 3', jobId, startedAt);
       const reads = outputs
         .map((file) => file.relativePath)
         .filter((path) => path.startsWith('fastq/'));
       expect(reads).toEqual(
         expect.arrayContaining(['fastq/test_sample01.fastq.gz', 'fastq/test_sample02.fastq.gz']),
       );
+      await expectResultAndReports('layout 3', jobId);
     },
     TEST_TIMEOUT_MS,
   );
@@ -377,7 +465,9 @@ describe.skipIf(!ENABLED)('real Nextflow runs of wf-renamefastq 1.0.3 (NEXTFLOW_
       });
       expect(response.status).toBe(201);
 
-      await expectCompletedRun('demultiplex', response.body.data.job.id, startedAt);
+      const jobId = response.body.data.job.id as string;
+      await expectCompletedRun('demultiplex', jobId, startedAt);
+      await expectResultAndReports('demultiplex', jobId);
     },
     TEST_TIMEOUT_MS,
   );
