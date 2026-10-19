@@ -217,3 +217,91 @@ the same sweep.
 4. **Recover** — `user:enable` once the user has been contacted out of band.
 5. **Review** — record the timeline from audit events and request IDs; logs never contain passwords,
    session tokens or e-mail addresses.
+
+## 7. Training server deployment (Linux)
+
+Deployment spec: `.aidlc/specs/smart-checkup-package-recommendation-portal/deployment.md`. One Linux
+server runs Caddy and the API container with Docker Compose. Nextflow pipelines are not available there
+(no Docker socket), so the catalog shows `wf-renamefastq` as unavailable. Synthetic or test data only.
+
+### One-time server setup
+
+1. **Host**: Linux with Docker Engine and the Compose plugin, `git`, `curl`. Firewall: allow 80, 443 and
+   SSH from admin addresses only (`ufw allow 80,443/tcp`; `ufw allow from <admin-ip> to any port 22`).
+2. **Encrypted data volume**: a LUKS volume mounted at `/srv/portal-data`; `deploy.sh` refuses to run
+   when the path is not on a device-mapper volume.
+   ```sh
+   sudo chown 1000:1000 /srv/portal-data && sudo chmod 700 /srv/portal-data
+   sudo install -d -m 755 /srv/portal-web
+   ```
+3. **Runtime secrets** (root only, never in git or the image):
+   ```sh
+   sudo install -d -m 700 /etc/portal
+   sudo install -m 600 -o root -g root .env.production.example /etc/portal/portal.env
+   sudoedit /etc/portal/portal.env   # SESSION_SECRET=$(openssl rand -hex 48), ALLOWED_ORIGINS=https://<hostname>
+   ```
+4. **Caddy config with ACME** (the repository `docker/Caddyfile` keeps `tls internal` for local use):
+   ```sh
+   sed '/tls internal/d' docker/Caddyfile | sudo tee /etc/portal/Caddyfile >/dev/null
+   ```
+   DNS for `<hostname>` must point at the server and port 80 must be reachable before the first start.
+5. **Deploy settings** (non-secret) in `/etc/portal/deploy.env`:
+   ```sh
+   DOMAIN=<hostname>
+   ENCRYPTED_DATA_ROOT=/srv/portal-data
+   WEB_ROOT=/srv/portal-web
+   ENV_FILE=/etc/portal/portal.env
+   CADDYFILE=/etc/portal/Caddyfile
+   ```
+6. **Clone** the repository (read-only deploy key or HTTPS token stored on the server only) and keep the
+   working tree clean.
+
+### Deploy a release
+
+Only a commit on `main` that passed review and the `quality` workflow (`verify`, `security`, `image`):
+
+```sh
+sudo scripts/deploy.sh <commit-sha>
+```
+
+The script checks the preconditions, builds the images and web bundle from that commit, backs up SQLite,
+stops the API (graceful shutdown), runs `prisma migrate deploy` as a one-off container, starts the new
+release and runs `scripts/smoke.sh https://<hostname>`. A failed migration restarts the previous API; a
+failed smoke test rolls back automatically. The last three releases stay on the server.
+
+### Roll back
+
+```sh
+sudo scripts/rollback.sh                       # previous release from deployed-sha.previous
+sudo scripts/rollback.sh <sha>                 # a specific kept release
+sudo scripts/rollback.sh <sha> --restore-db portal-<timestamp>-before-<sha>.db
+```
+
+`--restore-db` returns the database to the backup taken before that deployment and deletes every change
+made after it (it asks for confirmation and saves the current database first). Use it only when a new
+migration is not backward compatible.
+
+### Backups, smoke test and secret rotation
+
+- `sudo scripts/backup-db.sh portal-api:<sha> daily` makes an online SQLite backup in
+  `/srv/portal-data/backups/` (mode 600, newest 7 kept). Add it to the daily cron next to the cleanup
+  commands; the backups share the encrypted volume, so an off-site copy is out of scope.
+- `scripts/smoke.sh https://<hostname>` can be run at any time (add `--cacert <file>` for a private CA).
+- Rotate `SESSION_SECRET` every 90 days or on suspicion: edit `/etc/portal/portal.env`, run
+  `sudo scripts/deploy.sh <current-sha>`, then `identity sessions:cleanup`. Every user must sign in again.
+- Run the identity, jobs and cleanup CLIs as one-off containers of the deployed image:
+  `sudo docker compose -p portal run --rm api node apps/api/dist/cli/identity.js --help`
+  (export the variables from `/etc/portal/deploy.env` plus `API_IMAGE=portal-api:<sha>` first).
+
+### CI gates
+
+`.github/workflows/quality.yml` runs on every pull request and push to `main`:
+
+| Job        | Checks                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `verify`   | format, lint, type-check, tests, property tests, tokens, build, whitespace                                                                 |
+| `security` | `pnpm audit --prod --audit-level=high` (fails), full `pnpm audit` (report only), gitleaks 8.30.1 (checksum verified) over the full history |
+| `image`    | builds the API runtime and migration images; uploads the image ID and an SPDX SBOM                                                         |
+
+Reviewed gitleaks false positives are listed in `.gitleaksignore` by fingerprint. CI holds no runtime
+secret and never connects to the server.

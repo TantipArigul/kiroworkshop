@@ -1,13 +1,23 @@
 services:
   api:
+    # Local: built from the Dockerfile. Training server: scripts/deploy.sh sets API_IMAGE=portal-api:<sha>.
+    image: ${API_IMAGE:-kiroworkshop-api}
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file: ${ENV_FILE:-.env}
+    # Internal only: Caddy is the single entry point (no host port).
     expose:
       - '3000'
     volumes:
       - ${ENCRYPTED_DATA_ROOT:?Set ENCRYPTED_DATA_ROOT}:/var/lib/portal-private
+    # Longer than the API's SHUTDOWN_TIMEOUT_MS (default 30 s) so graceful shutdown can finish.
+    stop_grace_period: 40s
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '5'
     restart: unless-stopped
   caddy:
     image: caddy:2.11.4
@@ -16,15 +26,22 @@ services:
     environment:
       # Host-run Nextflow mode: API_UPSTREAM=host.docker.internal:3000 (see docker/README.md).
       - API_UPSTREAM=${API_UPSTREAM:-api:3000}
+      - DOMAIN=${DOMAIN:-localhost}
     ports:
       # Port 80 only redirects to HTTPS (Caddy automatic HTTPS); content is served on 443.
       - '80:80'
       - '443:443'
     volumes:
-      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./apps/web/dist:/srv:ro
+      # Training server: CADDYFILE=/etc/portal/Caddyfile (ACME, no `tls internal`).
+      - ${CADDYFILE:-./docker/Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ${WEB_DIST:-./apps/web/dist}:/srv:ro
       - caddy_data:/data
       - caddy_config:/config
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '5'
     restart: unless-stopped
 volumes:
   caddy_data:
