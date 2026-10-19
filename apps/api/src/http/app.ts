@@ -79,7 +79,7 @@ export function createApiApp(
   const guard = createSessionGuard({ audit, config, identity });
   const storage = createJobStorage(config.storageRoot);
   const simulatedAdapter = createSimulatedAdapter({
-    completionHandler: options.completionHandler ?? createSmartCheckupResultBuilder(),
+    completionHandler: options.completionHandler ?? createSmartCheckupResultBuilder({ logger }),
     config,
     logger,
     prisma,

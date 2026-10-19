@@ -387,3 +387,8 @@ apps/web/src/{App.tsx, app.css, styles/tokens.css, features/jobs/{JobDetailPage.
 - **C7 — route order**: `results.routes.ts` is mounted under `/api/v1/jobs` before the jobs router so the more specific result/artifact paths match first.
 - **C5 — recommendation reason**: the reason text is read from `result.json` (`schemaVersion: 2`); `PackageRecommendation` has no reason column and no migration is added.
 - **C6 — download audit**: `RESULT_DOWNLOADED` is recorded after the file has been opened successfully (after containment + `lstat`), so a missing file (`410`) is not audited as a download.
+
+## Add-on — Wave 4 findings (approved 2026-10-19)
+- **Operations — corrupt result**: a `COMPLETED` Smart Checkup result whose `result.json` fails schema validation (`500 INTERNAL_ERROR`, safe message) logs `Result unavailable` (warn) with `reason: INVALID`; a missing file (`410`) logs the same event with `reason: MISSING`.
+- **C6 — served**: `Artifact served` is logged when every byte of the file was written to the response, also when the client closes the connection right after receiving `Content-Length` bytes; a read failure or client abort before that destroys the response and logs nothing.
+- **Wiring**: `http/app.ts` passes the application logger to `createSmartCheckupResultBuilder({ logger })`.

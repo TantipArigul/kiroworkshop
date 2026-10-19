@@ -85,3 +85,9 @@
 - **Action**: wave 3 executed (parallel mode, 1 sub-agent per dispatch); user browser check "pass" for task 3.6 (Smart Checkup, wf-renamefastq result/download, execution report + timeline in sandboxed iframe without `'unsafe-eval'`, DAG note, `/help`, Try the sample, `/license`)
 - **Artifacts**: tasks 3.1–3.6 `[x]`; manifest `completedTasks: 15`, `currentWave: 4`
 - **Outcome**: pass — format, lint, typecheck; tests shared 70, web 48, api 270 (+6 skipped), properties 26; conflicts: none; Open Question #1 closed (no `'unsafe-eval'` needed); 75% overall
+
+### [2026-10-19T04:20:00Z] Wave Complete: Wave 4
+- **Phase**: implementation
+- **Action**: wave 4 executed (parallel mode, 1 sub-agent; tasks 4.1–4.2); coordinator wired `createSmartCheckupResultBuilder({ logger })` in `http/app.ts` (sub-agent finding, shared file of this unit); host API restarted
+- **Artifacts**: `modules/results/{results-log.ts (new),smart-checkup-result.ts,artifact-delivery.ts,results.routes.ts}`, `http/app.ts`, `tests/support/results-context.ts`, `tests/integration/results/{operations-logging,lifecycle}.test.ts`, `tests/unit/results/operations-log.test.ts`, `docker/README.md` (Results, reports and licence)
+- **Outcome**: pass — format, lint, typecheck, build; tests shared 70, web 48, api 284 (+6 skipped), properties 26; delete + retention leave no result rows/files and URLs 404; conflicts: none. Pending user decision: Add-on for (a) corrupt `result.json` (500) logged as `Result unavailable` reason `INVALID`, (b) `Artifact served` counts a download as served when all bytes were written even if the client closes early. 85% overall

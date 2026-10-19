@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
 import { lstat, open, type FileHandle } from 'node:fs/promises';
+import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import type { Response } from 'express';
@@ -9,6 +10,7 @@ import type { ActorContext } from '../../shared/authorization.js';
 import type { AuditService } from '../audit/audit.service.js';
 import { DOWNLOAD_CONTENT_SECURITY_POLICY, VIEW_CONTENT_SECURITY_POLICY } from './report-policy.js';
 import { ArtifactNotFoundError, type ResolvedArtifact } from './result.service.js';
+import { resultsLog, type ResultsLogger } from './results-log.js';
 
 const OCTET_STREAM = 'application/octet-stream';
 /** Download content types (design C6); `.html` and everything else are `octet-stream`. */
@@ -23,6 +25,9 @@ const DOWNLOAD_CONTENT_TYPES: readonly [string, string][] = [
 // CR/LF, quotes, path separators and other control characters never reach a header.
 const UNSAFE_FILENAME_CHARACTERS = /[\u0000-\u001f\u007f"\\/]/g;
 const NON_ASCII_CHARACTERS = /[^\u0020-\u007e]/g;
+
+/** Job of the artifact and the request logger for the Operations events (design C6). */
+export type DeliveryLogContext = { jobId: string; logger: ResultsLogger };
 
 /** Download name: basename of `displayName` without unsafe characters; never empty. */
 export function sanitizeFileName(displayName: string, artifactId: string): string {
@@ -61,10 +66,10 @@ export function downloadContentType(fileName: string): string {
 export async function sendDownload(
   response: Response,
   artifact: ResolvedArtifact,
-  context: { actor: ActorContext; audit: AuditService; requestId: string },
+  context: DeliveryLogContext & { actor: ActorContext; audit: AuditService; requestId: string },
 ): Promise<void> {
   const fileName = sanitizeFileName(artifact.displayName, artifact.id);
-  const { handle, size } = await _openRegularFile(artifact.absolutePath);
+  const { handle, size } = await _openArtifact(artifact, context);
 
   try {
     await context.audit.recordSafely({
@@ -86,7 +91,10 @@ export async function sendDownload(
     response.setHeader('Content-Security-Policy', DOWNLOAD_CONTENT_SECURITY_POLICY);
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('Content-Length', String(size));
-    await _stream(handle, response);
+
+    if (await _stream(handle, response, size)) {
+      _logServed(context, artifact, 'download', size);
+    }
   } finally {
     await handle.close().catch(() => undefined);
   }
@@ -97,13 +105,17 @@ export async function sendDownload(
  * byte-for-byte with a CSP that sandboxes the document (opaque origin) and blocks the network.
  * Not audited (read-only view, design C6).
  */
-export async function sendView(response: Response, artifact: ResolvedArtifact): Promise<void> {
+export async function sendView(
+  response: Response,
+  artifact: ResolvedArtifact,
+  context: DeliveryLogContext,
+): Promise<void> {
   if (!artifact.viewable) {
     throw new ArtifactNotFoundError();
   }
 
   const fileName = sanitizeFileName(artifact.displayName, artifact.id);
-  const { handle, size } = await _openRegularFile(artifact.absolutePath);
+  const { handle, size } = await _openArtifact(artifact, context);
 
   try {
     response.status(200);
@@ -117,10 +129,41 @@ export async function sendView(response: Response, artifact: ResolvedArtifact): 
     response.setHeader('Cache-Control', 'private, no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('Content-Length', String(size));
-    await _stream(handle, response);
+
+    if (await _stream(handle, response, size)) {
+      _logServed(context, artifact, 'view', size);
+    }
   } finally {
     await handle.close().catch(() => undefined);
   }
+}
+
+/** `_openRegularFile` that logs `Artifact missing` (IDs only) before the `410`. */
+async function _openArtifact(
+  artifact: ResolvedArtifact,
+  context: DeliveryLogContext,
+): Promise<{ handle: FileHandle; size: number }> {
+  try {
+    return await _openRegularFile(artifact.absolutePath);
+  } catch (error) {
+    resultsLog.missing(context.logger, { artifactId: artifact.id, jobId: context.jobId });
+    throw error;
+  }
+}
+
+function _logServed(
+  context: DeliveryLogContext,
+  artifact: ResolvedArtifact,
+  mode: 'download' | 'view',
+  bytes: number,
+): void {
+  resultsLog.served(context.logger, {
+    artifactId: artifact.id,
+    bytes,
+    category: artifact.category,
+    jobId: context.jobId,
+    mode,
+  });
 }
 
 /**
@@ -150,13 +193,34 @@ async function _openRegularFile(path: string): Promise<{ handle: FileHandle; siz
   }
 }
 
-/** Streams the open file; a failure after the headers were sent ends the response. */
-async function _stream(handle: FileHandle, response: Response): Promise<void> {
+/**
+ * Streams the open file; `true` once every byte of the file was handed to the response. A
+ * failure before that ends the response.
+ */
+async function _stream(handle: FileHandle, response: Response, size: number): Promise<boolean> {
+  const source = handle.createReadStream({ autoClose: false });
+  let written = 0;
+  // Counts the bytes handed to the response.
+  const counter = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      written += chunk.length;
+      callback(null, chunk);
+    },
+  });
+
   try {
-    await pipeline(handle.createReadStream({ autoClose: false }), response);
+    await pipeline(source, counter, response);
+    return true;
   } catch {
+    // A client may close the connection as soon as it has `Content-Length` bytes, before the
+    // response ended (premature close): the whole file was written, so it counts as served.
+    if (response.writableEnded || written === size) {
+      return true;
+    }
+
     // Client aborted or the read failed mid-stream: nothing safe can be sent any more.
     response.destroy();
+    return false;
   }
 }
 

@@ -161,6 +161,47 @@ amd64 emulation) can take about 8 minutes per run. Jobs, uploads, run logs and o
 7-day retention; upload staging (`uploads/*`) that has not been written for an hour is removed by
 the same sweep.
 
+### Results, reports and licence
+
+- **Result page** — `/jobs/{jobId}/result` (button "View result" on a `Completed` job). The owner
+  sees a summary, bars with a paired table and legend, the mock recommendation (Smart Checkup) or
+  per-sample read statistics (wf-renamefastq), the file list with downloads, references and the
+  training disclaimer. API: `GET /api/v1/jobs/{jobId}/result`. A job that is not `Completed`
+  answers `409`; another user's or an unknown job `404`; a result whose files are gone (removed by
+  retention or missing) `410`; a stored Smart Checkup result that fails its schema `500` with a safe
+  message. Smart Checkup jobs completed before Results & Guidance was installed have no result
+  rows and show the `410` message (not backfilled).
+- **Downloads** — always an attachment (`…/artifacts/{artifactId}/download`), one file at a time,
+  with a sanitized file name; `.html` and unknown types are sent as `application/octet-stream`.
+  Each download writes a `RESULT_DOWNLOADED` audit event.
+- **Report viewer** — only the wf-renamefastq `pipeline_info/execution_report_*.html` and
+  `execution_timeline_*.html` open in the page (`…/view`), inside `<iframe sandbox="allow-scripts">`
+  with a CSP that sandboxes the document and blocks every network request. The DAG report
+  (`pipeline_dag_*.html`) loads scripts from the internet, so it is **download-only** and the page
+  says so. To switch the viewer off in an incident, empty `VIEWABLE_REPORT_PATTERNS` in
+  `apps/api/src/modules/results/report-policy.ts` and redeploy; downloads keep working.
+- **Mock rules (`RULESET_VERSION`)** — recommendations come from the typed mock rules in
+  `apps/api/src/modules/results/recommendation-rules.ts` (`RULESET_VERSION =
+'mock-rules-2026.10-1'`). Rule sets are append-only: changing any rule means adding a new version
+  to `RULESETS` through a reviewed PR. Each result stores the version it was produced with (in
+  `result.json` and `PackageRecommendation.ruleVersion`), so earlier results keep their version.
+  Rules use a synthetic training midpoint, never a clinical threshold.
+- **Retention** — deleting a job (owner or the 7-day sweep) also deletes its `ResultArtifact` and
+  `PackageRecommendation` rows (cascade) and `jobs/{jobId}/` with `result.json` and Nextflow
+  outputs; the old result, download and view URLs then answer `404`.
+- **Logs** — result events carry IDs only: `Result generated` (`jobId`, `ruleId`, `ruleVersion`),
+  `Result generation failed` (`jobId`, `errorType`), `Result unavailable` (`jobId`,
+  `reason: MISSING|INVALID`), `Artifact served` (`jobId`, `artifactId`, `category`,
+  `mode: download|view`, `bytes`) and `Artifact missing` (`jobId`, `artifactId`). File names,
+  sample aliases, storage paths, marker values and report content are never logged; the
+  `Content-Disposition` response header is redacted from request logs.
+- **Cookies** — the portal sets one essential session cookie (`portal_session`: `HttpOnly`,
+  `SameSite=strict`, `Secure`), so there is no consent banner; the landing page and `/license` say
+  so. A future permanent cookie needs a consent notice designed first, and third-party, analytics
+  or tracking cookies stay off until the user opts in.
+- **Licence** — MIT, "Copyright (c) 2026 SamNohserver contributors", in `LICENSE` at the repository
+  root and on the public page `/license`.
+
 ## 5. Incident playbook (local MVP)
 
 1. **Detect** — in the Audit viewer (`AUDITOR`/`ADMIN`) filter `Login failure`, `Account locked`,
@@ -169,7 +210,9 @@ the same sweep.
 2. **Contain** — `user:disable` the affected account; this revokes all of its sessions. For an
    executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`); for a
    Nextflow fault set `NEXTFLOW_ENABLED=false`, restart, then run `pipelines:check` (and
-   `pipelines:setup` if assets are missing) before enabling it again.
+   `pipelines:setup` if assets are missing) before enabling it again. For a wrong mock
+   recommendation, add a new `RULESET_VERSION` (existing results keep theirs); for a report viewer
+   problem, empty `VIEWABLE_REPORT_PATTERNS` and redeploy (see "Results, reports and licence").
 3. **Remediate** — `user:reset-password` with a new temporary password; review role with `user:set-role`.
 4. **Recover** — `user:enable` once the user has been contacted out of band.
 5. **Review** — record the timeline from audit events and request IDs; logs never contain passwords,

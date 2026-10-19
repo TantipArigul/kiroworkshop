@@ -1,4 +1,4 @@
-import { Router, type RequestHandler } from 'express';
+import { Router, type Request, type RequestHandler } from 'express';
 
 import { createSuccessResponse } from '@portal/shared';
 
@@ -15,6 +15,7 @@ import {
   ResultUnavailableError,
   type ResultService,
 } from './result.service.js';
+import { NOOP_RESULTS_LOGGER, resultsLog, type ResultsLogger } from './results-log.js';
 
 const DOWNLOAD_ROUTE = 'GET /api/v1/jobs/:jobId/artifacts/:artifactId/download';
 const VIEW_ROUTE = 'GET /api/v1/jobs/:jobId/artifacts/:artifactId/view';
@@ -45,14 +46,17 @@ export function createResultsRouter({
   ];
 
   router.get('/:jobId/result', ...protectedRoute, async (request, response, next) => {
+    const jobId = _param(request.params.jobId);
+
     try {
       const result = await results.getResult(
         _actorOf(request.actor),
-        _param(request.params.jobId),
+        jobId,
         getRequestId(response),
       );
       response.status(200).json(createSuccessResponse(result, getRequestId(response)));
     } catch (error) {
+      _logUnavailable(_loggerOf(request), jobId, error);
       next(_toHttpError(error));
     }
   });
@@ -61,11 +65,13 @@ export function createResultsRouter({
     '/:jobId/artifacts/:artifactId/download',
     ...protectedRoute,
     async (request, response, next) => {
+      const jobId = _param(request.params.jobId);
+
       try {
         const actor = _actorOf(request.actor);
         const artifact = await results.getArtifact(
           actor,
-          _param(request.params.jobId),
+          jobId,
           _param(request.params.artifactId),
           getRequestId(response),
           DOWNLOAD_ROUTE,
@@ -73,6 +79,8 @@ export function createResultsRouter({
         await sendDownload(response, artifact, {
           actor,
           audit,
+          jobId,
+          logger: _loggerOf(request),
           requestId: getRequestId(response),
         });
       } catch (error) {
@@ -85,15 +93,17 @@ export function createResultsRouter({
     '/:jobId/artifacts/:artifactId/view',
     ...protectedRoute,
     async (request, response, next) => {
+      const jobId = _param(request.params.jobId);
+
       try {
         const artifact = await results.getArtifact(
           _actorOf(request.actor),
-          _param(request.params.jobId),
+          jobId,
           _param(request.params.artifactId),
           getRequestId(response),
           VIEW_ROUTE,
         );
-        await sendView(response, artifact);
+        await sendView(response, artifact, { jobId, logger: _loggerOf(request) });
       } catch (error) {
         next(_toHttpError(error));
       }
@@ -101,6 +111,23 @@ export function createResultsRouter({
   );
 
   return router;
+}
+
+/**
+ * The request's pino-http child logger (Foundation redaction applies); no-op when the router is
+ * mounted without the request logger.
+ */
+function _loggerOf(request: Request): ResultsLogger {
+  return (request as { log?: ResultsLogger }).log ?? NOOP_RESULTS_LOGGER;
+}
+
+/** `Result unavailable` (design Operations C4/C5): `410` missing/invalid and `500` corrupt. */
+function _logUnavailable(logger: ResultsLogger, jobId: string, error: unknown): void {
+  if (error instanceof ResultUnavailableError) {
+    resultsLog.unavailable(logger, { jobId, reason: error.reason });
+  } else if (error instanceof ResultCorruptError) {
+    resultsLog.unavailable(logger, { jobId, reason: 'INVALID' });
+  }
 }
 
 /** Route parameter as a string; anything else fails ID validation later (`404`). */

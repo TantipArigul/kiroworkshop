@@ -179,15 +179,15 @@
     - **Acceptance**: ทุก flow คลิกได้จริง ไม่มี error ใน console/terminal; Smart Checkup และ wf-renamefastq เดิมยังใช้ได้
     - **Validation**: `pnpm build && pnpm lint && pnpm typecheck` + browser check (ผู้ใช้ช่วยยืนยันการ render ของ report)
 
-- [ ] 4. Operations
-  - [ ] 4.1 Operational logging และ error mapping
+- [x] 4. Operations
+  - [x] 4.1 Operational logging และ error mapping
     - **Deps**: 3.5 | **Ref**: `design.md` — Operations
     - Log events ตามตาราง Operations (C3 generated/failed, C4/C5 unavailable, C6 served/missing) โดยไม่มีชื่อไฟล์, alias, path, ค่า marker หรือเนื้อหา report
     - ตรวจ mapping `409`/`410`/`404`/`500`
     - **Files**: `apps/api/src/modules/results/*`
     - **Acceptance**: grep log ของ integration run แล้วไม่พบข้อมูลต้องห้าม
     - **Validation**: `pnpm --filter @portal/api test`
-  - [ ] 4.2 Retention/delete กับผลลัพธ์ และเอกสาร
+  - [x] 4.2 Retention/delete กับผลลัพธ์ และเอกสาร
     - **Deps**: 3.5 | **Ref**: `design.md` — Data Model (Lifecycle), C10, Operations (Incident)
     - ยืนยันว่า delete/retention ลบ `ResultArtifact`, `PackageRecommendation` และ `result.json` (cascade + ลบ directory) และ URL เดิมได้ `404`
     - README: หน้าผลลัพธ์, report viewer + ข้อจำกัด DAG, กติกา `RULESET_VERSION`, cookie notice, licence
@@ -267,8 +267,8 @@
 | 3.4 | Result service | 1.2, 3.2, 3.3 | ✅ |
 | 3.5 | Artifact delivery + report policy + routes | 3.4 | ✅ |
 | 3.6 | Web ↔ real API + browser check | 2.4, 2.5, 3.5 | ✅ |
-| 4.1 | Operational logging + error mapping | 3.5 | ⬜ |
-| 4.2 | Retention/delete + docs | 3.5 | ⬜ |
+| 4.1 | Operational logging + error mapping | 3.5 | ✅ |
+| 4.2 | Retention/delete + docs | 3.5 | ✅ |
 | 5.1 | Unit tests | 4.2 | ⬜ |
 | 5.2 | Integration tests | 5.1 | ⬜ |
 | 5.3 | PBT P14–P18 + real-run + verification | 5.2 | ⬜ |
