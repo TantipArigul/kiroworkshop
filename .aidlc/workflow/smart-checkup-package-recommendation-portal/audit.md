@@ -330,3 +330,12 @@
 - **Action**: wave-complete (after one retry)
 - **Artifacts**: result page, charts, artifact list + sandboxed report viewer, guide, licence page, footer, cookie notice, mocks
 - **Outcome**: checks pass; primary colour contrast finding pending user decision — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T03:20:00Z] Operations: local host-run Nextflow setup
+- **Phase**: operations (pipeline-catalog-nextflow Add-on)
+- **Action**: user requested "set up"; applied pending migration `20261018010000_pipeline_catalog` (DB backup `data/portal.db.bak-2026-10-19`), rebuilt images, added `API_UPSTREAM` to Caddy/Compose, created `.env.host` and `~/portal-data/{storage,nxf-home}`, ran `pipelines:setup` and `pipelines:check`
+- **Artifacts**: `units/pipeline-catalog-nextflow/design.md` Add-on, `docker/Caddyfile`, `docker-compose.yml`, `docker/README.md`
+- **Outcome**: `pipelines:check` 11/11 ok; `/health/ready` reports `pipeline:wf-renamefastq: ok` through Caddy
+
+### [2026-10-19T03:50:00Z] Implementation: results-guidance Wave 3 complete (15/20)
+- **Outcome**: pass; browser check by user; log redaction Add-on applied — details in `units/results-guidance/audit.md`

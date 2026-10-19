@@ -118,7 +118,7 @@
     - **Acceptance**: US-012 AC1–4 และ US-013 AC1–2 ใช้ได้กับ mock
     - **Validation**: `pnpm validate:tokens && pnpm --filter @portal/web build` + ตรวจบน browser (375/768/1440 px) ด้วย `VITE_API_MOCK=true`
 
-- [ ] 3. Backend + เชื่อม API จริง
+- [x] 3. Backend + เชื่อม API จริง
   - [x] 3.1 Mock rule engine
     - **Deps**: 1.1 | **Ref**: `design.md` — C2; US-010 AC1, AC3–4
     - `RULESET_VERSION = 'mock-rules-2026.10-1'`, append-only
@@ -167,7 +167,7 @@
     - **Files**: `apps/api/src/modules/results/{artifact-delivery.ts,report-policy.ts,results.routes.ts}`, `apps/api/src/http/app.ts`
     - **Acceptance**: header ครบตาม C6; ไม่เปิดเผย path; foreign → `404`
     - **Validation**: `pnpm --filter @portal/api typecheck && pnpm --filter @portal/api test`
-  - [ ] 3.6 เชื่อม web กับ API จริง และตรวจ report viewer บน browser
+  - [x] 3.6 เชื่อม web กับ API จริง และตรวจ report viewer บน browser
     - **Deps**: 2.4, 2.5, 3.5 | **Ref**: `design.md` — C8, Open Questions #1; US-009–US-013
     - ปิด mock และแก้จุดที่ mock ไม่ตรงกับ DTO จริง
     - รัน flow บน browser:
@@ -266,7 +266,7 @@
 | 3.3 | Nextflow stats reader | 1.1 | ✅ |
 | 3.4 | Result service | 1.2, 3.2, 3.3 | ✅ |
 | 3.5 | Artifact delivery + report policy + routes | 3.4 | ✅ |
-| 3.6 | Web ↔ real API + browser check | 2.4, 2.5, 3.5 | ⬜ |
+| 3.6 | Web ↔ real API + browser check | 2.4, 2.5, 3.5 | ✅ |
 | 4.1 | Operational logging + error mapping | 3.5 | ⬜ |
 | 4.2 | Retention/delete + docs | 3.5 | ⬜ |
 | 5.1 | Unit tests | 4.2 | ⬜ |

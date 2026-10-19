@@ -3,7 +3,7 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-18T18:00:00Z"
+updated: "2026-10-19T03:50:00Z"
 state:
   status: "active"
   scope: "new"
@@ -388,9 +388,9 @@ units:
     implementationMode: "parallel"
     implementation:
       totalTasks: 20
-      completedTasks: 14
-      currentTask: "3.6"
-      currentWave: 3
+      completedTasks: 15
+      currentTask: "4.1"
+      currentWave: 4
     decisions:
       design:
         generation: "Results & Guidance JobCompletionHandler writes result.json and finalize(tx) creates ResultArtifact + PackageRecommendation before COMPLETED"

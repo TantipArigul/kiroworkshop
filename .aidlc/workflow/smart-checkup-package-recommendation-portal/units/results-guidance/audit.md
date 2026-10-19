@@ -73,3 +73,15 @@
 - **Action**: user "commit and push branch. i will continuous later." — Wave 3 work (3.1–3.5) committed as-is and `feat/results-guidance` pushed; no PR, no merge
 - **Pending on resume**: (1) approve log redaction fix (`res.headers["content-disposition"]` in Foundation `shared/logger.ts`); (2) accept/decline Wave 3 deviations (Nextflow stats missing → whole-result 410; results router mounted before jobs router; reason from `result.json`; audit on file open) → design Add-on; (3) browser check for task 3.6 incl. report viewer / Open Question #1 (`unsafe-eval`)
 - **Outcome**: manifest `currentWave: 3`, `currentTask: "3.6"`, 14/20 tasks; smoke environment still running on the new build
+
+### [2026-10-19T03:40:00Z] Wave 3: pending items resolved; task 3.6 code side done, browser check pending
+- **Phase**: implementation
+- **Action**: user "1 yes, 2 accept all, 3 go" — spec refined first (`design.md` Add-on — Wave 3 findings); `res.headers["content-disposition"]` added to Foundation `REDACT_PATHS`; task 3.6 code side dispatched (1 sub-agent)
+- **Artifacts**: `apps/api/src/shared/logger.ts`, `apps/web/src/mocks/results.test.ts` (new); no web code mismatch found; host API restarted on the new build
+- **Outcome**: api 270 passed (+6 skipped), web 48 passed; format, lint, typecheck, tokens, build pass; throwaway real-API smoke (Smart Checkup real job; wf-renamefastq synthetic outputs) correct incl. 409/404/410 and C6/view CSP headers. Task 3.6 not marked complete until the user's browser check
+
+### [2026-10-19T03:50:00Z] Wave Complete: Wave 3
+- **Phase**: implementation
+- **Action**: wave 3 executed (parallel mode, 1 sub-agent per dispatch); user browser check "pass" for task 3.6 (Smart Checkup, wf-renamefastq result/download, execution report + timeline in sandboxed iframe without `'unsafe-eval'`, DAG note, `/help`, Try the sample, `/license`)
+- **Artifacts**: tasks 3.1–3.6 `[x]`; manifest `completedTasks: 15`, `currentWave: 4`
+- **Outcome**: pass — format, lint, typecheck; tests shared 70, web 48, api 270 (+6 skipped), properties 26; conflicts: none; Open Question #1 closed (no `'unsafe-eval'` needed); 75% overall

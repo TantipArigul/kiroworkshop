@@ -15,6 +15,8 @@ const REDACT_PATHS = [
   'req.body.newPassword',
   'req.body.csrfToken',
   'res.headers.set-cookie',
+  // Download/view responses carry file names and sample aliases (results-guidance Wave 3 Add-on).
+  'res.headers["content-disposition"]',
 ];
 
 type RequestWithSession = IncomingMessage & {

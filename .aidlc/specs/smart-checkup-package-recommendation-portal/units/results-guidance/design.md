@@ -380,3 +380,10 @@ apps/web/src/{App.tsx, app.css, styles/tokens.css, features/jobs/{JobDetailPage.
 ## Add-on — Wave 2 findings (approved 2026-10-18)
 - **Primary colour contrast (C8, design system)**: `--color-primary` (#0284c7) failed WCAG 2.2 AA for normal text (4.10:1 on white, 3.91:1 on page, white-on-primary 4.10:1); approved fix — new primitive `--color-blue-700` (#0369a1) and `--color-primary: var(--color-blue-700)` (5.93 / 5.67 / 5.93:1); hover unchanged; recorded in `design-system.md` Add-on — Primary colour contrast fix
 - **Web choices**: no client-side zod validation of the result payload (keeps zod out of the bundle; unknown shape → error state per US-009 AC4); references rendered from API `references[]` (no web constant); Nextflow per-sample table is the chart's paired table; `ResultReferences.tsx` shared by both layouts
+
+## Add-on — Wave 3 findings (approved 2026-10-19)
+- **Log redaction**: `res.headers["content-disposition"]` is added to Foundation `REDACT_PATHS` (`apps/api/src/shared/logger.ts`) because download/view responses carry sanitized file names and sample aliases in that header; request-completed log lines must not contain them. Developer 1 is informed in the PR.
+- **C4/C5 — missing stats**: for a `COMPLETED` wf-renamefastq Job, a missing or unparseable seqkit stats file makes the whole `/result` respond `410 GONE` (the file is a required output at completion, so this only happens after removal/corruption); this replaces the earlier "file list still shown" wording.
+- **C7 — route order**: `results.routes.ts` is mounted under `/api/v1/jobs` before the jobs router so the more specific result/artifact paths match first.
+- **C5 — recommendation reason**: the reason text is read from `result.json` (`schemaVersion: 2`); `PackageRecommendation` has no reason column and no migration is added.
+- **C6 — download audit**: `RESULT_DOWNLOADED` is recorded after the file has been opened successfully (after containment + `lstat`), so a missing file (`410`) is not audited as a download.
