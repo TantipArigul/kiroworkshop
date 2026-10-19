@@ -64,6 +64,10 @@
 - [ ] Daily cron: `backup-db.sh`, `identity audit:cleanup`, `identity sessions:cleanup`
 - [ ] Runbook: incident playbook in `docker/README.md` §5
 
+## Add-on — Training server skipped (2026-10-19)
+- PR #5 merged into `main` (`5b4eb02`); post-merge `quality` run green.
+- The user skipped the training server (step 3). The portal runs only on the developer Mac (https://localhost, host-run Nextflow mode). Server-related checklist items stay open and apply only if a server is set up later; `deploy.sh`/`rollback.sh` remain unexercised.
+
 ## Not verified / open items
 - `deploy.sh` and `rollback.sh` end-to-end (need a Linux server with root, LUKS and DNS); workflow run on GitHub (next push)
 - Dev-dependency advisories (prisma CLI, vite) — no longer in the runtime image; upgrade via a reviewed dependency change
