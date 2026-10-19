@@ -126,3 +126,8 @@ No external pipeline/API/SOAP call in MVP.
 
 ## Add-on — Approved Prisma SQLite Adapter
 - Prisma 7 client uses `@prisma/adapter-better-sqlite3` 7.10.0 with `better-sqlite3` 12.6.0 and its pinned types. This enables SQLite-backed persistent sessions and readiness checks; MemoryStore is prohibited.
+
+## Add-on — Shared testing entry point (approved 2026-10-19, deploy phase)
+- fast-check generators are test-only and are no longer exported from the `@portal/shared` main entry (`index.ts`); they are published through a separate subpath export `@portal/shared/testing` (`./dist/testing/generators.js`).
+- Production code (`apps/api`, `apps/web`) imports only `@portal/shared` (and `/constants`, `/run-input`), so the production dependency tree of `@portal/shared` stays `zod` only and the slim runtime image (deployment.md D5-12) does not need `fast-check`.
+- Test files import generators from `@portal/shared/testing` or the shared source path `packages/shared/src/testing/generators.js` (API property tests), or `./testing/generators.js` (inside the shared package).

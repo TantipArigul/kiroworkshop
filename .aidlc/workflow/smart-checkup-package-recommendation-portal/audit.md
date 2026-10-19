@@ -345,3 +345,76 @@
 
 ### [2026-10-19T05:30:00Z] Implementation: results-guidance Wave 5 complete (20/20)
 - **Outcome**: pass; user browser smoke pass; awaiting finalize — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T05:50:00Z] Implementation: results-guidance complete; all 5 units complete
+- **Outcome**: `implement` added to `sharedPhases`; handoff to aidlc-build
+
+### [2026-10-19T05:55:00Z] Build: Detection
+- **Phase**: build
+- **Action**: build-detect
+- **Artifacts**: (none — detection only)
+- **Outcome**: Detected Node.js 24 / pnpm 12.8.1 workspace with GitHub Actions `quality.yml` (format, lint, typecheck, test, properties, tokens, build, diff-check) + Docker image build; no coverage tool or numeric target (Foundation D3); dependency/secret scan and artifact integrity steps named in tech blueprint are not in `quality.yml`
+
+### [2026-10-19T07:10:00Z] Build: Verification
+- **Phase**: build
+- **Action**: build-run, test-run, quality-check, ops-check (user "proceed")
+- **Artifacts**: `build-report.md` (draft); API image rebuilt locally (Compose `api` stays stopped, host-run mode unchanged)
+- **Outcome**: Build passed. Tests: 616 passed, 0 failed (+6 opt-in passed in real Nextflow run), properties 34. Gates: 7 passed, 1 warning (dev-dependency advisories: 3 high, 1 moderate; prod 0), coverage informational. Ops: 3 passed, 1 warning (startup error shows stack trace), metrics n/a. Traceability 21/21 stories, 99/99 tasks
+
+### [2026-10-19T07:20:00Z] Build: Report Approved
+- **Phase**: build
+- **Action**: build-approved (user "deploy"; accepted with warnings 1–4)
+- **Artifacts**: build-report.md
+- **Outcome**: Build verified. 616 tests + 34 properties passing, 7 quality gates met, 1 warning; ops 3 passed, 1 warning. Proceeding to deploy
+
+### [2026-10-19T07:25:00Z] Deploy: Decision Gate D5 generated
+- **Phase**: deploy
+- **Action**: decision-gate — 12 questions (10 standard, adapted to approved local Docker Compose scope, + CI security gates and runtime image from build findings)
+- **Artifacts**: `decisions-deploy.md` (answers blank)
+- **Outcome**: awaiting user answers
+
+### [2026-10-19T07:30:00Z] Deploy: Decision Gate
+- **Phase**: deploy
+- **Action**: decision-gate — "use recommendations"; Decisions Summary populated
+- **Artifacts**: decisions-deploy.md; manifest `decisions.deploy`
+- **Outcome**: D5 completed. CI: GitHub Actions, Target: Docker Compose on Linux server (LUKS), Strategy: recreate, IaC: none. 0 conflicts found
+### [2026-10-19T07:35:00Z] Deploy: Plan (draft)
+- **Phase**: deploy
+- **Action**: plan — deployment specification generated
+- **Artifacts**: `specs/.../deployment.md` (draft)
+- **Outcome**: 3 CI stages (verify existing, security, image), manual `deploy.sh`/`rollback.sh`/`smoke.sh`, prod-only runtime image + separate migrate target; awaiting approval
+
+### [2026-10-19T07:40:00Z] Deploy: Plan regenerated from template
+- **Phase**: deploy
+- **Action**: plan — first draft was written before reading `aidlc-deploy/assets/deployment.md`; regenerated using the template structure (Summary, Pipeline, Target Infrastructure, Environment, Strategy, Files to Generate, Risk, Cost)
+- **Artifacts**: deployment.md (draft)
+- **Outcome**: Pipeline: 3 CI stages + manual deploy, Target: Docker Compose on Linux server, Environments: local dev + training server, Files planned: 9. Awaiting approval
+
+### [2026-10-19T07:45:00Z] Deploy: Plan approved
+- **Phase**: deploy
+- **Action**: plan approval ("approve")
+- **Artifacts**: deployment.md; manifest `artifacts.deploy.status: planned`
+- **Outcome**: generating 9 files
+
+### [2026-10-19T09:30:00Z] Deploy: Generation
+- **Phase**: deploy
+- **Action**: generation (after user "ok" to the generation findings Add-on and option "A" for the shared testing entry point)
+- **Artifacts**: `.github/workflows/quality.yml`, `apps/api/Dockerfile`, `docker-compose.yml`, `.env.production.example`, `scripts/{deploy,rollback,smoke,backup-db}.sh`, `docker/README.md` (§7), plus `.gitleaksignore`, `.gitignore`, `packages/shared/{package.json,src/index.ts}` and 3 test import updates (option A); `deployment.md` + Foundation `design.md` Add-ons
+- **Outcome**: Generated 9 planned files (+ 2 config, option-A code change). CI: GitHub Actions, Target: Docker Compose on Linux server, IaC: None, 2 environments. Verified locally: runtime image 493 MB (was 2.22 GB) with no dev packages, migrate image applies all 5 migrations, API ready/healthy as non-root, CLI works, SIGTERM exit 0, backup snippet produces a valid copy; smoke.sh passes against https://localhost and fails without the CA; gitleaks full history clean with 1 reviewed fixture ignored; shellcheck and actionlint clean; compose config valid for local and server variables; tests shared 75, web 71, api 430 (+6 opt-in), properties 34. Not verifiable here: deploy.sh/rollback.sh end-to-end (need a Linux server with root, LUKS and DNS) and the workflow on GitHub
+
+### [2026-10-19T09:40:00Z] Deploy: Complete
+- **Phase**: deploy
+- **Action**: approval ("approve") + deploy-complete
+- **Artifacts**: deploy-summary.md; manifest `artifacts.deploy.status: approved`, `sharedPhases` + `deploy`, `state.status: completed`
+- **Outcome**: Workflow complete. Configuration generated and verified locally; no deployment executed. Remaining manual steps listed in deploy-summary.md (commit/PR, server setup, first deploy, cron, secret rotation)
+
+### [2026-10-19T09:45:00Z] Workflow Complete
+- **Feature**: smart-checkup-package-recommendation-portal
+- **Duration**: 2026-10-01T06:54:58Z → 2026-10-19T09:45:00Z
+- **Phases completed**: context, requirements, decomposition, implement, build, deploy
+- **Mode**: incremental
+- **Units**: 5 completed (foundation, identity-access, submission-job-lifecycle, pipeline-catalog-nextflow, results-guidance)
+- **Final status**: All phases complete. Deployment configured for Docker Compose on a Linux training server via GitHub Actions; no deployment executed. deploy-summary.md regenerated from the finalize template
+
+### [2026-10-19T09:55:00Z] Git: deploy configuration committed and pushed
+- **Action**: user "next step please" — 3 commits (`refactor(shared)`, `ci(deploy)`, `docs(aidlc)`) on `feat/results-guidance`, pushed `478c9ea..` to origin; no PR, no merge

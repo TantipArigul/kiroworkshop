@@ -3,14 +3,17 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-19T03:50:00Z"
+updated: "2026-10-19T09:40:00Z"
 state:
-  status: "active"
+  status: "completed"
   scope: "new"
   sharedPhases:
     - "context"
     - "requirements"
     - "decomposition"
+    - "implement"
+    - "build"
+    - "deploy"
   mode: "incremental"
   foundationSkipped: false
   implementationMode: null
@@ -32,6 +35,18 @@ artifacts:
     timestamp: "2026-10-01T07:16:38Z"
     files:
       - "units.md"
+  build:
+    status: "approved-with-warnings"
+    timestamp: "2026-10-19T07:10:00Z"
+    files:
+      - "build-report.md"
+  deploy:
+    status: "approved"
+    timestamp: "2026-10-19T09:40:00Z"
+    files:
+      - "decisions-deploy.md"
+      - "deployment.md"
+      - "deploy-summary.md"
 implementation:
   totalTasks: 0
   completedTasks: 0
@@ -128,6 +143,19 @@ decisions:
     contracts: "Shared contracts and REST boundary with owner checks"
     sequence: "Foundation -> Identity & Access -> Submission & Job Lifecycle -> Results & Guidance -> Integration verification"
     ownership: "Developer 1 foundation/identity; Developer 2 jobs; Developer 3 results/guidance"
+  deploy:
+    ci-platform: "GitHub Actions (extend quality.yml)"
+    target: "Docker Compose (Caddy + API container) on Linux server, LUKS volume; wf-renamefastq unavailable"
+    strategy: "Recreate, single instance"
+    environments: "local dev + one training server"
+    promotion: "CI verify + image by SHA; manual scripts/deploy.sh <sha> after reviewed merge"
+    iac: "None (Compose + Caddyfile + server checklist)"
+    secrets: "/etc/portal/portal.env root 600; rotate 90 days"
+    rollback: "scripts/rollback.sh <prev-sha> + pre-migration SQLite backup"
+    migrations: "deploy.sh: backup -> one-off prisma migrate deploy -> stop on failure"
+    verification: "smoke.sh: /health, /health/ready, landing, 401 API; fail -> rollback"
+    ciSecurity: "pnpm audit --prod high (fail), gitleaks pinned, image build + digest + SBOM"
+    runtimeImage: "prod deps via pnpm deploy --prod, non-root node"
 steering:
   updatedBy:
     product:
@@ -382,15 +410,15 @@ units:
       - "identity-access"
       - "submission-job-lifecycle"
   - name: "results-guidance"
-    status: "in-progress"
-    phase: "implement"
+    status: "completed"
+    phase: "complete"
     branch: "feat/results-guidance"
     implementationMode: "parallel"
     implementation:
       totalTasks: 20
       completedTasks: 20
       currentTask: null
-      currentWave: 6
+      currentWave: null
     decisions:
       design:
         generation: "Results & Guidance JobCompletionHandler writes result.json and finalize(tx) creates ResultArtifact + PackageRecommendation before COMPLETED"
@@ -421,6 +449,7 @@ units:
     completedPhases:
       - "design"
       - "tasks"
+      - "implement"
     artifacts:
       design:
         status: "approved"
