@@ -59,24 +59,24 @@
 ## Workflow ที่แนะนำ
 
 ```text
-┌─────────┐
-│ Context │
-└────┬────┘
+┌────────────┐
+│ Context ✅ │
+└────┬───────┘
      ▼
-┌──────────────┐
-│ Requirements │
-└──────┬───────┘
+┌─────────────────┐
+│ Requirements ✅ │
+└──────┬──────────┘
        ▼
-┌───────────────┐
-│ Decomposition │
-└───────┬───────┘
+┌──────────────────┐
+│ Decomposition ✅ │
+└───────┬──────────┘
         ▼
 ┌──────────────────────────────┐
-│ Foundation + Shared Kernel   │
+│ Foundation + Shared Kernel ✅│
 └──────────────┬───────────────┘
                ▼
 ┌─────────────────────────────────────────────┐
-│ Unit cycles: Design → Tasks → Implement     │
+│ Unit cycles: Design → Tasks → Implement 🔄  │
 │ ทำตาม dependency และแยก ownership ต่อทีม   │
 └───────────────────┬─────────────────────────┘
                     ▼

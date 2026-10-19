@@ -13,6 +13,9 @@ services:
     image: caddy:2.11.4
     depends_on:
       - api
+    environment:
+      # Host-run Nextflow mode: API_UPSTREAM=host.docker.internal:3000 (see docker/README.md).
+      - API_UPSTREAM=${API_UPSTREAM:-api:3000}
     ports:
       # Port 80 only redirects to HTTPS (Caddy automatic HTTPS); content is served on 443.
       - '80:80'

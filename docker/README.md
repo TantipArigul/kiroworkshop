@@ -139,6 +139,17 @@ pipeline as unavailable there and the Docker socket is never mounted. Use test o
    overall status `503`, because Smart Checkup still works. While a pipeline is unavailable the
    catalog shows the reason and a launch returns `503` before any file is received.
 
+7. **Switch modes** (local setup uses a separate gitignored `.env.host` with `STORAGE_ROOT` and
+   `NEXTFLOW_HOME` under `~/portal-data`; the database stays at `data/portal.db`):
+   ```zsh
+   # Host-run (Nextflow available)
+   docker compose stop api
+   API_UPSTREAM=host.docker.internal:3000 docker compose up -d --no-deps --force-recreate caddy
+   node --env-file=.env.host apps/api/dist/main.js
+   # Back to Compose (Smart Checkup only): stop the host API first
+   docker compose up -d --force-recreate api caddy
+   ```
+
 **Network exposure (warning).** In host-run mode the API listens on all interfaces
 (`server.listen(PORT)`), so it is reachable from your local network. Use it only on a trusted
 network with the macOS firewall on, and do not forward the port. A bind-host setting is a follow-up
