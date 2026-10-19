@@ -9,7 +9,6 @@ import {
   INPUT_FILE_HEADER,
   INPUT_MARKERS,
   NO_MOCK_RECOMMENDATION_RULE_ID,
-  jobStatusGenerator,
   nextflowResultSchema,
   recommendationSchema,
   type InputMarkerName,
@@ -17,6 +16,7 @@ import {
 import {
   artifactRelativePathGenerator,
   displayNameGenerator,
+  jobStatusGenerator,
   recommendationInputGenerator,
   statsContentGenerator,
   statsRowGenerator,

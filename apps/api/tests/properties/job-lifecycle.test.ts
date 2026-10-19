@@ -4,12 +4,8 @@ import { join, sep } from 'node:path';
 import fc from 'fast-check';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  INPUT_MARKERS,
-  TERMINAL_JOB_STATUSES,
-  idempotencyKeyGenerator,
-  jobStatusGenerator,
-} from '@portal/shared';
+import { INPUT_MARKERS, TERMINAL_JOB_STATUSES } from '@portal/shared';
+import { idempotencyKeyGenerator, jobStatusGenerator } from '@portal/shared/testing';
 
 import { resolvePrivateStoragePath } from '../../src/infrastructure/storage-path.js';
 import { validateInputFile } from '../../src/modules/jobs/input-validator.js';

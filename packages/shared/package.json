@@ -6,7 +6,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./constants": "./dist/constants.js",
-    "./run-input": "./dist/validation/run-input.js"
+    "./run-input": "./dist/validation/run-input.js",
+    "./testing": "./dist/testing/generators.js"
   },
   "dependencies": {
     "zod": "4.6.5"

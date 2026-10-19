@@ -23,7 +23,6 @@ import {
   jobCancelResponseSchema,
   jobDetailSchema,
   jobProgressSchema,
-  jobStatusGenerator,
   jobStatusSchema,
   jobSummarySchema,
   pipelineDetailSchema,
@@ -48,6 +47,7 @@ import {
   paginationSchema,
 } from './index.js';
 import { errorCodeSchema } from './schemas/index.js';
+import { jobStatusGenerator } from './testing/generators.js';
 
 const requestId = '46d1f548-322b-41d6-b67f-3876622e1b63';
 
