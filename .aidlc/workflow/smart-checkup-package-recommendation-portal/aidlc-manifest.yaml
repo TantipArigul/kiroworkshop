@@ -3,14 +3,17 @@ feature: "smart-checkup-package-recommendation-portal"
 language: "th"
 platform: "kiro"
 created: "2026-10-01T06:54:58Z"
-updated: "2026-10-17T06:00:00Z"
+updated: "2026-10-19T09:40:00Z"
 state:
-  status: "active"
+  status: "completed"
   scope: "new"
   sharedPhases:
     - "context"
     - "requirements"
     - "decomposition"
+    - "implement"
+    - "build"
+    - "deploy"
   mode: "incremental"
   foundationSkipped: false
   implementationMode: null
@@ -32,6 +35,18 @@ artifacts:
     timestamp: "2026-10-01T07:16:38Z"
     files:
       - "units.md"
+  build:
+    status: "approved-with-warnings"
+    timestamp: "2026-10-19T07:10:00Z"
+    files:
+      - "build-report.md"
+  deploy:
+    status: "approved"
+    timestamp: "2026-10-19T09:40:00Z"
+    files:
+      - "decisions-deploy.md"
+      - "deployment.md"
+      - "deploy-summary.md"
 implementation:
   totalTasks: 0
   completedTasks: 0
@@ -64,6 +79,11 @@ versions:
     prisma-adapter-better-sqlite3: "7.10.0"
     better-sqlite3: "12.6.0"
     csrf-sync: "4.2.1"
+    busboy: "1.6.0"
+    "@types/busboy": "1.5.5"
+    nextflow (host): "26.10.2"
+    openjdk (host, via nextflow formula): "25.0.4.1"
+    si-lol/wf-renamefastq: "1.0.3"
     cookie-parser: "not used with csrf-sync"
 context-summary:
   type: "Greenfield"
@@ -97,6 +117,23 @@ decisions:
     outOfScope: "Real medical/genomic processing, diagnosis, AI training, patient data, email, multi-pipeline, HA, large scale, analytics"
     priority: "Security/foundation, frontend mock, backend and executor, polish, verification"
     licence: "MIT License"
+    addOnPipelineCatalog:
+      status: "approved"
+      timestamp: "2026-10-18T01:10:00Z"
+      branch: "feat/pipeline-catalog-nextflow"
+      file: "decisions-requirements-addon-pipeline-catalog.md"
+      catalog: "Smart Checkup (simulated) + si-lol/wf-renamefastq 1.0.3 (local Nextflow, registry reviewed via PR)"
+      input: "Single FASTQ | folder (one sample) | barcode sub-folders; sample sheet required for barcode case only; <= 1 GB and <= 10 FASTQ per run"
+      demultiplex: "Included; not allowed with barcode sub-folder input"
+      data: "Test/public non-patient FASTQ only with notice"
+      network: "Outbound only in one-time admin setup; runs NXF_OFFLINE=true"
+      access: "All authenticated users, owner-only"
+      concurrency: "MAX_CONCURRENT_RUNS=1; per run 4 CPUs / 8 GB"
+      runName: "Not unique, 1-64 chars, display label"
+      cancel: "Cancel from QUEUED/RUNNING to terminal CANCELLED for both pipelines; keep record until retention"
+      results: "Deferred to Results & Guidance via output manifest"
+      retention: "7 days; delete work/ when run ends"
+      unit: "New unit pipeline-catalog-nextflow, owner Developer 2"
   decomposition:
     need: "Foundation and domain units"
     architecture: "Modular monolith"
@@ -106,6 +143,19 @@ decisions:
     contracts: "Shared contracts and REST boundary with owner checks"
     sequence: "Foundation -> Identity & Access -> Submission & Job Lifecycle -> Results & Guidance -> Integration verification"
     ownership: "Developer 1 foundation/identity; Developer 2 jobs; Developer 3 results/guidance"
+  deploy:
+    ci-platform: "GitHub Actions (extend quality.yml)"
+    target: "Docker Compose (Caddy + API container) on Linux server, LUKS volume; wf-renamefastq unavailable"
+    strategy: "Recreate, single instance"
+    environments: "local dev + one training server"
+    promotion: "CI verify + image by SHA; manual scripts/deploy.sh <sha> after reviewed merge"
+    iac: "None (Compose + Caddyfile + server checklist)"
+    secrets: "/etc/portal/portal.env root 600; rotate 90 days"
+    rollback: "scripts/rollback.sh <prev-sha> + pre-migration SQLite backup"
+    migrations: "deploy.sh: backup -> one-off prisma migrate deploy -> stop on failure"
+    verification: "smoke.sh: /health, /health/ready, landing, 401 API; fail -> rollback"
+    ciSecurity: "pnpm audit --prod high (fail), gitleaks pinned, image build + digest + SBOM"
+    runtimeImage: "prod deps via pnpm deploy --prod, non-root node"
 steering:
   updatedBy:
     product:
@@ -292,12 +342,130 @@ units:
         totalTasks: 17
         files:
           - "tasks.md"
+  - name: "pipeline-catalog-nextflow"
+    status: "completed"
+    phase: "complete"
+    owner: "Developer 2"
+    addedBy: "requirements Add-on 2026-10-18"
+    branch: "feat/pipeline-catalog-nextflow"
+    implementationMode: "parallel"
+    implementation:
+      totalTasks: 25
+      completedTasks: 25
+      currentTask: null
+      currentWave: null
+    decisions:
+      design:
+        upload: "busboy streaming to staging with byte/file counters; abort and delete on limit"
+        folderPicker: "webkitdirectory + single-file input; relative path per file; server validates every segment"
+        api: "GET /pipelines, GET /pipelines/{id}, POST /pipelines/{id}/runs (multipart), POST /jobs/{id}/cancel; Smart Checkup keeps POST /jobs"
+        executor: "ExecutorAdapter port in existing worker; SimulatedAdapter + NextflowAdapter; queue capacity in worker"
+        process: "spawn without shell, params file, fixed trace path, Job-ID run name, env allowlist; progress from trace/log; cancel SIGTERM→grace→SIGKILL + container cleanup"
+        registry: "Typed TypeScript module in apps/api pipelines module"
+        data: "Job + pipelineId, pipelineRevision, runName, progressJson; JobInputFile; JobOutputFile"
+        routes: "/pipelines, /pipelines/:id/run, /jobs overview, /jobs/:id with progress + Cancel; /jobs/new redirects"
+        packaging: "Host-run API for Nextflow; Compose shows pipeline unavailable; no Docker socket"
+        setup: "CLI pipelines:setup (online) + offline readiness/pipelines:check"
+        correctness: "PBT P7-P13"
+        nextflowTesting: "Fake nextflow/docker executables; real local suite with NEXTFLOW_IT=1"
+        observability: "Minimal + per-pipeline readiness"
+        errorTracking: "Log-based only; run logs kept on server until retention"
+        lifecycle: "Health + readiness + graceful shutdown stopping Nextflow; interrupted runs FAILED on restart"
+        source: "System recommendations applied on user instruction 2026-10-18"
+      tasks:
+        strategy: "Component/dependency-first; executor port refactor first"
+        waveOrder: "Setup + real-Nextflow spike -> FE + mock json -> BE + real API -> CLI/readiness/retention/ops -> Tests/Verify; stop per wave"
+        testing: "Test-after; Unit 2 tests after every jobs change; integration + PBT P7-P13 mandatory"
+        scope: "API unit/integration with fake bins, PBT, local real-run (NEXTFLOW_IT=1), web unit; E2E deferred"
+        externalDeps: "Real in spike, mock json in W2, fake in W3-W4 with real run per adapter task, full real-run in W5"
+        granularity: "Single concern, 0.5-2 days"
+        parallelism: "Sequential waves; non-overlapping parallel within wave only"
+        testData: "Synthetic FASTQ in tests; pipeline test data from Nextflow cache; nothing committed"
+    completedPhases:
+      - "design"
+      - "tasks"
+      - "implement"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-18T01:55:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-18T02:20:00Z"
+        totalTasks: 25
+        files:
+          - "tasks.md"
+    stories:
+      - "US-016"
+      - "US-017"
+      - "US-018"
+      - "US-019"
+      - "US-020"
+      - "US-021"
+    dependencies:
+      - "foundation"
+      - "identity-access"
+      - "submission-job-lifecycle"
   - name: "results-guidance"
-    status: "pending"
-    phase: "design"
+    status: "completed"
+    phase: "complete"
+    branch: "feat/results-guidance"
+    implementationMode: "parallel"
+    implementation:
+      totalTasks: 20
+      completedTasks: 20
+      currentTask: null
+      currentWave: null
+    decisions:
+      design:
+        generation: "Results & Guidance JobCompletionHandler writes result.json and finalize(tx) creates ResultArtifact + PackageRecommendation before COMPLETED"
+        ruleEngine: "Typed TypeScript rules, RULESET_VERSION append-only, priority first-match, NO_MATCH stored"
+        ruleContent: "Kiro-drafted 5 synthetic training rules + NO_MATCH; threshold = midpoint of validation range; user reviews in design"
+        api: "GET /jobs/{id}/result, /artifacts/{artifactId}/download, /artifacts/{artifactId}/view; 409 not completed, 404 missing/foreign, 410 GONE removed files"
+        nextflowResult: "Per-sample seqkit stats + bars + outputs by category; execution report/timeline viewable in sandboxed iframe; DAG download only"
+        download: "Attachment, sanitized filename, content-type allowlist (html → octet-stream), nosniff, CSP sandbox, no-store, audit RESULT_DOWNLOADED, single files"
+        visualization: "Hand-built SVG/CSS bars with tokens + paired tables"
+        references: "Tool/project docs only, no medical links"
+        tutorial: "Step-by-step /help + Try the sample (/pipelines/smart-checkup/run?sample=1) + fallback"
+        licence: "Root LICENSE MIT (c) 2026 SamNohserver contributors + public /license + session-cookie notice, no consent banner"
+        routes: "/jobs/:jobId/result + View result on job detail"
+        correctness: "PBT P14-P18"
+        observability: "Minimal"
+        errorTracking: "Log-based only"
+        lifecycle: "Foundation health + readiness + graceful shutdown"
+        conflicts: "HTML report on page via opaque-origin sandbox (requirements Add-on); DAG download only; copyright 2026 SamNohserver contributors"
+      tasks:
+        strategy: "Component/dependency-first; C1 + GONE → ports → C2 → C3 → C4 → C5 → C6 → C7 → web"
+        waveOrder: "Setup → FE + mock json → BE + real API + browser report check → Operations → Tests/Verify; stop per wave"
+        testing: "Test-after; jobs/pipelines tests after every port change; integration + PBT P14–P18 mandatory"
+        scope: "API unit/integration/PBT, real-run /result and /view, web unit; manual browser smoke W3/W5; E2E deferred"
+        testData: "Synthetic TSV/HTML/fake fastq.gz in tests; nothing from real runs committed"
+        granularity: "Single concern, 0.5–2 days"
+        parallelism: "Sequential waves; non-overlapping parallel within wave only"
+        smartCheckupSwitch: "Default handler → C3 in W3; older COMPLETED jobs → 410, no backfill"
+    completedPhases:
+      - "design"
+      - "tasks"
+      - "implement"
+    artifacts:
+      design:
+        status: "approved"
+        timestamp: "2026-10-18T15:50:00Z"
+        format: "compact"
+        files:
+          - "design.md"
+      tasks:
+        status: "approved"
+        timestamp: "2026-10-18T16:20:00Z"
+        totalTasks: 20
+        files:
+          - "tasks.md"
     owner: "Developer 3"
     dependencies:
       - "foundation"
       - "identity-access"
       - "submission-job-lifecycle"
-    artifacts: {}
+      - "pipeline-catalog-nextflow"

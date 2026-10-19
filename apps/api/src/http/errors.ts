@@ -19,6 +19,21 @@ export class HttpError extends Error {
   }
 }
 
+/** Safe default message of `410 GONE` (Results & Guidance API Specification). */
+export const GONE_MESSAGE =
+  'The result files were removed by the retention policy or are no longer available.';
+
+/**
+ * `410 GONE`: the record still exists but its files were removed (retention) or are missing.
+ * Handled by the error middleware like every other `HttpError`; never carries a path.
+ */
+export class GoneError extends HttpError {
+  public constructor(message: string = GONE_MESSAGE) {
+    super(410, 'GONE', message);
+    this.name = 'GoneError';
+  }
+}
+
 export function createErrorResponse(
   code: ApiErrorCode,
   message: string,

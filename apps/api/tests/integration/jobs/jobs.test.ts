@@ -153,7 +153,9 @@ describe('POST /api/v1/jobs (US-004, US-005, US-008)', () => {
       field: 'file.line 2',
       message: 'Line 2: The value must be between 10 and 70.',
     });
-    expect(JSON.stringify(badFile.body)).not.toContain('999');
+    // Only the error must not echo the input; `meta.requestId` is a random UUID that can
+    // legitimately contain "999" (was a ~1% flake when the whole body was checked).
+    expect(JSON.stringify(badFile.body.error)).not.toContain('999');
     expect(await context.prisma.job.count()).toBe(before);
   });
 
@@ -246,6 +248,10 @@ describe('GET /api/v1/jobs and /api/v1/jobs/:jobId (US-006, US-007, US-002)', ()
     );
     expect(result.markers).toHaveLength(10);
     expect(result.parameters).not.toHaveProperty('simulateFailure');
+    // Default completion handler is the Results & Guidance builder (result.json v2 + rows).
+    expect(result.schemaVersion).toBe(2);
+    expect(await context.prisma.resultArtifact.count({ where: { jobId } })).toBe(1);
+    expect(await context.prisma.packageRecommendation.count({ where: { jobId } })).toBe(1);
     const transitions = (await auditRows('JOB_STATUS_CHANGED', jobId)).map(
       (row) => row.metadataJson,
     );

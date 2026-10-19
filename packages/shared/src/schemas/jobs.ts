@@ -9,9 +9,16 @@ import {
   INPUT_FILE_NAME_MAX_LENGTH,
   INPUT_MARKERS,
   LIFESTYLE_FACTORS,
+  RUN_NAME_MAX_LENGTH,
   SAMPLE_LABEL_MAX_LENGTH,
 } from '../constants.js';
 import { jobStatusSchema } from './common.js';
+import {
+  jobOutputsSummarySchema,
+  jobProgressSchema,
+  jobRunInfoSchema,
+  pipelineIdSchema,
+} from './pipelines.js';
 
 const JOB_PAGE_SIZE_MAX = 100;
 const SUMMARY_MAX_LENGTH = 256;
@@ -76,8 +83,15 @@ const isoDateTimeSchema = z.iso.datetime({ offset: true });
 export const jobSummarySchema = z
   .object({
     id: jobIdSchema,
+    /** Kept for compatibility; equals `runName`. */
     sampleLabel: z.string().max(SAMPLE_LABEL_MAX_LENGTH),
+    pipelineId: pipelineIdSchema,
+    pipelineName: z.string().min(1).max(128),
+    runName: z.string().max(RUN_NAME_MAX_LENGTH),
     status: jobStatusSchema,
+    /** 1-based position among QUEUED jobs of the same executor; `null` unless QUEUED. */
+    queuePosition: z.number().int().min(1).nullable(),
+    progress: jobProgressSchema.nullable(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema,
     expiresAt: isoDateTimeSchema,
@@ -94,14 +108,22 @@ export const jobStatusHistoryItemSchema = z
 
 export const jobDetailSchema = jobSummarySchema
   .extend({
-    parameters: jobParametersSchema,
+    /** Smart Checkup only; `null` for Nextflow runs. */
+    parameters: jobParametersSchema.nullable(),
+    /** Smart Checkup only; `null` for Nextflow runs. */
     file: z
       .object({
         name: z.string().max(INPUT_FILE_NAME_MAX_LENGTH),
         sizeBytes: z.number().int().min(0),
         rowCount: z.number().int().min(0),
       })
-      .strict(),
+      .strict()
+      .nullable(),
+    /** Nextflow runs only; `null` for Smart Checkup. */
+    run: jobRunInfoSchema.nullable(),
+    /** Output manifest totals of a COMPLETED Nextflow run, otherwise `null`. */
+    outputs: jobOutputsSummarySchema.nullable(),
+    cancellable: z.boolean(),
     history: z.array(jobStatusHistoryItemSchema),
     failureSummary: z.string().max(SUMMARY_MAX_LENGTH).nullable(),
     statusUrl: z.string().min(1),
@@ -112,6 +134,12 @@ export const jobSubmitResponseSchema = z
   .object({
     job: jobSummarySchema,
     statusUrl: z.string().min(1),
+  })
+  .strict();
+
+export const jobCancelResponseSchema = z
+  .object({
+    job: jobSummarySchema,
   })
   .strict();
 

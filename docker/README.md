@@ -94,14 +94,214 @@ state; `EXECUTOR_ENABLED=false` stops processing and makes `/health/ready` repor
 `executor: failed`, so new submissions are refused with `503` instead of queueing silently. A job
 left `Running` by a restart is marked `Failed` with a safe message when the API starts again.
 
+### Nextflow pipelines (host-run mode)
+
+The `wf-renamefastq` pipeline runs local, offline Nextflow + Docker child processes. That works only
+when the API runs on the host (`pnpm --filter @portal/api build && node --env-file=.env
+apps/api/dist/main.js`); Docker Compose keeps `NEXTFLOW_ENABLED=false`, so the catalog shows the
+pipeline as unavailable there and the Docker socket is never mounted. Use test or public FASTQ only
+(no patient data), at most 1 GB and 10 FASTQ files per run.
+
+1. **Install the tested tools** (macOS arm64): `brew install openjdk@25 nextflow` and Docker Desktop.
+   Tested with Nextflow 26.10.2 (OpenJDK 25), Docker Desktop with Docker Engine 29.6.1, pipeline
+   `si-lol/wf-renamefastq` 1.0.3 and plugin `nf-validation@1.1.3`. A Homebrew upgrade of Nextflow can
+   break the pinned pipeline: `pipelines:check` prints the version in use.
+2. **Choose one narrow data parent.** Containers bind-mount the common root of the job directory and
+   the pipeline assets, so keep `NEXTFLOW_HOME` and `STORAGE_ROOT` under one dedicated folder, e.g.
+   `~/portal-data/nxf-home` and `~/portal-data/storage` (`chmod 700 ~/portal-data`, on an encrypted
+   volume as in step 1). If both stay under your home folder the whole home folder is mounted into
+   pipeline containers. Docker Desktop must share that folder (Settings → Resources → File sharing;
+   `/Users` is shared by default).
+3. **Configure** `.env`: `NEXTFLOW_ENABLED=true`, `NEXTFLOW_HOME`, `STORAGE_ROOT`, and optionally
+   `NEXTFLOW_BIN`/`DOCKER_BIN` (absolute paths), `NEXTFLOW_MAX_CONCURRENT_RUNS` (default 1),
+   `NEXTFLOW_MAX_CPUS`/`NEXTFLOW_MAX_MEMORY_GB`/`NEXTFLOW_MAX_TIME_HOURS`,
+   `NEXTFLOW_CANCEL_GRACE_MS` and `NEXTFLOW_READINESS_INTERVAL_MS`.
+4. **Set up once, online** (an administrator; this is the only step that uses the network). It pulls
+   the registry revision, plugin and every registry image (`--platform linux/amd64`) and prints the
+   image digests for review. An image the pipeline names without a pullable registry (MultiQC in
+   1.0.3) is pulled from the source in the registry (`quay.io`) and tagged with the pipeline's name. Repository, revision and images come from the reviewed registry
+   (`apps/api/src/modules/pipelines/registry.ts`) and cannot be passed as arguments.
+   ```zsh
+   pnpm --filter @portal/api build
+   node --env-file=.env apps/api/dist/cli/pipelines.js pipelines:setup
+   ```
+5. **Check, offline** (any time; exits 1 when something is missing). It runs the same checks as the
+   API readiness (Nextflow, Docker, every image, cached revision via `nextflow info`, plugin), the
+   offline-config guard (`custom_config_base` is a local path that does not exist, and the newest
+   run's `.nextflow.log` shows no remote config load) and a Docker file-sharing test of
+   `STORAGE_ROOT` (`--pull never`, no network).
+   ```zsh
+   node --env-file=.env apps/api/dist/cli/pipelines.js pipelines:check
+   ```
+6. **Readiness**: the API re-runs those checks in the background every
+   `NEXTFLOW_READINESS_INTERVAL_MS` (each tool call times out after 20 s). `/health/ready` adds
+   `checks["pipeline:wf-renamefastq"]` (`ok`/`failed`) when Nextflow is enabled; it never makes the
+   overall status `503`, because Smart Checkup still works. While a pipeline is unavailable the
+   catalog shows the reason and a launch returns `503` before any file is received.
+
+7. **Switch modes** (local setup uses a separate gitignored `.env.host` with `STORAGE_ROOT` and
+   `NEXTFLOW_HOME` under `~/portal-data`; the database stays at `data/portal.db`):
+   ```zsh
+   # Host-run (Nextflow available)
+   docker compose stop api
+   API_UPSTREAM=host.docker.internal:3000 docker compose up -d --no-deps --force-recreate caddy
+   node --env-file=.env.host apps/api/dist/main.js
+   # Back to Compose (Smart Checkup only): stop the host API first
+   docker compose up -d --force-recreate api caddy
+   ```
+
+**Network exposure (warning).** In host-run mode the API listens on all interfaces
+(`server.listen(PORT)`), so it is reachable from your local network. Use it only on a trusted
+network with the macOS firewall on, and do not forward the port. A bind-host setting is a follow-up
+change request.
+
+**Disk and time.** Per run expect up to 1 GB input, about the same again for output, plus a
+temporary `work/` directory that is deleted as soon as the run ends. Demultiplexing (Dorado under
+amd64 emulation) can take about 8 minutes per run. Jobs, uploads, run logs and outputs follow the
+7-day retention; upload staging (`uploads/*`) that has not been written for an hour is removed by
+the same sweep.
+
+### Results, reports and licence
+
+- **Result page** — `/jobs/{jobId}/result` (button "View result" on a `Completed` job). The owner
+  sees a summary, bars with a paired table and legend, the mock recommendation (Smart Checkup) or
+  per-sample read statistics (wf-renamefastq), the file list with downloads, references and the
+  training disclaimer. API: `GET /api/v1/jobs/{jobId}/result`. A job that is not `Completed`
+  answers `409`; another user's or an unknown job `404`; a result whose files are gone (removed by
+  retention or missing) `410`; a stored Smart Checkup result that fails its schema `500` with a safe
+  message. Smart Checkup jobs completed before Results & Guidance was installed have no result
+  rows and show the `410` message (not backfilled).
+- **Downloads** — always an attachment (`…/artifacts/{artifactId}/download`), one file at a time,
+  with a sanitized file name; `.html` and unknown types are sent as `application/octet-stream`.
+  Each download writes a `RESULT_DOWNLOADED` audit event.
+- **Report viewer** — only the wf-renamefastq `pipeline_info/execution_report_*.html` and
+  `execution_timeline_*.html` open in the page (`…/view`), inside `<iframe sandbox="allow-scripts">`
+  with a CSP that sandboxes the document and blocks every network request. The DAG report
+  (`pipeline_dag_*.html`) loads scripts from the internet, so it is **download-only** and the page
+  says so. To switch the viewer off in an incident, empty `VIEWABLE_REPORT_PATTERNS` in
+  `apps/api/src/modules/results/report-policy.ts` and redeploy; downloads keep working.
+- **Mock rules (`RULESET_VERSION`)** — recommendations come from the typed mock rules in
+  `apps/api/src/modules/results/recommendation-rules.ts` (`RULESET_VERSION =
+'mock-rules-2026.10-1'`). Rule sets are append-only: changing any rule means adding a new version
+  to `RULESETS` through a reviewed PR. Each result stores the version it was produced with (in
+  `result.json` and `PackageRecommendation.ruleVersion`), so earlier results keep their version.
+  Rules use a synthetic training midpoint, never a clinical threshold.
+- **Retention** — deleting a job (owner or the 7-day sweep) also deletes its `ResultArtifact` and
+  `PackageRecommendation` rows (cascade) and `jobs/{jobId}/` with `result.json` and Nextflow
+  outputs; the old result, download and view URLs then answer `404`.
+- **Logs** — result events carry IDs only: `Result generated` (`jobId`, `ruleId`, `ruleVersion`),
+  `Result generation failed` (`jobId`, `errorType`), `Result unavailable` (`jobId`,
+  `reason: MISSING|INVALID`), `Artifact served` (`jobId`, `artifactId`, `category`,
+  `mode: download|view`, `bytes`) and `Artifact missing` (`jobId`, `artifactId`). File names,
+  sample aliases, storage paths, marker values and report content are never logged; the
+  `Content-Disposition` response header is redacted from request logs.
+- **Cookies** — the portal sets one essential session cookie (`portal_session`: `HttpOnly`,
+  `SameSite=strict`, `Secure`), so there is no consent banner; the landing page and `/license` say
+  so. A future permanent cookie needs a consent notice designed first, and third-party, analytics
+  or tracking cookies stay off until the user opts in.
+- **Licence** — MIT, "Copyright (c) 2026 SamNohserver contributors", in `LICENSE` at the repository
+  root and on the public page `/license`.
+
 ## 5. Incident playbook (local MVP)
 
 1. **Detect** — in the Audit viewer (`AUDITOR`/`ADMIN`) filter `Login failure`, `Account locked`,
    `Authorization denied`, `Job input rejected` and `Job deleted` with outcome `Failure`; note actor
    IDs and request IDs.
 2. **Contain** — `user:disable` the affected account; this revokes all of its sessions. For an
-   executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`).
+   executor fault, set `EXECUTOR_ENABLED=false` and restart the API (submissions return `503`); for a
+   Nextflow fault set `NEXTFLOW_ENABLED=false`, restart, then run `pipelines:check` (and
+   `pipelines:setup` if assets are missing) before enabling it again. For a wrong mock
+   recommendation, add a new `RULESET_VERSION` (existing results keep theirs); for a report viewer
+   problem, empty `VIEWABLE_REPORT_PATTERNS` and redeploy (see "Results, reports and licence").
 3. **Remediate** — `user:reset-password` with a new temporary password; review role with `user:set-role`.
 4. **Recover** — `user:enable` once the user has been contacted out of band.
 5. **Review** — record the timeline from audit events and request IDs; logs never contain passwords,
    session tokens or e-mail addresses.
+
+## 7. Training server deployment (Linux)
+
+Deployment spec: `.aidlc/specs/smart-checkup-package-recommendation-portal/deployment.md`. One Linux
+server runs Caddy and the API container with Docker Compose. Nextflow pipelines are not available there
+(no Docker socket), so the catalog shows `wf-renamefastq` as unavailable. Synthetic or test data only.
+
+### One-time server setup
+
+1. **Host**: Linux with Docker Engine and the Compose plugin, `git`, `curl`. Firewall: allow 80, 443 and
+   SSH from admin addresses only (`ufw allow 80,443/tcp`; `ufw allow from <admin-ip> to any port 22`).
+2. **Encrypted data volume**: a LUKS volume mounted at `/srv/portal-data`; `deploy.sh` refuses to run
+   when the path is not on a device-mapper volume.
+   ```sh
+   sudo chown 1000:1000 /srv/portal-data && sudo chmod 700 /srv/portal-data
+   sudo install -d -m 755 /srv/portal-web
+   ```
+3. **Runtime secrets** (root only, never in git or the image):
+   ```sh
+   sudo install -d -m 700 /etc/portal
+   sudo install -m 600 -o root -g root .env.production.example /etc/portal/portal.env
+   sudoedit /etc/portal/portal.env   # SESSION_SECRET=$(openssl rand -hex 48), ALLOWED_ORIGINS=https://<hostname>
+   ```
+4. **Caddy config with ACME** (the repository `docker/Caddyfile` keeps `tls internal` for local use):
+   ```sh
+   sed '/tls internal/d' docker/Caddyfile | sudo tee /etc/portal/Caddyfile >/dev/null
+   ```
+   DNS for `<hostname>` must point at the server and port 80 must be reachable before the first start.
+5. **Deploy settings** (non-secret) in `/etc/portal/deploy.env`:
+   ```sh
+   DOMAIN=<hostname>
+   ENCRYPTED_DATA_ROOT=/srv/portal-data
+   WEB_ROOT=/srv/portal-web
+   ENV_FILE=/etc/portal/portal.env
+   CADDYFILE=/etc/portal/Caddyfile
+   ```
+6. **Clone** the repository (read-only deploy key or HTTPS token stored on the server only) and keep the
+   working tree clean.
+
+### Deploy a release
+
+Only a commit on `main` that passed review and the `quality` workflow (`verify`, `security`, `image`):
+
+```sh
+sudo scripts/deploy.sh <commit-sha>
+```
+
+The script checks the preconditions, builds the images and web bundle from that commit, backs up SQLite,
+stops the API (graceful shutdown), runs `prisma migrate deploy` as a one-off container, starts the new
+release and runs `scripts/smoke.sh https://<hostname>`. A failed migration restarts the previous API; a
+failed smoke test rolls back automatically. The last three releases stay on the server.
+
+### Roll back
+
+```sh
+sudo scripts/rollback.sh                       # previous release from deployed-sha.previous
+sudo scripts/rollback.sh <sha>                 # a specific kept release
+sudo scripts/rollback.sh <sha> --restore-db portal-<timestamp>-before-<sha>.db
+```
+
+`--restore-db` returns the database to the backup taken before that deployment and deletes every change
+made after it (it asks for confirmation and saves the current database first). Use it only when a new
+migration is not backward compatible.
+
+### Backups, smoke test and secret rotation
+
+- `sudo scripts/backup-db.sh portal-api:<sha> daily` makes an online SQLite backup in
+  `/srv/portal-data/backups/` (mode 600, newest 7 kept). Add it to the daily cron next to the cleanup
+  commands; the backups share the encrypted volume, so an off-site copy is out of scope.
+- `scripts/smoke.sh https://<hostname>` can be run at any time (add `--cacert <file>` for a private CA).
+- Rotate `SESSION_SECRET` every 90 days or on suspicion: edit `/etc/portal/portal.env`, run
+  `sudo scripts/deploy.sh <current-sha>`, then `identity sessions:cleanup`. Every user must sign in again.
+- Run the identity, jobs and cleanup CLIs as one-off containers of the deployed image:
+  `sudo docker compose -p portal run --rm api node apps/api/dist/cli/identity.js --help`
+  (export the variables from `/etc/portal/deploy.env` plus `API_IMAGE=portal-api:<sha>` first).
+
+### CI gates
+
+`.github/workflows/quality.yml` runs on every pull request and push to `main`:
+
+| Job        | Checks                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `verify`   | format, lint, type-check, tests, property tests, tokens, build, whitespace                                                                 |
+| `security` | `pnpm audit --prod --audit-level=high` (fails), full `pnpm audit` (report only), gitleaks 8.30.1 (checksum verified) over the full history |
+| `image`    | builds the API runtime and migration images; uploads the image ID and an SPDX SBOM                                                         |
+
+Reviewed gitleaks false positives are listed in `.gitleaksignore` by fingerprint. CI holds no runtime
+secret and never connects to the server.

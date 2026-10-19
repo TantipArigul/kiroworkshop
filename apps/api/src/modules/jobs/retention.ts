@@ -5,6 +5,8 @@ import type { JobService } from './job.service.js';
 
 const BATCH_SIZE = 100;
 const MAX_BATCHES = 50;
+/** `uploads/{uploadId}/` older than this (no write for an hour) is an abandoned upload. */
+export const UPLOAD_STAGING_MAX_AGE_MS = 60 * 60 * 1000;
 
 export type SweepResult = { deleted: number; failed: number; orphansRemoved: number };
 
@@ -19,7 +21,9 @@ type SweepOptions = {
 /**
  * Seven-day retention (design C7, US-014 AC2–3). Expired jobs are removed with the same policy
  * as an owner deletion; a failure is audited (visible to AUDIT_READ users) and the sweep moves
- * on. Directories without a job row — left by an interrupted deletion — are removed too.
+ * on. Directories without a job row — left by an interrupted deletion — are removed too, and so
+ * are upload staging directories (`uploads/*`) that have not been written for over an hour.
+ * Deleting a job removes its whole `jobs/{id}/` directory (input, run and output for Nextflow).
  */
 export function createRetentionSweeper({ audit, jobs, logger, prisma, storage }: SweepOptions) {
   return async function sweepExpiredJobs(
@@ -85,6 +89,21 @@ export function createRetentionSweeper({ audit, jobs, logger, prisma, storage }:
             'Orphaned job storage removal failed',
           );
         }
+      }
+    }
+
+    // Staging of uploads interrupted before a job was created (design C3); counted as orphans.
+    const staleBefore = new Date(now.getTime() - UPLOAD_STAGING_MAX_AGE_MS);
+
+    for (const uploadId of await storage.listStaleUploadIds(staleBefore)) {
+      try {
+        await storage.removeUpload(uploadId);
+        result.orphansRemoved += 1;
+      } catch (error) {
+        logger.error(
+          { errorType: error instanceof Error ? error.name : 'unknown' },
+          'Stale upload staging removal failed',
+        );
       }
     }
 

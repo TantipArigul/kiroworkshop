@@ -34,6 +34,27 @@ export type AppConfig = {
   retentionSweepIntervalMs: number;
 };
 
+/**
+ * Pipeline Catalog & Nextflow executor settings. Kept as a separate type so modules that only
+ * need the core settings (and their test fixtures) keep accepting `AppConfig`.
+ */
+export type NextflowConfig = {
+  nextflowEnabled: boolean;
+  nextflowBin: string;
+  dockerBin: string;
+  /** Passed to child processes as `NXF_HOME`; `null` keeps Nextflow's default. */
+  nextflowHome: string | null;
+  nextflowMaxConcurrentRuns: number;
+  nextflowMaxCpus: number;
+  nextflowMaxMemoryGb: number;
+  nextflowMaxTimeHours: number;
+  nextflowCancelGraceMs: number;
+  nextflowReadinessIntervalMs: number;
+};
+
+/** Everything `loadConfig` returns. */
+export type PortalConfig = AppConfig & NextflowConfig;
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 // Must not be lower than the retention window enforced by the AuditEvent delete trigger.
@@ -87,8 +108,37 @@ const rawConfigSchema = z
       .min(60_000)
       .max(86_400_000)
       .default(3_600_000),
+    // Pipeline Catalog & Nextflow Executor. Disabled by default (Compose/CI); enable on a host
+    // that has Nextflow and Docker Desktop.
+    NEXTFLOW_ENABLED: z.enum(['true', 'false']).default('false'),
+    NEXTFLOW_BIN: z.string().min(1).max(4096).default('nextflow'),
+    DOCKER_BIN: z.string().min(1).max(4096).default('docker'),
+    NEXTFLOW_HOME: z
+      .string()
+      .max(4096)
+      .optional()
+      .transform((value) => (value ? value : undefined)),
+    NEXTFLOW_MAX_CONCURRENT_RUNS: z.coerce.number().int().min(1).max(4).default(1),
+    NEXTFLOW_MAX_CPUS: z.coerce.number().int().min(1).max(16).default(4),
+    NEXTFLOW_MAX_MEMORY_GB: z.coerce.number().int().min(2).max(64).default(8),
+    NEXTFLOW_MAX_TIME_HOURS: z.coerce.number().int().min(1).max(48).default(8),
+    NEXTFLOW_CANCEL_GRACE_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
+    NEXTFLOW_READINESS_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(10_000)
+      .max(600_000)
+      .default(60_000),
   })
   .superRefine((value, context) => {
+    if (value.NEXTFLOW_HOME !== undefined && !isAbsolute(value.NEXTFLOW_HOME)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Must be an absolute path.',
+        path: ['NEXTFLOW_HOME'],
+      });
+    }
+
     if (
       value.SESSION_IDLE_TIMEOUT_MINUTES * MINUTE_MS >
       value.SESSION_ABSOLUTE_TIMEOUT_HOURS * HOUR_MS
@@ -117,7 +167,7 @@ const rawConfigSchema = z
     }
   });
 
-export function loadConfig(environment: Environment): AppConfig {
+export function loadConfig(environment: Environment): PortalConfig {
   const parsedConfig = rawConfigSchema.safeParse(environment);
 
   if (!parsedConfig.success) {
@@ -161,6 +211,16 @@ export function loadConfig(environment: Environment): AppConfig {
     executorRunningDelayMs: parsedConfig.data.EXECUTOR_RUNNING_DELAY_MS,
     jobRetentionDays: parsedConfig.data.JOB_RETENTION_DAYS,
     retentionSweepIntervalMs: parsedConfig.data.RETENTION_SWEEP_INTERVAL_MS,
+    nextflowEnabled: parsedConfig.data.NEXTFLOW_ENABLED === 'true',
+    nextflowBin: parsedConfig.data.NEXTFLOW_BIN,
+    dockerBin: parsedConfig.data.DOCKER_BIN,
+    nextflowHome: parsedConfig.data.NEXTFLOW_HOME ?? null,
+    nextflowMaxConcurrentRuns: parsedConfig.data.NEXTFLOW_MAX_CONCURRENT_RUNS,
+    nextflowMaxCpus: parsedConfig.data.NEXTFLOW_MAX_CPUS,
+    nextflowMaxMemoryGb: parsedConfig.data.NEXTFLOW_MAX_MEMORY_GB,
+    nextflowMaxTimeHours: parsedConfig.data.NEXTFLOW_MAX_TIME_HOURS,
+    nextflowCancelGraceMs: parsedConfig.data.NEXTFLOW_CANCEL_GRACE_MS,
+    nextflowReadinessIntervalMs: parsedConfig.data.NEXTFLOW_READINESS_INTERVAL_MS,
   };
 }
 

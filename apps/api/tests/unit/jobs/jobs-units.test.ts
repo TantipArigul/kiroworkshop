@@ -74,13 +74,19 @@ describe('validateInputFile (US-004)', () => {
 });
 
 describe('job status machine (US-007 AC4)', () => {
-  it('allows only QUEUED→RUNNING and RUNNING→COMPLETED|FAILED', () => {
+  it('allows only QUEUED→RUNNING, RUNNING→COMPLETED|FAILED and QUEUED|RUNNING→CANCELLED', () => {
     const statuses = Object.keys(ALLOWED_TRANSITIONS) as (keyof typeof ALLOWED_TRANSITIONS)[];
     const allowed = statuses.flatMap((from) =>
       statuses.filter((to) => isAllowedTransition(from, to)).map((to) => `${from}->${to}`),
     );
 
-    expect(allowed.sort()).toEqual(['QUEUED->RUNNING', 'RUNNING->COMPLETED', 'RUNNING->FAILED']);
+    expect(allowed.sort()).toEqual([
+      'QUEUED->CANCELLED',
+      'QUEUED->RUNNING',
+      'RUNNING->CANCELLED',
+      'RUNNING->COMPLETED',
+      'RUNNING->FAILED',
+    ]);
   });
 });
 

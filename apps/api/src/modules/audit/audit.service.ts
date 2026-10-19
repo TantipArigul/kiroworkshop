@@ -46,7 +46,7 @@ const METADATA_ALLOWLIST: Readonly<Record<AuditEventType, readonly string[]>> = 
   USER_ANONYMIZED: ['channel', 'signedOutCount'],
   AUDIT_QUERIED: ['filters', 'page'],
   AUDIT_RETENTION_CLEANUP: ['channel', 'deleted', 'retentionDays'],
-  JOB_SUBMITTED: ['status'],
+  JOB_SUBMITTED: ['status', 'pipelineId'],
   JOB_STATUS_CHANGED: ['from', 'to'],
   JOB_DELETED: ['reason'],
   JOB_INPUT_REJECTED: ['reason'],

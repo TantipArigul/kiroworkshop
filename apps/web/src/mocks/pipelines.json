@@ -1,0 +1,58 @@
+{
+  "_note": "Synthetic catalog metadata for UI review only (VITE_API_MOCK=true). No personal or FASTQ data. Kit names and upload limits are filled in from @portal/shared constants.",
+  "pipelines": [
+    {
+      "id": "smart-checkup",
+      "name": "Smart Checkup",
+      "description": "Simulated training analysis of a synthetic marker CSV with mock package recommendations. Training output only, not medical advice.",
+      "version": "builtin",
+      "executor": "simulated",
+      "inputLayouts": [],
+      "available": true,
+      "unavailableReason": null,
+      "options": []
+    },
+    {
+      "id": "wf-renamefastq",
+      "name": "wf-renamefastq",
+      "description": "Renames and optionally demultiplexes Oxford Nanopore FASTQ files with a local, offline Nextflow run of si-lol/wf-renamefastq. Test or public data only.",
+      "version": "1.0.3",
+      "executor": "nextflow",
+      "inputLayouts": ["SINGLE_FILE", "SAMPLE_FOLDER", "BARCODE_FOLDERS"],
+      "available": true,
+      "unavailableReason": null,
+      "options": [
+        {
+          "key": "demultiplex",
+          "type": "boolean",
+          "label": "Demultiplex reads by barcode",
+          "description": "Split the reads by barcode before renaming. Not available for barcode folders, which are already split.",
+          "default": false
+        },
+        {
+          "key": "kitName",
+          "type": "enum",
+          "label": "Barcoding kit",
+          "description": "The kit used for barcoding. Used only when demultiplexing.",
+          "default": "BiK-HLA114-96"
+        },
+        {
+          "key": "qualityFilter",
+          "type": "boolean",
+          "label": "Quality filter",
+          "description": "Keep only reads that reach the minimum Q-score.",
+          "default": true
+        },
+        {
+          "key": "qScore",
+          "type": "integer",
+          "label": "Minimum Q-score",
+          "description": "Minimum read quality used by the quality filter.",
+          "default": 14,
+          "min": 0,
+          "max": 60
+        }
+      ]
+    }
+  ]
+}

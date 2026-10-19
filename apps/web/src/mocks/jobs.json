@@ -83,6 +83,253 @@
       ],
       "failureSummary": "Simulated pipeline failure requested by the training option. Submit again without it to complete.",
       "statusUrl": "/jobs/cmockjob0000000000000002"
+    },
+    {
+      "id": "cmockjob0000000000000003",
+      "sampleLabel": "Barcode demo run",
+      "pipelineId": "wf-renamefastq",
+      "pipelineName": "wf-renamefastq",
+      "runName": "Barcode demo run",
+      "status": "COMPLETED",
+      "queuePosition": null,
+      "progress": null,
+      "createdAt": "2026-10-18T02:00:00.000+00:00",
+      "updatedAt": "2026-10-18T02:01:10.000+00:00",
+      "expiresAt": "2026-10-25T02:00:00.000+00:00",
+      "parameters": null,
+      "file": null,
+      "run": {
+        "layout": "BARCODE_FOLDERS",
+        "sampleName": null,
+        "options": {
+          "demultiplex": false,
+          "kitName": "BiK-HLA114-96",
+          "qualityFilter": true,
+          "qScore": 14
+        },
+        "files": [
+          { "relativePath": "sample_sheet.csv", "sizeBytes": 48, "kind": "SAMPLE_SHEET" },
+          {
+            "relativePath": "demo_run/barcode01/reads_01.fastq.gz",
+            "sizeBytes": 524288,
+            "kind": "FASTQ"
+          },
+          {
+            "relativePath": "demo_run/barcode02/reads_01.fastq.gz",
+            "sizeBytes": 498000,
+            "kind": "FASTQ"
+          }
+        ]
+      },
+      "outputs": { "fileCount": 6, "totalBytes": 2941112 },
+      "cancellable": false,
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-18T02:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-18T02:00:04.000+00:00",
+          "summary": "Run started."
+        },
+        {
+          "status": "COMPLETED",
+          "occurredAt": "2026-10-18T02:01:10.000+00:00",
+          "summary": "Run completed."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000003"
+    },
+    {
+      "id": "cmockjob0000000000000004",
+      "sampleLabel": "Single file check",
+      "pipelineId": "wf-renamefastq",
+      "pipelineName": "wf-renamefastq",
+      "runName": "Single file check",
+      "status": "FAILED",
+      "queuePosition": null,
+      "progress": null,
+      "createdAt": "2026-10-18T03:00:00.000+00:00",
+      "updatedAt": "2026-10-18T03:00:40.000+00:00",
+      "expiresAt": "2026-10-25T03:00:00.000+00:00",
+      "parameters": null,
+      "file": null,
+      "run": {
+        "layout": "SINGLE_FILE",
+        "sampleName": "demo_sample",
+        "options": {
+          "demultiplex": false,
+          "kitName": "BiK-HLA114-96",
+          "qualityFilter": true,
+          "qScore": 14
+        },
+        "files": [{ "relativePath": "reads_demo.fastq", "sizeBytes": 2048, "kind": "FASTQ" }]
+      },
+      "outputs": null,
+      "cancellable": false,
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-18T03:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-18T03:00:03.000+00:00",
+          "summary": "Run started."
+        },
+        {
+          "status": "FAILED",
+          "occurredAt": "2026-10-18T03:00:40.000+00:00",
+          "summary": "Step FASTCAT failed (exit 1). Check the input and submit again."
+        }
+      ],
+      "failureSummary": "Step FASTCAT failed (exit 1). Check the input and submit again.",
+      "statusUrl": "/jobs/cmockjob0000000000000004"
+    },
+    {
+      "id": "cmockjob0000000000000005",
+      "sampleLabel": "Wrong folder selected",
+      "pipelineId": "wf-renamefastq",
+      "pipelineName": "wf-renamefastq",
+      "runName": "Wrong folder selected",
+      "status": "CANCELLED",
+      "queuePosition": null,
+      "progress": null,
+      "createdAt": "2026-10-18T04:00:00.000+00:00",
+      "updatedAt": "2026-10-18T04:00:02.000+00:00",
+      "expiresAt": "2026-10-25T04:00:00.000+00:00",
+      "parameters": null,
+      "file": null,
+      "run": {
+        "layout": "SAMPLE_FOLDER",
+        "sampleName": null,
+        "options": {
+          "demultiplex": true,
+          "kitName": "SQK-NBD114-24",
+          "qualityFilter": true,
+          "qScore": 10
+        },
+        "files": [
+          { "relativePath": "pass_demo/part_01.fastq.gz", "sizeBytes": 262144, "kind": "FASTQ" },
+          { "relativePath": "pass_demo/part_02.fastq.gz", "sizeBytes": 262144, "kind": "FASTQ" }
+        ]
+      },
+      "outputs": null,
+      "cancellable": false,
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-18T04:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "CANCELLED",
+          "occurredAt": "2026-10-18T04:00:02.000+00:00",
+          "summary": "Cancelled by the owner."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000005"
+    },
+    {
+      "id": "cmockjob0000000000000006",
+      "sampleLabel": "Kidney focus walkthrough",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-17T10:20:00.000+00:00",
+      "updatedAt": "2026-10-17T10:20:08.000+00:00",
+      "expiresAt": "2026-10-24T10:20:00.000+00:00",
+      "parameters": {
+        "sampleLabel": "Kidney focus walkthrough",
+        "ageBand": "30-39",
+        "focusArea": "KIDNEY",
+        "lifestyleFactors": ["POOR_SLEEP"],
+        "simulateFailure": false
+      },
+      "file": { "name": "kidney-walkthrough.csv", "sizeBytes": 96, "rowCount": 4 },
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-17T10:20:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-17T10:20:03.000+00:00",
+          "summary": "Simulated pipeline started."
+        },
+        {
+          "status": "COMPLETED",
+          "occurredAt": "2026-10-17T10:20:08.000+00:00",
+          "summary": "Analysis completed."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000006"
+    },
+    {
+      "id": "cmockjob0000000000000007",
+      "sampleLabel": "Before results release",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-15T07:00:00.000+00:00",
+      "updatedAt": "2026-10-15T07:00:09.000+00:00",
+      "expiresAt": "2026-10-22T07:00:00.000+00:00",
+      "parameters": {
+        "sampleLabel": "Before results release",
+        "ageBand": "50-59",
+        "focusArea": "GENERAL",
+        "lifestyleFactors": [],
+        "simulateFailure": false
+      },
+      "file": { "name": "general-check.csv", "sizeBytes": 120, "rowCount": 5 },
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-15T07:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        },
+        {
+          "status": "RUNNING",
+          "occurredAt": "2026-10-15T07:00:03.000+00:00",
+          "summary": "Simulated pipeline started."
+        },
+        {
+          "status": "COMPLETED",
+          "occurredAt": "2026-10-15T07:00:09.000+00:00",
+          "summary": "Analysis completed."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000007"
+    },
+    {
+      "id": "cmockjob0000000000000008",
+      "sampleLabel": "Waiting in queue",
+      "status": "QUEUED",
+      "cancellable": true,
+      "createdAt": "2026-10-18T05:00:00.000+00:00",
+      "updatedAt": "2026-10-18T05:00:00.000+00:00",
+      "expiresAt": "2026-10-25T05:00:00.000+00:00",
+      "parameters": {
+        "sampleLabel": "Waiting in queue",
+        "ageBand": "18-29",
+        "focusArea": "LIVER",
+        "lifestyleFactors": ["HIGH_ALCOHOL"],
+        "simulateFailure": false
+      },
+      "file": { "name": "liver-check.csv", "sizeBytes": 44, "rowCount": 1 },
+      "history": [
+        {
+          "status": "QUEUED",
+          "occurredAt": "2026-10-18T05:00:00.000+00:00",
+          "summary": "Job accepted and queued."
+        }
+      ],
+      "failureSummary": null,
+      "statusUrl": "/jobs/cmockjob0000000000000008"
     }
   ]
 }

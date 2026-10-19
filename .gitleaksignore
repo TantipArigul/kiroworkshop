@@ -1,0 +1,3 @@
+# Reviewed false positives (gitleaks fingerprint: commit:file:rule:line).
+# Synthetic password of the in-memory identity test fixture; it never reaches a real account.
+ea28e1fe648025e06d10b908d9e6f1608f05c47f:apps/api/tests/support/identity-context.ts:generic-api-key:22

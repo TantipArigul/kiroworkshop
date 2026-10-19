@@ -261,6 +261,201 @@ paths:
           $ref: '#/components/responses/CsrfError'
         '404':
           $ref: '#/components/responses/NotFound'
+  /jobs/{jobId}/cancel:
+    parameters:
+      - { name: jobId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Cancel a QUEUED or RUNNING job (owner only); the record is kept as CANCELLED
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobCancelResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /jobs/{jobId}/result:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+    get:
+      summary: Result of a COMPLETED job (owner only), one shape per pipeline
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Result summary, visualization data, artifacts and references
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResultResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          description: PASSWORD_CHANGE_REQUIRED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /jobs/{jobId}/artifacts/{artifactId}/download:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      summary: Download one artifact of a COMPLETED job as an attachment (owner only)
+      description: >-
+        Always `Content-Disposition: attachment` with a sanitized file name. HTML and unknown
+        types are sent as application/octet-stream with `X-Content-Type-Options: nosniff`,
+        `Content-Security-Policy: sandbox; default-src 'none'` and `Cache-Control: private,
+        no-store`. A successful download is audited as RESULT_DOWNLOADED.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: File stream
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: attachment; filename="<ascii>"; filename*=UTF-8''<encoded>
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /jobs/{jobId}/artifacts/{artifactId}/view:
+    parameters:
+      - $ref: '#/components/parameters/JobId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      summary: Show an allowlisted HTML report of a COMPLETED job in a sandbox (owner only)
+      description: >-
+        Only artifacts with `viewable: true` (execution report and timeline). The response
+        carries `Content-Security-Policy: sandbox allow-scripts; default-src 'none';
+        script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:;
+        base-uri 'none'; form-action 'none'; frame-ancestors 'self'` so the report runs in an
+        opaque origin without network access. Not audited.
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: HTML report
+          content:
+            text/html:
+              schema: { type: string }
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/ResultNotReady'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /pipelines:
+    get:
+      summary: Pipeline catalog with current availability
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Allowed pipelines (registry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineListResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          description: PASSWORD_CHANGE_REQUIRED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /pipelines/{pipelineId}:
+    parameters:
+      - { name: pipelineId, in: path, required: true, schema: { type: string } }
+    get:
+      summary: Pipeline detail with options, limits and input rules
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Pipeline detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineDetailResponse'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /pipelines/{pipelineId}/runs:
+    parameters:
+      - { name: pipelineId, in: path, required: true, schema: { type: string } }
+    post:
+      summary: Upload FASTQ input and queue a Nextflow run (owner = current user)
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RunLaunchRequest'
+      responses:
+        '201':
+          description: Job created in QUEUED with its bookmarkable status URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSubmitResponse'
+        '200':
+          description: Replay of an earlier launch with the same Idempotency-Key (body not read)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobSubmitResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthenticationRequired'
+        '403':
+          $ref: '#/components/responses/CsrfError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 components:
   securitySchemes:
     sessionCookie:
@@ -274,6 +469,18 @@ components:
       required: true
       schema:
         type: string
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      description: Cuid; any other value is answered with 404
+      schema: { type: string, pattern: '^[a-z0-9]{20,40}$' }
+    ArtifactId:
+      name: artifactId
+      in: path
+      required: true
+      description: Cuid of an artifact of this job; any other value is answered with 404
+      schema: { type: string, pattern: '^[a-z0-9]{20,40}$' }
   schemas:
     RequestMeta:
       type: object
@@ -442,7 +649,7 @@ components:
           $ref: '#/components/schemas/RequestMeta'
     JobStatus:
       type: string
-      enum: [QUEUED, RUNNING, COMPLETED, FAILED]
+      enum: [QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED]
     JobParameters:
       type: object
       additionalProperties: false
@@ -494,28 +701,101 @@ components:
     JobSummary:
       type: object
       additionalProperties: false
-      required: [id, sampleLabel, status, createdAt, updatedAt, expiresAt]
+      required:
+        [
+          id,
+          sampleLabel,
+          pipelineId,
+          pipelineName,
+          runName,
+          status,
+          queuePosition,
+          progress,
+          createdAt,
+          updatedAt,
+          expiresAt,
+        ]
       properties:
         id: { type: string }
-        sampleLabel: { type: string }
+        sampleLabel: { type: string, description: Kept for compatibility; equals runName }
+        pipelineId: { $ref: '#/components/schemas/PipelineId' }
+        pipelineName: { type: string }
+        runName: { type: string, maxLength: 64 }
         status: { $ref: '#/components/schemas/JobStatus' }
+        queuePosition:
+          type: [integer, 'null']
+          minimum: 1
+          description: 1-based position among QUEUED jobs of the same executor; null unless QUEUED
+        progress:
+          oneOf:
+            - $ref: '#/components/schemas/JobProgress'
+            - type: 'null'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         expiresAt: { type: string, format: date-time }
+    JobProgress:
+      type: object
+      additionalProperties: false
+      required: [completedSteps, currentStep, startedAt]
+      properties:
+        completedSteps: { type: integer, minimum: 0 }
+        currentStep:
+          type: [string, 'null']
+          pattern: '^[A-Za-z0-9_]{1,64}$'
+          description: Process name only (e.g. FASTCAT); never the task tag
+        startedAt: { type: [string, 'null'], format: date-time }
+    JobRunInfo:
+      type: object
+      additionalProperties: false
+      required: [layout, sampleName, options, files]
+      properties:
+        layout: { $ref: '#/components/schemas/RunInputLayout' }
+        sampleName: { type: [string, 'null'] }
+        options: { $ref: '#/components/schemas/RenamefastqOptions' }
+        files:
+          type: array
+          maxItems: 11
+          items:
+            type: object
+            additionalProperties: false
+            required: [relativePath, sizeBytes, kind]
+            properties:
+              relativePath: { type: string, maxLength: 400 }
+              sizeBytes: { type: integer, minimum: 0 }
+              kind: { type: string, enum: [FASTQ, SAMPLE_SHEET] }
     JobDetail:
       allOf:
         - $ref: '#/components/schemas/JobSummary'
         - type: object
-          required: [parameters, file, history, failureSummary, statusUrl]
+          required:
+            [parameters, file, run, outputs, cancellable, history, failureSummary, statusUrl]
           properties:
-            parameters: { $ref: '#/components/schemas/JobParameters' }
+            parameters:
+              description: Smart Checkup only; null for Nextflow runs
+              oneOf:
+                - $ref: '#/components/schemas/JobParameters'
+                - type: 'null'
             file:
-              type: object
+              type: [object, 'null']
+              description: Smart Checkup only; null for Nextflow runs
               required: [name, sizeBytes, rowCount]
               properties:
                 name: { type: string }
                 sizeBytes: { type: integer }
                 rowCount: { type: integer }
+            run:
+              description: Nextflow runs only; null for Smart Checkup
+              oneOf:
+                - $ref: '#/components/schemas/JobRunInfo'
+                - type: 'null'
+            outputs:
+              type: [object, 'null']
+              description: Output manifest totals of a COMPLETED Nextflow run
+              required: [fileCount, totalBytes]
+              properties:
+                fileCount: { type: integer, minimum: 0 }
+                totalBytes: { type: integer, minimum: 0 }
+            cancellable: { type: boolean }
             history:
               type: array
               items:
@@ -588,6 +868,287 @@ components:
                       min: { type: number }
                       max: { type: number }
         meta: { $ref: '#/components/schemas/RequestMeta' }
+    JobCancelResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [job]
+          properties:
+            job: { $ref: '#/components/schemas/JobSummary' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    PipelineId:
+      type: string
+      enum: [smart-checkup, wf-renamefastq]
+    RunInputLayout:
+      type: string
+      enum: [SINGLE_FILE, SAMPLE_FOLDER, BARCODE_FOLDERS]
+    RenamefastqOptions:
+      type: object
+      additionalProperties: false
+      properties:
+        demultiplex: { type: boolean, default: false }
+        kitName:
+          type: string
+          default: BiK-HLA114-96
+          description: One of the 43 kit_name values of si-lol/wf-renamefastq 1.0.3
+        qualityFilter: { type: boolean, default: true }
+        qScore: { type: integer, minimum: 0, maximum: 60, default: 14 }
+    PipelineSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [id, name, description, version, executor, inputLayouts, available, unavailableReason]
+      properties:
+        id: { $ref: '#/components/schemas/PipelineId' }
+        name: { type: string }
+        description: { type: string }
+        version: { type: string, example: 1.0.3 }
+        executor: { type: string, enum: [simulated, nextflow] }
+        inputLayouts:
+          type: array
+          items: { $ref: '#/components/schemas/RunInputLayout' }
+        available: { type: boolean }
+        unavailableReason:
+          type: [string, 'null']
+          enum: [NEXTFLOW_DISABLED, NEXTFLOW_MISSING, DOCKER_UNAVAILABLE, ASSETS_MISSING, null]
+    PipelineOptionDescriptor:
+      type: object
+      additionalProperties: false
+      required: [key, label, description, type, default]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        description: { type: string }
+        type: { type: string, enum: [boolean, enum, integer] }
+        default: { type: [boolean, string, integer] }
+        values: { type: array, items: { type: string }, description: type=enum only }
+        min: { type: integer, description: type=integer only }
+        max: { type: integer, description: type=integer only }
+    PipelineDetail:
+      allOf:
+        - $ref: '#/components/schemas/PipelineSummary'
+        - type: object
+          required: [options, limits]
+          properties:
+            options:
+              type: array
+              items: { $ref: '#/components/schemas/PipelineOptionDescriptor' }
+            limits:
+              type: [object, 'null']
+              description: Upload limits for Nextflow pipelines; null for Smart Checkup
+              required: [maxFastqFiles, maxTotalBytes, sampleSheetMaxBytes, fastqExtensions]
+              properties:
+                maxFastqFiles: { type: integer, enum: [10] }
+                maxTotalBytes: { type: integer, enum: [1073741824] }
+                sampleSheetMaxBytes: { type: integer, enum: [65536] }
+                fastqExtensions:
+                  type: array
+                  items: { type: string, enum: [.fastq, .fq, .fastq.gz, .fq.gz] }
+    PipelineListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/PipelineSummary' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    PipelineDetailResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/PipelineDetail' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
+    RunLaunchRequest:
+      type: object
+      description: >-
+        Multipart parts in this order: runName, layout, sampleName, options, sampleSheet, fastq.
+        Text fields must precede files. FASTQ file names carry the relative path
+        (webkitRelativePath); each segment must match ^[A-Za-z0-9_-][A-Za-z0-9._-]{0,127}$.
+      required: [runName, layout, fastq]
+      properties:
+        runName:
+          type: string
+          pattern: '^[A-Za-z0-9 _.-]{1,64}$'
+          description: Trimmed before validation; never passed to Nextflow
+        layout: { $ref: '#/components/schemas/RunInputLayout' }
+        sampleName:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{1,64}$'
+          description: SINGLE_FILE and SAMPLE_FOLDER only; empty means not provided
+        options:
+          type: string
+          description: JSON object matching RenamefastqOptions
+          example: '{"demultiplex":false,"kitName":"BiK-HLA114-96","qualityFilter":true,"qScore":14}'
+        sampleSheet:
+          type: string
+          format: binary
+          description: BARCODE_FOLDERS only; CSV with header barcode,alias (at most 64 KB, 96 rows)
+        fastq:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: .fastq, .fq, .fastq.gz or .fq.gz; at most 1 GiB in total
+          items: { type: string, format: binary }
+    ResultArtifact:
+      type: object
+      additionalProperties: false
+      required: [id, kind, category, displayName, sizeBytes, contentType, viewable, viewNote]
+      properties:
+        id: { type: string, pattern: '^[a-z0-9]{20,40}$' }
+        kind: { type: string, enum: [RESULT, OUTPUT] }
+        category: { type: string, enum: [RESULT, READS, STATS, REPORT, OTHER] }
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 400
+          description: Relative output path or generated file name; never an absolute path
+        sizeBytes: { type: integer, minimum: 0 }
+        contentType: { type: string, maxLength: 128 }
+        viewable:
+          type: boolean
+          description: True only for allowlisted HTML reports (sandboxed view endpoint)
+        viewNote: { type: [string, 'null'], maxLength: 256 }
+    ResultReference:
+      type: object
+      additionalProperties: false
+      required: [label, href]
+      properties:
+        label: { type: string, maxLength: 128 }
+        href:
+          type: string
+          maxLength: 256
+          description: In-app path (e.g. /help#results) or an https documentation URL
+    TrainingBand:
+      type: string
+      enum: [BELOW_TRAINING_MIDPOINT, AT_OR_ABOVE_TRAINING_MIDPOINT]
+      description: Position against the synthetic training midpoint; not a clinical reference
+    Recommendation:
+      type: object
+      additionalProperties: false
+      required: [ruleId, ruleVersion, packageLabel, reason, matchedFactors, matched, disclaimer]
+      properties:
+        ruleId:
+          type: string
+          pattern: '^[A-Z0-9_-]{1,64}$'
+          description: Mock rule identifier; NO_MATCH when no rule matched (matched=false)
+        ruleVersion: { type: string, maxLength: 64, example: mock-rules-2026.10-1 }
+        packageLabel: { type: string, maxLength: 128 }
+        reason: { type: string, maxLength: 512 }
+        matchedFactors:
+          type: array
+          description: Only the factors that made the rule match; empty for NO_MATCH
+          items:
+            type: string
+            pattern: '^(focusArea|marker|lifestyle):[A-Za-z0-9_]{1,64}$'
+        matched: { type: boolean }
+        disclaimer: { type: string, maxLength: 256 }
+    SmartCheckupResult:
+      type: object
+      additionalProperties: false
+      required: [pipelineId, summary, markers, recommendation, artifacts, references]
+      properties:
+        pipelineId: { type: string, enum: [smart-checkup] }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [runName, focusArea, ageBand, lifestyleFactors, markerCount, generatedAt]
+          properties:
+            runName: { type: string, maxLength: 64 }
+            focusArea: { type: string, enum: [GENERAL, CARDIOMETABOLIC, LIVER, KIDNEY] }
+            ageBand: { type: string, enum: ['18-29', '30-39', '40-49', '50-59', '60+'] }
+            lifestyleFactors:
+              type: array
+              maxItems: 4
+              items: { type: string, enum: [SMOKING, LOW_ACTIVITY, HIGH_ALCOHOL, POOR_SLEEP] }
+            markerCount: { type: integer, minimum: 0, maximum: 50 }
+            generatedAt: { type: string, format: date-time }
+        markers:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [marker, value, unit, min, max, midpoint, band]
+            properties:
+              marker: { type: string }
+              value: { type: number }
+              unit: { type: string }
+              min: { type: number }
+              max: { type: number }
+              midpoint: { type: number }
+              band: { $ref: '#/components/schemas/TrainingBand' }
+        recommendation: { $ref: '#/components/schemas/Recommendation' }
+        artifacts:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/ResultArtifact' }
+        references:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ResultReference' }
+    NextflowResult:
+      type: object
+      additionalProperties: false
+      required: [pipelineId, summary, samples, artifacts, references]
+      properties:
+        pipelineId: { type: string, enum: [wf-renamefastq] }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [runName, sampleCount, totalReads, totalBases, outputFileCount, outputBytes]
+          properties:
+            runName: { type: string, maxLength: 64 }
+            sampleCount: { type: integer, minimum: 0 }
+            totalReads: { type: integer, minimum: 0 }
+            totalBases: { type: integer, minimum: 0 }
+            outputFileCount: { type: integer, minimum: 0 }
+            outputBytes: { type: integer, minimum: 0 }
+        samples:
+          type: array
+          maxItems: 1000
+          items:
+            type: object
+            additionalProperties: false
+            required: [sample, numSeqs, sumLen, minLen, avgLen, maxLen, avgQual]
+            properties:
+              sample: { type: string, maxLength: 400 }
+              numSeqs: { type: integer, minimum: 0 }
+              sumLen: { type: integer, minimum: 0 }
+              minLen: { type: integer, minimum: 0 }
+              avgLen: { type: number, minimum: 0 }
+              maxLen: { type: integer, minimum: 0 }
+              avgQual: { type: number, minimum: 0 }
+        artifacts:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/ResultArtifact' }
+        references:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ResultReference' }
+    JobResult:
+      oneOf:
+        - $ref: '#/components/schemas/SmartCheckupResult'
+        - $ref: '#/components/schemas/NextflowResult'
+      discriminator:
+        propertyName: pipelineId
+        mapping:
+          smart-checkup: '#/components/schemas/SmartCheckupResult'
+          wf-renamefastq: '#/components/schemas/NextflowResult'
+    JobResultResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { $ref: '#/components/schemas/JobResult' }
+        meta: { $ref: '#/components/schemas/RequestMeta' }
     ApiError:
       type: object
       additionalProperties: false
@@ -604,7 +1165,9 @@ components:
                 - AUTHENTICATION_FAILED
                 - AUTHENTICATION_REQUIRED
                 - AUTHORIZATION_DENIED
+                - CONFLICT
                 - CSRF_INVALID
+                - GONE
                 - INTERNAL_ERROR
                 - NOT_FOUND
                 - NOT_IMPLEMENTED
@@ -657,8 +1220,41 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: The job has already finished (CONFLICT)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ServiceUnavailable:
+      description: The pipeline or executor is not ready; nothing was created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
     NotFound:
       description: Resource is missing, deleted, expired or not accessible (indistinguishable)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ResultNotReady:
+      description: >-
+        The job is not COMPLETED (CONFLICT); details carry { field: status, message: <status> }
+        and no output is returned
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Gone:
+      description: >-
+        The result files were removed by the retention policy or are no longer available (GONE)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    InternalError:
+      description: The stored result is damaged; a safe message without internal detail
       content:
         application/json:
           schema:

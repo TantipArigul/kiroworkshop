@@ -58,23 +58,62 @@ model AuditEvent {
 }
 
 model Job {
-  id             String                  @id @default(cuid())
-  ownerId        String
-  status         String                  @default("QUEUED")
-  idempotencyKey String?
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
-  expiresAt      DateTime
-  owner          User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  input          JobInput?
-  statusEvents   JobStatusEvent[]
-  resultArtifacts ResultArtifact[]
-  recommendation PackageRecommendation?
+  id               String                 @id @default(cuid())
+  ownerId          String
+  status           String                 @default("QUEUED")
+  idempotencyKey   String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  expiresAt        DateTime
+  // Pipeline Catalog: existing rows are Smart Checkup jobs.
+  pipelineId       String                 @default("smart-checkup")
+  pipelineRevision String                 @default("builtin")
+  runName          String                 @default("")
+  // { completedSteps, currentStep, startedAt } while a Nextflow run is RUNNING.
+  progressJson     String?
+  owner            User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  input            JobInput?
+  inputFiles       JobInputFile[]
+  outputFiles      JobOutputFile[]
+  statusEvents     JobStatusEvent[]
+  resultArtifacts  ResultArtifact[]
+  recommendation   PackageRecommendation?
 
   @@unique([ownerId, idempotencyKey])
   @@index([ownerId, updatedAt])
   @@index([status])
   @@index([expiresAt])
+  @@index([status, pipelineId, createdAt])
+}
+
+// Uploaded FASTQ files and sample sheet of a Nextflow run (paths relative to jobs/{id}/input).
+model JobInputFile {
+  id           String @id @default(cuid())
+  jobId        String
+  relativePath String
+  sizeBytes    Int
+  // FASTQ | SAMPLE_SHEET
+  kind         String
+  job          Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, relativePath])
+  @@index([jobId])
+}
+
+// Output manifest of a COMPLETED Nextflow run (paths relative to jobs/{id}/output).
+model JobOutputFile {
+  id           String   @id @default(cuid())
+  jobId        String
+  relativePath String
+  sizeBytes    Int
+  contentType  String
+  // READS | STATS | REPORT | OTHER
+  category     String
+  createdAt    DateTime @default(now())
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, relativePath])
+  @@index([jobId])
 }
 
 model JobInput {

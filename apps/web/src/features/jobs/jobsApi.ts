@@ -1,5 +1,6 @@
 import type {
   ApiSuccess,
+  JobCancelResponse,
   JobDetail,
   JobList,
   JobSubmitRequest,
@@ -28,6 +29,10 @@ export function createJobsApi(api: ApiClient) {
     remove: async (jobId: string) => {
       await api.delete(`/jobs/${encodeURIComponent(jobId)}`);
     },
+    /** `POST /jobs/{jobId}/cancel` — QUEUED/RUNNING only; a finished job answers `409 CONFLICT`. */
+    cancel: async (jobId: string) =>
+      (await api.post<ApiSuccess<JobCancelResponse>>(`/jobs/${encodeURIComponent(jobId)}/cancel`))
+        .data,
   };
 }
 
@@ -47,6 +52,43 @@ export function formatDateTime(value: string): string {
   );
 }
 
+const BYTE_UNITS = ['KB', 'MB', 'GB'] as const;
+const BYTES_PER_UNIT = 1024;
+
+/** Binary units (1 KB = 1024 B), matching the 1 GiB / 64 KB limits shown to users. */
 export function formatBytes(bytes: number): string {
-  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < BYTES_PER_UNIT) {
+    return `${bytes} B`;
+  }
+
+  let value = bytes / BYTES_PER_UNIT;
+  let unit = 0;
+
+  while (value >= BYTES_PER_UNIT && unit < BYTE_UNITS.length - 1) {
+    value /= BYTES_PER_UNIT;
+    unit += 1;
+  }
+
+  return `${value.toFixed(1)} ${BYTE_UNITS[unit]}`;
+}
+
+const SHORT_JOB_ID_LENGTH = 8;
+
+/** Short Job ID for tables: the random tail of the cuid (its head is a shared timestamp). */
+export function shortJobId(jobId: string): string {
+  return jobId.slice(-SHORT_JOB_ID_LENGTH);
+}
+
+/** Elapsed time since `startedAt` as "4 min 05 s"; no estimate of the remaining time. */
+export function formatElapsed(startedAt: string, now = Date.now()): string {
+  const totalSeconds = Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = String(totalSeconds % 60).padStart(2, '0');
+
+  if (hours > 0) {
+    return `${hours} h ${String(minutes).padStart(2, '0')} min`;
+  }
+
+  return minutes > 0 ? `${minutes} min ${seconds} s` : `${totalSeconds % 60} s`;
 }

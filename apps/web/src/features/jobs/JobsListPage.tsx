@@ -1,16 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 
 import type { JobList } from '@portal/shared';
+import { JOB_POLL_INTERVAL_MS } from '@portal/shared/constants';
 
 import { Button, FeedbackMessage } from '../../components/ui';
 import { useAuth } from '../auth/authContext';
+import { JobProgress } from './JobProgress';
 import { JobStatusBadge } from './JobStatusBadge';
-import { createJobsApi, formatDateTime } from './jobsApi';
+import { createJobsApi, formatDateTime, shortJobId } from './jobsApi';
+import { shouldPoll } from './useJobPolling';
 
 type ListState =
-  { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: JobList; loadedAt: Date };
+  | { status: 'loading' }
+  | { status: 'error' }
+  | {
+      status: 'ready';
+      data: JobList;
+      loadedAt: Date;
+      /** The latest background refresh failed; the table shows the last confirmed data. */
+      stale: boolean;
+    };
 
+/** US-020 overview: the owner's runs with pipeline, status, queue position and progress. */
 export function JobsListPage() {
   const { api } = useAuth();
   const jobsApi = useMemo(() => createJobsApi(api), [api]);
@@ -18,35 +30,78 @@ export function JobsListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   const [state, setState] = useState<ListState>({ status: 'loading' });
+  const [hidden, setHidden] = useState(() => document.hidden);
+  const requestCounter = useRef(0);
   const deletedJobId = (location.state as { deletedJobId?: string } | null)?.deletedJobId;
 
-  const load = useCallback(async () => {
-    setState({ status: 'loading' });
+  const load = useCallback(
+    async (background = false) => {
+      const requestNumber = ++requestCounter.current;
 
-    try {
-      setState({ status: 'ready', data: await jobsApi.list(page), loadedAt: new Date() });
-    } catch {
-      setState({ status: 'error' });
-    }
-  }, [jobsApi, page]);
+      if (!background) {
+        setState({ status: 'loading' });
+      }
+
+      try {
+        const data = await jobsApi.list(page);
+
+        if (requestNumber === requestCounter.current) {
+          setState({ status: 'ready', data, loadedAt: new Date(), stale: false });
+        }
+      } catch {
+        if (requestNumber !== requestCounter.current) {
+          return;
+        }
+
+        // A failed background refresh keeps the last confirmed list, labelled as such.
+        setState((current) =>
+          background && current.status === 'ready'
+            ? { ...current, stale: true }
+            : { status: 'error' },
+        );
+      }
+    },
+    [jobsApi, page],
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onVisibilityChange = () => setHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  // Poll only while a job shown on this page can still change and the tab is visible.
+  const polling =
+    state.status === 'ready' && state.data.items.some((job) => shouldPoll(job.status, hidden));
+
+  useEffect(() => {
+    if (!polling) {
+      return;
+    }
+
+    const timer = window.setInterval(() => void load(true), JOB_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [load, polling]);
+
   return (
     <section aria-labelledby="jobs-title" className="jobs-page">
       <div className="jobs-page__head">
         <div>
-          <p className="eyebrow">Workspace / Jobs</p>
-          <h1 id="jobs-title">Analysis jobs</h1>
+          <p className="eyebrow">Workspace / Overview</p>
+          <h1 id="jobs-title">Runs and jobs</h1>
           <p>
-            Your submitted analyses, newest activity first. Only you can see these jobs; each is
+            Your runs across all pipelines, newest activity first. Only you can see them; each is
             deleted automatically seven days after submission.
           </p>
         </div>
-        <Link className="ui-button ui-button--primary" to="/jobs/new">
-          New analysis
+        <Link className="ui-button ui-button--primary" to="/pipelines">
+          New run
         </Link>
       </div>
 
@@ -60,6 +115,7 @@ export function JobsListPage() {
       <JobsListContent
         onPageChange={(next) => setSearchParams(next > 1 ? { page: String(next) } : {})}
         onRetry={() => void load()}
+        polling={polling}
         state={state}
       />
     </section>
@@ -69,10 +125,12 @@ export function JobsListPage() {
 function JobsListContent({
   onPageChange,
   onRetry,
+  polling,
   state,
 }: {
   onPageChange: (page: number) => void;
   onRetry: () => void;
+  polling: boolean;
   state: ListState;
 }) {
   if (state.status === 'loading') {
@@ -107,17 +165,20 @@ function JobsListContent({
           <path d="M10 14h28M10 24h20M10 34h12" />
           <circle cx="36" cy="34" r="6" />
         </svg>
-        <h2>No jobs yet</h2>
+        <h2>No runs yet</h2>
         <p>
-          Start with the authored sample to see the expected input format, or upload your own
-          synthetic CSV.
+          Choose a pipeline to start your first run. The Smart Checkup sample shows the expected
+          input format without any upload.
         </p>
         <div className="jobs-state__actions">
-          <Link className="ui-button ui-button--primary" to="/jobs/new?sample=1">
-            Load sample data
+          <Link className="ui-button ui-button--primary" to="/pipelines">
+            Browse pipelines
           </Link>
-          <Link className="ui-button ui-button--secondary" to="/jobs/new">
-            Submit a job
+          <Link
+            className="ui-button ui-button--secondary"
+            to="/pipelines/smart-checkup/run?sample=1"
+          >
+            Try the Smart Checkup sample
           </Link>
         </div>
       </div>
@@ -129,11 +190,17 @@ function JobsListContent({
   return (
     <>
       <div className="jobs-toolbar">
-        <p aria-live="polite" className="jobs-summary">
-          {total} job{total === 1 ? '' : 's'} · last updated{' '}
+        {/* Announce only a failed refresh; the time stamp changes on every poll. */}
+        <p aria-live="polite" className="visually-hidden">
+          {state.stale ? 'The job list could not be refreshed and may be out of date.' : ''}
+        </p>
+        <p className="jobs-summary">
+          {total} job{total === 1 ? '' : 's'} ·{' '}
+          {state.stale ? <strong>could not refresh — showing data from </strong> : 'last updated '}
           <time dateTime={state.loadedAt.toISOString()}>
             {formatDateTime(state.loadedAt.toISOString())}
           </time>
+          {polling && !state.stale ? ' · refreshing automatically' : null}
         </p>
         <Button onClick={onRetry} variant="ghost">
           Refresh
@@ -143,9 +210,11 @@ function JobsListContent({
         <table className="jobs-table">
           <thead>
             <tr>
-              <th scope="col">Job</th>
+              <th scope="col">Run</th>
+              <th scope="col">Pipeline</th>
               <th scope="col">Status</th>
-              <th scope="col">Submitted</th>
+              <th scope="col">Queue / progress</th>
+              <th scope="col">Created</th>
               <th scope="col">Updated</th>
             </tr>
           </thead>
@@ -154,12 +223,23 @@ function JobsListContent({
               <tr key={job.id}>
                 <td>
                   <Link className="jobs-table__link" to={`/jobs/${job.id}`}>
-                    {job.sampleLabel}
+                    {job.runName || job.sampleLabel}
                   </Link>
-                  <span className="jobs-mono jobs-table__sub">{job.id}</span>
+                  <span className="jobs-mono jobs-table__sub" title={job.id}>
+                    <span className="visually-hidden">Job ID ending </span>
+                    {shortJobId(job.id)}
+                  </span>
                 </td>
+                <td>{job.pipelineName}</td>
                 <td>
                   <JobStatusBadge status={job.status} />
+                </td>
+                <td>
+                  <JobProgress
+                    progress={job.progress}
+                    queuePosition={job.queuePosition}
+                    status={job.status}
+                  />
                 </td>
                 <td>
                   <time dateTime={job.createdAt}>{formatDateTime(job.createdAt)}</time>

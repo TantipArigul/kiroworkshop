@@ -100,6 +100,86 @@ describe('loadConfig', () => {
     );
   });
 
+  it('applies Nextflow defaults with the executor disabled', () => {
+    const config = loadConfig(validEnvironment);
+
+    expect(config.nextflowEnabled).toBe(false);
+    expect(config.nextflowBin).toBe('nextflow');
+    expect(config.dockerBin).toBe('docker');
+    expect(config.nextflowHome).toBeNull();
+    expect(config.nextflowMaxConcurrentRuns).toBe(1);
+    expect(config.nextflowMaxCpus).toBe(4);
+    expect(config.nextflowMaxMemoryGb).toBe(8);
+    expect(config.nextflowMaxTimeHours).toBe(8);
+    expect(config.nextflowCancelGraceMs).toBe(30_000);
+    expect(config.nextflowReadinessIntervalMs).toBe(60_000);
+    expect(loadConfig({ ...validEnvironment, NEXTFLOW_HOME: '' }).nextflowHome).toBeNull();
+  });
+
+  it('reads Nextflow overrides within their ranges', () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      NEXTFLOW_ENABLED: 'true',
+      NEXTFLOW_BIN: '/opt/homebrew/bin/nextflow',
+      DOCKER_BIN: '/usr/local/bin/docker',
+      NEXTFLOW_HOME: '/tmp/nxf-home',
+      NEXTFLOW_MAX_CONCURRENT_RUNS: '4',
+      NEXTFLOW_MAX_CPUS: '16',
+      NEXTFLOW_MAX_MEMORY_GB: '2',
+      NEXTFLOW_MAX_TIME_HOURS: '48',
+      NEXTFLOW_CANCEL_GRACE_MS: '1000',
+      NEXTFLOW_READINESS_INTERVAL_MS: '600000',
+    });
+
+    expect(config).toMatchObject({
+      dockerBin: '/usr/local/bin/docker',
+      nextflowBin: '/opt/homebrew/bin/nextflow',
+      nextflowCancelGraceMs: 1000,
+      nextflowEnabled: true,
+      nextflowHome: '/tmp/nxf-home',
+      nextflowMaxConcurrentRuns: 4,
+      nextflowMaxCpus: 16,
+      nextflowMaxMemoryGb: 2,
+      nextflowMaxTimeHours: 48,
+      nextflowReadinessIntervalMs: 600_000,
+    });
+  });
+
+  it('rejects out-of-range Nextflow settings and a relative NEXTFLOW_HOME', () => {
+    try {
+      loadConfig({
+        ...validEnvironment,
+        NEXTFLOW_ENABLED: 'yes',
+        NEXTFLOW_BIN: '',
+        NEXTFLOW_MAX_CONCURRENT_RUNS: '5',
+        NEXTFLOW_MAX_CPUS: '0',
+        NEXTFLOW_MAX_MEMORY_GB: '1',
+        NEXTFLOW_MAX_TIME_HOURS: '49',
+        NEXTFLOW_CANCEL_GRACE_MS: '999',
+        NEXTFLOW_READINESS_INTERVAL_MS: '600001',
+      });
+      expect.unreachable();
+    } catch (error) {
+      expect((error as ConfigValidationError).fields).toEqual([
+        'NEXTFLOW_BIN',
+        'NEXTFLOW_CANCEL_GRACE_MS',
+        'NEXTFLOW_ENABLED',
+        'NEXTFLOW_MAX_CONCURRENT_RUNS',
+        'NEXTFLOW_MAX_CPUS',
+        'NEXTFLOW_MAX_MEMORY_GB',
+        'NEXTFLOW_MAX_TIME_HOURS',
+        'NEXTFLOW_READINESS_INTERVAL_MS',
+      ]);
+    }
+
+    try {
+      loadConfig({ ...validEnvironment, NEXTFLOW_HOME: 'relative/nxf' });
+      expect.unreachable();
+    } catch (error) {
+      expect((error as ConfigValidationError).fields).toEqual(['NEXTFLOW_HOME']);
+    }
+  });
+
   it('rejects a job retention longer than the approved seven days', () => {
     try {
       loadConfig({ ...validEnvironment, JOB_RETENTION_DAYS: '8', EXECUTOR_ENABLED: 'yes' });

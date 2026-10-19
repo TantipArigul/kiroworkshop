@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   BrowserRouter,
   Link,
+  Navigate,
   NavLink,
   Route,
   Routes,
@@ -9,16 +10,20 @@ import {
   useNavigate,
 } from 'react-router';
 
-import { Button, FeedbackMessage } from './components/ui';
+import { Button } from './components/ui';
 import { AuditPage } from './features/audit/AuditPage';
 import { AuthProvider } from './features/auth/AuthProvider';
 import { useAuth } from './features/auth/authContext';
 import { ChangePasswordPage } from './features/auth/ChangePasswordPage';
 import { CHANGE_PASSWORD_PATH, RequireAuth } from './features/auth/RequireAuth';
 import { SignInPage } from './features/auth/SignInPage';
+import { GuidePage } from './features/guide/GuidePage';
 import { JobDetailPage } from './features/jobs/JobDetailPage';
+import { CookieNotice, LicensePage } from './features/legal/LicensePage';
 import { JobsListPage } from './features/jobs/JobsListPage';
-import { NewJobPage } from './features/jobs/NewJobPage';
+import { PipelineRunPage } from './features/pipelines/PipelineRunPage';
+import { PipelinesPage } from './features/pipelines/PipelinesPage';
+import { ResultPage } from './features/results/ResultPage';
 
 export function App() {
   return (
@@ -50,13 +55,23 @@ export function App() {
                 }
                 path="/jobs"
               />
+              {/* The Smart Checkup form now lives under the catalog (design C10). */}
+              <Route element={<Navigate replace to="/pipelines" />} path="/jobs/new" />
               <Route
                 element={
                   <RequireAuth>
-                    <NewJobPage />
+                    <PipelinesPage />
                   </RequireAuth>
                 }
-                path="/jobs/new"
+                path="/pipelines"
+              />
+              <Route
+                element={
+                  <RequireAuth>
+                    <PipelineRunPage />
+                  </RequireAuth>
+                }
+                path="/pipelines/:pipelineId/run"
               />
               <Route
                 element={
@@ -68,15 +83,25 @@ export function App() {
               />
               <Route
                 element={
+                  <RequireAuth>
+                    <ResultPage />
+                  </RequireAuth>
+                }
+                path="/jobs/:jobId/result"
+              />
+              <Route
+                element={
                   <RequireAuth permission="AUDIT_READ">
                     <AuditPage />
                   </RequireAuth>
                 }
                 path="/audit"
               />
-              <Route element={<Guide />} path="/help" />
+              <Route element={<GuidePage />} path="/help" />
+              <Route element={<LicensePage />} path="/license" />
             </Routes>
           </main>
+          <SiteFooter />
         </div>
       </AuthProvider>
     </BrowserRouter>
@@ -127,6 +152,7 @@ function SiteHeader() {
       </Link>
       <nav aria-label="Primary navigation" className="site-nav">
         <NavLink to="/jobs">Workspace</NavLink>
+        <NavLink to="/pipelines">Pipelines</NavLink>
         <NavLink to="/help">Guide</NavLink>
         {signedIn && hasPermission('AUDIT_READ') ? <NavLink to="/audit">Audit</NavLink> : null}
         {signedIn ? (
@@ -219,8 +245,13 @@ function Landing() {
       <section aria-label="Privacy and source commitments" className="trust-strip">
         <span>Private by default</span>
         <span>HTTPS delivery</span>
-        <span id="mit-license">MIT licensed source</span>
+        <Link id="mit-license" to="/license">
+          MIT licensed source
+        </Link>
       </section>
+      <div className="landing-cookies">
+        <CookieNotice />
+      </div>
     </>
   );
 }
@@ -277,19 +308,14 @@ function Step({ number, text, title }: { number: string; text: string; title: st
   );
 }
 
-function Guide() {
+function SiteFooter() {
   return (
-    <section className="guide">
-      <p className="eyebrow">Guide</p>
-      <h1>Follow the analysis path with confidence.</h1>
-      <ol>
-        <li>Use the sample input to confirm formatting.</li>
-        <li>Submit one analysis and retain its job URL.</li>
-        <li>Read status, safe errors, result labels and limitation notes.</li>
-      </ol>
-      <FeedbackMessage tone="success">
-        Interactive sample and final result views are added with the Job and Results units.
-      </FeedbackMessage>
-    </section>
+    <footer className="site-footer">
+      <p>SamNohserver · training prototype with synthetic data</p>
+      <nav aria-label="Footer">
+        <Link to="/license">Licence</Link>
+        <Link to="/help">Guide</Link>
+      </nav>
+    </footer>
   );
 }

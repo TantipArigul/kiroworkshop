@@ -210,3 +210,211 @@
 - **Action**: implementation-complete
 - **Artifacts**: `units/submission-job-lifecycle/tasks.md` (17/17), manifest
 - **Outcome**: all CI gates pass locally; branch `feat/submission-job-lifecycle` pushed for review on user request; next unit `results-guidance` not started
+### [2026-10-18T00:40:00Z] Requirements: Add-on Decision Gate (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: decision-gate
+- **Artifacts**: `decisions-requirements-addon-pipeline-catalog.md`
+- **Outcome**: scope change requested by user on branch `feat/pipeline-catalog-nextflow`; confirmed C-1..C-7 recorded from conversation; Step 0 local Nextflow verification results recorded; D1A-1..D1A-10 awaiting answers
+### [2026-10-18T00:55:00Z] Requirements: Add-on Validation (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: validation
+- **Artifacts**: `decisions-requirements-addon-pipeline-catalog.md` (Decisions Summary + validation)
+- **Outcome**: answers D1A-1..D1A-10 recorded (D1A-6 = Cancel with CANCELLED, D1A-7 = results deferred to Results & Guidance); 2 medium conflicts (V-1 CANCELLED contract scope, V-2 results deferral vs verification) awaiting resolution; 2 low notes recorded
+### [2026-10-18T01:00:00Z] Requirements: Add-on Generation (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: edit (Add-on generation)
+- **Artifacts**: `requirements.md` Add-on (US-016..US-021, adjusted US-004..US-014, NFR-002/004/005/007), `blueprints/product.md` Add-on, manifest `decisions.requirements.addOnPipelineCatalog`, backup `history/requirements-2026-10-18T01-00-00Z.md`
+- **Outcome**: V-1 and V-2 resolved with recommendations on user instruction; personas unchanged; Add-on draft awaiting approval. Completed units (foundation, identity-access, submission-job-lifecycle) are affected only through the new unit's design (shared status contract, jobs module) and are not reopened
+### [2026-10-18T01:10:00Z] Requirements: Add-on Approval (pipeline catalog + local Nextflow)
+- **Phase**: requirements
+- **Action**: approval
+- **Artifacts**: `requirements.md` Add-on, `blueprints/product.md` Add-on, manifest `decisions.requirements.addOnPipelineCatalog`
+- **Outcome**: approved by user ("proceed"); next decomposition edit to add unit `pipeline-catalog-nextflow` per D1A-10
+### [2026-10-18T01:15:00Z] Units: Edit — add pipeline-catalog-nextflow
+- **Phase**: decomposition
+- **Action**: edit
+- **Artifacts**: `units.md` (Unit 4, summary, context map, sequence Phase 3b, ownership), manifest `units[pipeline-catalog-nextflow]`, backup `history/units-2026-10-18T01-10-00Z.md`
+- **Outcome**: unit decided by D1A-10 (no new D2 gate); validation passed — 21/21 stories assigned exactly once, no circular dependency (Foundation → Identity → Jobs → Pipelines → Results); completed units not marked outdated (changes flow through the new unit's design); results-guidance has no artifacts yet, so nothing to mark outdated. Awaiting approval
+### [2026-10-18T01:25:00Z] Units: decomposition edit approved; pipeline-catalog-nextflow design D3 gate opened
+- **Phase**: decomposition/design
+- **Action**: approval, unit-start
+- **Artifacts**: `units.md`, `units/pipeline-catalog-nextflow/decisions-design.md`
+- **Outcome**: user approved Unit 4 ("proceed"); D3 (15 questions) awaiting answers — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T01:45:00Z] Design: pipeline-catalog-nextflow draft generated
+- **Phase**: design
+- **Action**: generation
+- **Artifacts**: `units/pipeline-catalog-nextflow/design.md`, blueprints tech/structure Add-on
+- **Outcome**: D3 recommendations applied; design draft awaiting approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T02:00:00Z] Units: pipeline-catalog-nextflow design approved; D4 gate opened
+- **Phase**: design/tasks
+- **Action**: approval, decision-gate
+- **Artifacts**: `units/pipeline-catalog-nextflow/{design.md, decisions-tasks.md}`
+- **Outcome**: design approved by user; D4 (8 questions) awaiting answers
+### [2026-10-18T02:15:00Z] Tasks: pipeline-catalog-nextflow draft generated
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `units/pipeline-catalog-nextflow/tasks.md`
+- **Outcome**: 25 tasks / 5 waves awaiting approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T02:20:00Z] Tasks: pipeline-catalog-nextflow approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `units/pipeline-catalog-nextflow/tasks.md`
+- **Outcome**: 25 tasks approved; awaiting implementation mode choice
+### [2026-10-18T03:30:00Z] Implementation: pipeline-catalog-nextflow Wave 1 complete (5/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: shared contracts, config, migration, web client, spike Add-on
+- **Outcome**: all checks pass — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T04:30:00Z] Implementation: pipeline-catalog-nextflow Wave 2 complete (10/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: web pipelines catalog/launch, jobs overview/detail/cancel, mock adapter
+- **Outcome**: all checks pass (one pre-existing parallel-run flake in identity P4 noted) — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T07:30:00Z] Implementation: pipeline-catalog-nextflow Wave 3 complete (18/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: executor port, cancel, registry, upload, run service, Nextflow adapter, shutdown, web/API wiring
+- **Outcome**: checks pass; real Nextflow runs (a)–(g) pass; offline-config deviation (`custom_config_base`) pending approval — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T10:30:00Z] Implementation: pipeline-catalog-nextflow Wave 4 complete (21/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: per-pipeline readiness, `pipelines:setup`/`pipelines:check` CLI, README host-run docs, upload staging retention; MultiQC image source Add-on (option b)
+- **Outcome**: checks pass; real `pipelines:check` 11/11 and `/health/ready` pipeline ok — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T13:30:00Z] Implementation: pipeline-catalog-nextflow Wave 5 complete (25/25)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: unit/integration/PBT/real-run suites, flaky-test fix (test support), upload race fix (BUG-1/1b)
+- **Outcome**: full chain green; real-run 6/6 offline — details in `units/pipeline-catalog-nextflow/audit.md`
+### [2026-10-18T14:40:00Z] Implementation: pipeline-catalog-nextflow complete (25/25)
+- **Phase**: implementation
+- **Action**: implementation-complete
+- **Artifacts**: branch `feat/pipeline-catalog-nextflow` pushed to origin (no PR/merge; all units merge to `main` at the end per user decision)
+- **Outcome**: unit completed; next unit `results-guidance` (Developer 3) branches from `feat/pipeline-catalog-nextflow`
+### [2026-10-18T14:50:00Z] Design: results-guidance D3 generated
+- **Phase**: design
+- **Action**: decision-gate
+- **Artifacts**: `units/results-guidance/decisions-design.md` (15 questions)
+- **Outcome**: awaiting user answers
+### [2026-10-18T15:40:00Z] Design: results-guidance generated (draft)
+- **Phase**: design
+- **Action**: generation (after requirements Add-on refinement for HTML report viewing)
+- **Artifacts**: `units/results-guidance/design.md`, requirements Add-on, blueprints Add-ons
+- **Outcome**: awaiting user approval — details in `units/results-guidance/audit.md`
+### [2026-10-18T15:50:00Z] Design: results-guidance approved
+- **Phase**: design
+- **Action**: approval
+- **Artifacts**: `units/results-guidance/design.md`
+- **Outcome**: next — tasks for results-guidance
+### [2026-10-18T16:00:00Z] Tasks: results-guidance D4 generated
+- **Phase**: tasks
+- **Action**: decision-gate
+- **Artifacts**: `units/results-guidance/decisions-tasks.md` (8 questions)
+- **Outcome**: awaiting user answers
+### [2026-10-18T16:10:00Z] Tasks: results-guidance generated (draft)
+- **Phase**: tasks
+- **Action**: generation
+- **Artifacts**: `units/results-guidance/tasks.md` (20 tasks, 5 waves)
+- **Outcome**: awaiting user approval
+### [2026-10-18T16:20:00Z] Tasks: results-guidance approved
+- **Phase**: tasks
+- **Action**: approval
+- **Artifacts**: `units/results-guidance/tasks.md`
+- **Outcome**: next — implement (mode selection)
+### [2026-10-18T17:00:00Z] Implementation: results-guidance Wave 1 complete (4/20)
+- **Phase**: implementation
+- **Action**: wave-complete
+- **Artifacts**: result contracts + GONE, completion finalize port, listOutputFiles, result tokens, LICENSE
+- **Outcome**: all checks pass — details in `units/results-guidance/audit.md`
+### [2026-10-18T18:00:00Z] Implementation: results-guidance Wave 2 complete (9/20)
+- **Phase**: implementation
+- **Action**: wave-complete (after one retry)
+- **Artifacts**: result page, charts, artifact list + sandboxed report viewer, guide, licence page, footer, cookie notice, mocks
+- **Outcome**: checks pass; primary colour contrast finding pending user decision — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T03:20:00Z] Operations: local host-run Nextflow setup
+- **Phase**: operations (pipeline-catalog-nextflow Add-on)
+- **Action**: user requested "set up"; applied pending migration `20261018010000_pipeline_catalog` (DB backup `data/portal.db.bak-2026-10-19`), rebuilt images, added `API_UPSTREAM` to Caddy/Compose, created `.env.host` and `~/portal-data/{storage,nxf-home}`, ran `pipelines:setup` and `pipelines:check`
+- **Artifacts**: `units/pipeline-catalog-nextflow/design.md` Add-on, `docker/Caddyfile`, `docker-compose.yml`, `docker/README.md`
+- **Outcome**: `pipelines:check` 11/11 ok; `/health/ready` reports `pipeline:wf-renamefastq: ok` through Caddy
+
+### [2026-10-19T03:50:00Z] Implementation: results-guidance Wave 3 complete (15/20)
+- **Outcome**: pass; browser check by user; log redaction Add-on applied — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T04:20:00Z] Implementation: results-guidance Wave 4 complete (17/20)
+- **Outcome**: pass; 2 small logging deviations pending approval — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T05:30:00Z] Implementation: results-guidance Wave 5 complete (20/20)
+- **Outcome**: pass; user browser smoke pass; awaiting finalize — details in `units/results-guidance/audit.md`
+
+### [2026-10-19T05:50:00Z] Implementation: results-guidance complete; all 5 units complete
+- **Outcome**: `implement` added to `sharedPhases`; handoff to aidlc-build
+
+### [2026-10-19T05:55:00Z] Build: Detection
+- **Phase**: build
+- **Action**: build-detect
+- **Artifacts**: (none — detection only)
+- **Outcome**: Detected Node.js 24 / pnpm 12.8.1 workspace with GitHub Actions `quality.yml` (format, lint, typecheck, test, properties, tokens, build, diff-check) + Docker image build; no coverage tool or numeric target (Foundation D3); dependency/secret scan and artifact integrity steps named in tech blueprint are not in `quality.yml`
+
+### [2026-10-19T07:10:00Z] Build: Verification
+- **Phase**: build
+- **Action**: build-run, test-run, quality-check, ops-check (user "proceed")
+- **Artifacts**: `build-report.md` (draft); API image rebuilt locally (Compose `api` stays stopped, host-run mode unchanged)
+- **Outcome**: Build passed. Tests: 616 passed, 0 failed (+6 opt-in passed in real Nextflow run), properties 34. Gates: 7 passed, 1 warning (dev-dependency advisories: 3 high, 1 moderate; prod 0), coverage informational. Ops: 3 passed, 1 warning (startup error shows stack trace), metrics n/a. Traceability 21/21 stories, 99/99 tasks
+
+### [2026-10-19T07:20:00Z] Build: Report Approved
+- **Phase**: build
+- **Action**: build-approved (user "deploy"; accepted with warnings 1–4)
+- **Artifacts**: build-report.md
+- **Outcome**: Build verified. 616 tests + 34 properties passing, 7 quality gates met, 1 warning; ops 3 passed, 1 warning. Proceeding to deploy
+
+### [2026-10-19T07:25:00Z] Deploy: Decision Gate D5 generated
+- **Phase**: deploy
+- **Action**: decision-gate — 12 questions (10 standard, adapted to approved local Docker Compose scope, + CI security gates and runtime image from build findings)
+- **Artifacts**: `decisions-deploy.md` (answers blank)
+- **Outcome**: awaiting user answers
+
+### [2026-10-19T07:30:00Z] Deploy: Decision Gate
+- **Phase**: deploy
+- **Action**: decision-gate — "use recommendations"; Decisions Summary populated
+- **Artifacts**: decisions-deploy.md; manifest `decisions.deploy`
+- **Outcome**: D5 completed. CI: GitHub Actions, Target: Docker Compose on Linux server (LUKS), Strategy: recreate, IaC: none. 0 conflicts found
+### [2026-10-19T07:35:00Z] Deploy: Plan (draft)
+- **Phase**: deploy
+- **Action**: plan — deployment specification generated
+- **Artifacts**: `specs/.../deployment.md` (draft)
+- **Outcome**: 3 CI stages (verify existing, security, image), manual `deploy.sh`/`rollback.sh`/`smoke.sh`, prod-only runtime image + separate migrate target; awaiting approval
+
+### [2026-10-19T07:40:00Z] Deploy: Plan regenerated from template
+- **Phase**: deploy
+- **Action**: plan — first draft was written before reading `aidlc-deploy/assets/deployment.md`; regenerated using the template structure (Summary, Pipeline, Target Infrastructure, Environment, Strategy, Files to Generate, Risk, Cost)
+- **Artifacts**: deployment.md (draft)
+- **Outcome**: Pipeline: 3 CI stages + manual deploy, Target: Docker Compose on Linux server, Environments: local dev + training server, Files planned: 9. Awaiting approval
+
+### [2026-10-19T07:45:00Z] Deploy: Plan approved
+- **Phase**: deploy
+- **Action**: plan approval ("approve")
+- **Artifacts**: deployment.md; manifest `artifacts.deploy.status: planned`
+- **Outcome**: generating 9 files
+
+### [2026-10-19T09:30:00Z] Deploy: Generation
+- **Phase**: deploy
+- **Action**: generation (after user "ok" to the generation findings Add-on and option "A" for the shared testing entry point)
+- **Artifacts**: `.github/workflows/quality.yml`, `apps/api/Dockerfile`, `docker-compose.yml`, `.env.production.example`, `scripts/{deploy,rollback,smoke,backup-db}.sh`, `docker/README.md` (§7), plus `.gitleaksignore`, `.gitignore`, `packages/shared/{package.json,src/index.ts}` and 3 test import updates (option A); `deployment.md` + Foundation `design.md` Add-ons
+- **Outcome**: Generated 9 planned files (+ 2 config, option-A code change). CI: GitHub Actions, Target: Docker Compose on Linux server, IaC: None, 2 environments. Verified locally: runtime image 493 MB (was 2.22 GB) with no dev packages, migrate image applies all 5 migrations, API ready/healthy as non-root, CLI works, SIGTERM exit 0, backup snippet produces a valid copy; smoke.sh passes against https://localhost and fails without the CA; gitleaks full history clean with 1 reviewed fixture ignored; shellcheck and actionlint clean; compose config valid for local and server variables; tests shared 75, web 71, api 430 (+6 opt-in), properties 34. Not verifiable here: deploy.sh/rollback.sh end-to-end (need a Linux server with root, LUKS and DNS) and the workflow on GitHub
+
+### [2026-10-19T09:40:00Z] Deploy: Complete
+- **Phase**: deploy
+- **Action**: approval ("approve") + deploy-complete
+- **Artifacts**: deploy-summary.md; manifest `artifacts.deploy.status: approved`, `sharedPhases` + `deploy`, `state.status: completed`
+- **Outcome**: Workflow complete. Configuration generated and verified locally; no deployment executed. Remaining manual steps listed in deploy-summary.md (commit/PR, server setup, first deploy, cron, secret rotation)
+
+### [2026-10-19T09:45:00Z] Workflow Complete
+- **Feature**: smart-checkup-package-recommendation-portal
+- **Duration**: 2026-10-01T06:54:58Z → 2026-10-19T09:45:00Z
+- **Phases completed**: context, requirements, decomposition, implement, build, deploy
+- **Mode**: incremental
+- **Units**: 5 completed (foundation, identity-access, submission-job-lifecycle, pipeline-catalog-nextflow, results-guidance)
+- **Final status**: All phases complete. Deployment configured for Docker Compose on a Linux training server via GitHub Actions; no deployment executed. deploy-summary.md regenerated from the finalize template
+
+### [2026-10-19T09:55:00Z] Git: deploy configuration committed and pushed
+- **Action**: user "next step please" — 3 commits (`refactor(shared)`, `ci(deploy)`, `docs(aidlc)`) on `feat/results-guidance`, pushed `478c9ea..` to origin; no PR, no merge

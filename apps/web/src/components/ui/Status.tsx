@@ -1,10 +1,11 @@
-type Status = 'completed' | 'failed' | 'queued' | 'running';
+export type Status = 'cancelled' | 'completed' | 'failed' | 'queued' | 'running';
 
 type StatusProps = {
   status: Status;
 };
 
 const statusLabels: Record<Status, string> = {
+  cancelled: 'Cancelled',
   completed: 'Completed',
   failed: 'Failed',
   queued: 'Queued',
@@ -42,6 +43,16 @@ function StatusIcon({ status }: StatusProps) {
       <svg aria-hidden="true" className="ui-status__icon" viewBox="0 0 24 24">
         <path d="M12 3v9l6 3" />
         <circle cx="12" cy="12" r="9" />
+      </svg>
+    );
+  }
+
+  if (status === 'cancelled') {
+    // Circle with a diagonal bar: "stopped", distinct from the failed cross.
+    return (
+      <svg aria-hidden="true" className="ui-status__icon" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="m5.6 5.6 12.8 12.8" />
       </svg>
     );
   }

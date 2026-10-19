@@ -1,11 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 
-import type { JobDetail } from '@portal/shared';
+import type { JobDetail, JobRunInfo } from '@portal/shared';
 
 import { Button, FeedbackMessage } from '../../components/ui';
 import { ApiRequestError } from '../auth/apiClient';
 import { useAuth } from '../auth/authContext';
+import { LAYOUT_LABELS } from '../pipelines/pipelinesApi';
+import { CancelJob } from './CancelJob';
+import { JobProgress } from './JobProgress';
 import { JobStatusBadge } from './JobStatusBadge';
 import { createJobsApi, formatBytes, formatDateTime, humanize } from './jobsApi';
 import { useJobPolling } from './useJobPolling';
@@ -17,6 +20,7 @@ export function JobDetailPage() {
   const { polling, refresh, state } = useJobPolling(jobsApi, jobId);
   const location = useLocation();
   const submitted = Boolean((location.state as { submitted?: boolean } | null)?.submitted);
+  const [cancelNotice, setCancelNotice] = useState<string | null>(null);
 
   if (state.status === 'loading') {
     return (
@@ -52,7 +56,7 @@ export function JobDetailPage() {
   return (
     <section aria-labelledby="job-title" className="jobs-page job-detail">
       <nav aria-label="Breadcrumb" className="job-detail__crumbs">
-        <Link to="/jobs">Analysis jobs</Link>
+        <Link to="/jobs">Runs and jobs</Link>
         <span aria-hidden="true">/</span>
         <span className="jobs-mono">{job.id}</span>
       </nav>
@@ -66,8 +70,8 @@ export function JobDetailPage() {
 
       <header className="job-detail__head">
         <div>
-          <p className="eyebrow">Analysis job</p>
-          <h1 id="job-title">{job.sampleLabel}</h1>
+          <p className="eyebrow">{job.pipelineName}</p>
+          <h1 id="job-title">{job.runName || job.sampleLabel}</h1>
         </div>
         <div className="job-detail__status">
           <JobStatusBadge status={job.status} />
@@ -89,7 +93,19 @@ export function JobDetailPage() {
         </div>
       </header>
 
+      {cancelNotice ? <FeedbackMessage tone="info">{cancelNotice}</FeedbackMessage> : null}
+
       <JobOutcome job={job} />
+
+      {job.cancellable ? (
+        <CancelJob
+          jobId={job.id}
+          onSettled={(notice) => {
+            setCancelNotice(notice);
+            void refresh();
+          }}
+        />
+      ) : null}
 
       <div className="job-detail__grid">
         <section aria-labelledby="job-history-title" className="ui-card job-panel">
@@ -109,31 +125,50 @@ export function JobDetailPage() {
           <h2 id="job-input-title">Submitted input</h2>
           <dl className="job-facts">
             <div>
-              <dt>Age band</dt>
-              <dd>{job.parameters.ageBand}</dd>
+              <dt>Pipeline</dt>
+              <dd>{job.pipelineName}</dd>
             </div>
             <div>
-              <dt>Focus area</dt>
-              <dd>{humanize(job.parameters.focusArea)}</dd>
+              <dt>Run name</dt>
+              <dd>{job.runName || job.sampleLabel}</dd>
             </div>
             <div>
-              <dt>Lifestyle factors</dt>
-              <dd>
-                {job.parameters.lifestyleFactors.length > 0
-                  ? job.parameters.lifestyleFactors.map(humanize).join(', ')
-                  : 'None selected'}
-              </dd>
+              <dt>Job ID</dt>
+              <dd className="jobs-mono">{job.id}</dd>
             </div>
-            <div>
-              <dt>Simulated failure</dt>
-              <dd>{job.parameters.simulateFailure ? 'Requested' : 'No'}</dd>
-            </div>
-            <div>
-              <dt>File</dt>
-              <dd>
-                {job.file.name} · {formatBytes(job.file.sizeBytes)} · {job.file.rowCount} rows
-              </dd>
-            </div>
+            {job.run ? <RunFacts run={job.run} /> : null}
+            {job.parameters ? (
+              <>
+                <div>
+                  <dt>Age band</dt>
+                  <dd>{job.parameters.ageBand}</dd>
+                </div>
+                <div>
+                  <dt>Focus area</dt>
+                  <dd>{humanize(job.parameters.focusArea)}</dd>
+                </div>
+                <div>
+                  <dt>Lifestyle factors</dt>
+                  <dd>
+                    {job.parameters.lifestyleFactors.length > 0
+                      ? job.parameters.lifestyleFactors.map(humanize).join(', ')
+                      : 'None selected'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Simulated failure</dt>
+                  <dd>{job.parameters.simulateFailure ? 'Requested' : 'No'}</dd>
+                </div>
+              </>
+            ) : null}
+            {job.file ? (
+              <div>
+                <dt>File</dt>
+                <dd>
+                  {job.file.name} · {formatBytes(job.file.sizeBytes)} · {job.file.rowCount} rows
+                </dd>
+              </div>
+            ) : null}
             <div>
               <dt>Submitted</dt>
               <dd>
@@ -156,36 +191,125 @@ export function JobDetailPage() {
 }
 
 function JobOutcome({ job }: { job: JobDetail }) {
+  const relaunchPath = `/pipelines/${job.pipelineId}/run`;
+
   if (job.status === 'FAILED') {
     return (
       <div className="job-outcome job-outcome--failed" role="status">
-        <h2>The analysis failed</h2>
-        <p>{job.failureSummary ?? 'The analysis did not finish. Submit the job again.'}</p>
+        <h2>The run failed</h2>
+        <p>{job.failureSummary ?? 'The run did not finish. Submit it again.'}</p>
         <p>No result is available for a failed job.</p>
-        <Link className="ui-button ui-button--secondary" to="/jobs/new">
-          Submit a new analysis
+        <Link className="ui-button ui-button--secondary" to={relaunchPath}>
+          Start a new run
+        </Link>
+      </div>
+    );
+  }
+
+  if (job.status === 'CANCELLED') {
+    return (
+      <div className="job-outcome job-outcome--cancelled" role="status">
+        <h2>The run was cancelled</h2>
+        <p>
+          It was stopped before finishing, so no result is available. The job record, its input and
+          status history are kept until automatic deletion, and you can still delete it below.
+        </p>
+        <Link className="ui-button ui-button--secondary" to={relaunchPath}>
+          Start a new run
         </Link>
       </div>
     );
   }
 
   if (job.status === 'COMPLETED') {
+    // Results & Guidance C8: the result page now exists for both pipelines.
     return (
       <div className="job-outcome job-outcome--completed" role="status">
-        <h2>The analysis completed</h2>
-        <p>The result summary and download are available from the result view.</p>
+        <h2>The run completed</h2>
+        {job.outputs ? (
+          <p>
+            {job.outputs.fileCount} output file{job.outputs.fileCount === 1 ? '' : 's'} (
+            {formatBytes(job.outputs.totalBytes)}) were recorded for this run.
+          </p>
+        ) : null}
+        <Link
+          className="ui-button ui-button--primary"
+          to={`/jobs/${encodeURIComponent(job.id)}/result`}
+        >
+          View result
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="job-outcome" role="status">
-      <h2>{job.status === 'QUEUED' ? 'Waiting to start' : 'Analysis in progress'}</h2>
+    // Only the heading is live: the elapsed time changes on every poll and would be re-announced.
+    <div className="job-outcome">
+      <h2 role="status">{job.status === 'QUEUED' ? 'Waiting to start' : 'Run in progress'}</h2>
+      <JobProgress
+        progress={job.progress}
+        queuePosition={job.queuePosition}
+        status={job.status}
+        variant="full"
+      />
       <p>
         This page refreshes on its own while the job is active. You can leave and come back with the
         same link.
       </p>
     </div>
+  );
+}
+
+/** Input summary of a Nextflow run: layout, files, sample name or sheet, and options. */
+function RunFacts({ run }: { run: JobRunInfo }) {
+  const fastq = run.files.filter((file) => file.kind === 'FASTQ');
+  const sheet = run.files.find((file) => file.kind === 'SAMPLE_SHEET');
+  const totalBytes = fastq.reduce((sum, file) => sum + file.sizeBytes, 0);
+
+  return (
+    <>
+      <div>
+        <dt>Input type</dt>
+        <dd>{LAYOUT_LABELS[run.layout]}</dd>
+      </div>
+      <div>
+        <dt>
+          FASTQ files ({fastq.length}, {formatBytes(totalBytes)})
+        </dt>
+        <dd>
+          <ul className="job-files">
+            {fastq.map((file) => (
+              <li key={file.relativePath}>
+                <code>{file.relativePath}</code> · {formatBytes(file.sizeBytes)}
+              </li>
+            ))}
+          </ul>
+        </dd>
+      </div>
+      {run.layout === 'BARCODE_FOLDERS' ? (
+        <div>
+          <dt>Sample sheet</dt>
+          <dd>{sheet ? `Provided · ${formatBytes(sheet.sizeBytes)}` : 'Not provided'}</dd>
+        </div>
+      ) : (
+        <div>
+          <dt>Sample name</dt>
+          <dd>{run.sampleName ?? 'Not set'}</dd>
+        </div>
+      )}
+      <div>
+        <dt>Options</dt>
+        <dd>
+          <ul className="job-files">
+            <li>
+              Demultiplex: {run.options.demultiplex ? `Yes (kit ${run.options.kitName})` : 'No'}
+            </li>
+            <li>Quality filter: {run.options.qualityFilter ? 'On' : 'Off'}</li>
+            <li>Minimum Q-score: {run.options.qScore}</li>
+          </ul>
+        </dd>
+      </div>
+    </>
   );
 }
 

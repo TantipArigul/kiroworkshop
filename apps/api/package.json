@@ -8,6 +8,7 @@
     "start": "node dist/main.js",
     "identity": "node dist/cli/identity.js",
     "jobs": "node dist/cli/jobs.js",
+    "pipelines": "node dist/cli/pipelines.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
@@ -23,6 +24,7 @@
     "@prisma/client": "7.10.0",
     "argon2": "0.45.1",
     "better-sqlite3": "12.6.0",
+    "busboy": "1.6.0",
     "csrf-sync": "4.2.1",
     "express": "5.2.1",
     "express-rate-limit": "8.7.0",
@@ -34,6 +36,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.12",
+    "@types/busboy": "1.5.5",
     "@types/express": "5.0.6",
     "@types/express-session": "1.18.0",
     "@types/supertest": "7.2.1"

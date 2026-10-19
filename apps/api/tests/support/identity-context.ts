@@ -9,6 +9,7 @@ import {
   createTestDatabaseContext,
 } from '../../src/infrastructure/test-database.js';
 import { createAuditService } from '../../src/modules/audit/audit.service.js';
+import { closeServer, listenOnLoopback, registerLoopbackServer } from './loopback-server.js';
 import {
   createIdentityService,
   type IdentityService,
@@ -54,10 +55,13 @@ export async function createIdentityTestContext(
   const audit = createAuditService(prisma, { error: () => undefined });
   const identity = createIdentityService({ audit, config, prisma });
   const app = createApiApp(config, prisma, undefined, appOptions);
+  const server = await listenOnLoopback(app);
+  registerLoopbackServer(app, server);
 
   return {
     app,
     cleanup: async () => {
+      await closeServer(server);
       await prisma.$disconnect();
       await database.cleanup();
     },

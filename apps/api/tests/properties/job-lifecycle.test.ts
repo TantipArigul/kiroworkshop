@@ -4,7 +4,8 @@ import { join, sep } from 'node:path';
 import fc from 'fast-check';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { INPUT_MARKERS, idempotencyKeyGenerator, jobStatusGenerator } from '@portal/shared';
+import { INPUT_MARKERS, TERMINAL_JOB_STATUSES } from '@portal/shared';
+import { idempotencyKeyGenerator, jobStatusGenerator } from '@portal/shared/testing';
 
 import { resolvePrivateStoragePath } from '../../src/infrastructure/storage-path.js';
 import { validateInputFile } from '../../src/modules/jobs/input-validator.js';
@@ -39,7 +40,9 @@ async function submit(key = crypto.randomUUID(), body: object = SAMPLE_BODY) {
 }
 
 describe('Job lifecycle properties (fast-check)', () => {
-  it('P1 only QUEUED→RUNNING→COMPLETED|FAILED is ever applied (US-007 AC4, US-008 AC1)', async () => {
+  // P7 replaces Unit 2's P1 (Pipeline Catalog design): CANCELLED is reachable from QUEUED and
+  // RUNNING only, and no terminal status (COMPLETED, FAILED, CANCELLED) ever changes again.
+  it('P7 only QUEUED→RUNNING→COMPLETED|FAILED and QUEUED|RUNNING→CANCELLED are ever applied; terminal statuses never change (US-007 AC4, US-021 AC1, AC4)', async () => {
     const { createJobService } = await import('../../src/modules/jobs/job.service.js');
     const { createAuditService } = await import('../../src/modules/audit/audit.service.js');
     const service = createJobService({
@@ -53,18 +56,21 @@ describe('Job lifecycle properties (fast-check)', () => {
 
     await fc.assert(
       fc.asyncProperty(
-        fc.array(fc.tuple(jobStatusGenerator, jobStatusGenerator), { maxLength: 6 }),
+        fc.array(fc.tuple(jobStatusGenerator, jobStatusGenerator), { maxLength: 8 }),
         async (attempts) => {
           const jobId = await submit();
           let expected: string = 'QUEUED';
 
           for (const [from, to] of attempts) {
+            const wasTerminal = (TERMINAL_JOB_STATUSES as readonly string[]).includes(expected);
+
             if (!isAllowedTransition(from, to)) {
               await expect(service.transition(jobId, from, to, 'x', 'pbt')).rejects.toThrow();
             } else {
               const applied = await service.transition(jobId, from, to, 'x', 'pbt');
               expect(applied).toBe(from === expected);
               if (applied) {
+                expect(wasTerminal).toBe(false);
                 expected = to;
               }
             }
@@ -83,12 +89,14 @@ describe('Job lifecycle properties (fast-check)', () => {
             'QUEUED,RUNNING',
             'QUEUED,RUNNING,COMPLETED',
             'QUEUED,RUNNING,FAILED',
+            'QUEUED,CANCELLED',
+            'QUEUED,RUNNING,CANCELLED',
           ]).toContain(path.join(','));
         },
       ),
       { numRuns: DB_RUNS },
     );
-  });
+  }, 120_000);
 
   it('P2 any number of submissions with one Idempotency-Key yields one job (US-005 AC3)', async () => {
     await fc.assert(

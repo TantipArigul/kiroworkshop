@@ -2,6 +2,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 
 import { createSuccessResponse } from '@portal/shared';
 
+import type { NextflowConfig } from '../config/config.js';
 import type { AppConfig } from '../config/index.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { PrismaSessionStore } from '../infrastructure/prisma-session-store.js';
@@ -10,12 +11,28 @@ import { createAuditService } from '../modules/audit/audit.service.js';
 import { createIdentityRouter } from '../modules/identity/identity.routes.js';
 import { createIdentityService } from '../modules/identity/identity.service.js';
 import { createSessionGuard } from '../modules/identity/session-guard.js';
-import { writeResultSummary, type JobCompletionHandler } from '../modules/jobs/completion.js';
+import type { JobCompletionHandler } from '../modules/jobs/completion.js';
+import { createExecutorDirectory } from '../modules/jobs/executor.js';
 import { createJobStorage } from '../modules/jobs/job-storage.js';
 import { createJobWorker, type JobWorker } from '../modules/jobs/job-worker.js';
 import { createJobService } from '../modules/jobs/job.service.js';
 import { createJobsRouter } from '../modules/jobs/jobs.routes.js';
 import { createRetentionSweeper } from '../modules/jobs/retention.js';
+import { createSimulatedAdapter } from '../modules/jobs/simulated-adapter.js';
+import {
+  createNextflowAdapter,
+  resolveNextflowConfig,
+} from '../modules/pipelines/nextflow-adapter.js';
+import {
+  createPipelineRunService,
+  recordOutputs,
+} from '../modules/pipelines/pipeline-run.service.js';
+import { createPipelinesRouter } from '../modules/pipelines/pipelines.routes.js';
+import { pipelineIdsForExecutor } from '../modules/pipelines/registry.js';
+import type { RunUploadLimits } from '../modules/pipelines/run-upload.js';
+import { createResultService } from '../modules/results/result.service.js';
+import { createResultsRouter } from '../modules/results/results.routes.js';
+import { createSmartCheckupResultBuilder } from '../modules/results/smart-checkup-result.js';
 import { createLogger, createRequestLogger } from '../shared/logger.js';
 import { createErrorResponse, HttpError } from './errors.js';
 import {
@@ -36,14 +53,19 @@ export type ApiRuntimeState = {
 };
 
 export type ApiAppOptions = {
-  /** Replaces the default `result.json` handler (Results & Guidance plugs in here). */
+  /** Replaces the default Smart Checkup result builder (Results & Guidance C3); tests only. */
   completionHandler?: JobCompletionHandler;
   /** Test hook: overrides executor readiness when the worker loop is not started. */
   isExecutorReady?: () => boolean;
+  /** Test hook: smaller upload limits than the 1 GiB / 10 FASTQ / 64 KB requirement values. */
+  runUploadLimits?: RunUploadLimits;
 };
 
+/** Core settings plus the Nextflow settings (absent ones fall back to the config defaults). */
+export type ApiAppConfig = AppConfig & Partial<NextflowConfig>;
+
 export function createApiApp(
-  config: AppConfig,
+  config: ApiAppConfig,
   prisma: PrismaClient,
   runtimeState: ApiRuntimeState = { draining: false, startedAt: Date.now() },
   options: ApiAppOptions = {},
@@ -56,18 +78,61 @@ export function createApiApp(
   const identity = createIdentityService({ audit, config, prisma });
   const guard = createSessionGuard({ audit, config, identity });
   const storage = createJobStorage(config.storageRoot);
+  const simulatedAdapter = createSimulatedAdapter({
+    completionHandler: options.completionHandler ?? createSmartCheckupResultBuilder({ logger }),
+    config,
+    logger,
+    prisma,
+    storage,
+  });
+  const nextflowConfig = resolveNextflowConfig(config);
+  const nextflowAdapter = createNextflowAdapter({
+    config: nextflowConfig,
+    logger,
+    prisma,
+    recordOutputs: (tx, input) => recordOutputs(tx, { ...input, storage }),
+    storage,
+  });
+  const executors = createExecutorDirectory([
+    { adapter: simulatedAdapter, pipelineIds: pipelineIdsForExecutor('simulated') },
+    { adapter: nextflowAdapter, pipelineIds: pipelineIdsForExecutor('nextflow') },
+  ]);
   const jobs = createJobService({
     audit,
     config,
+    executors,
     isExecutorReady: () => executorReady(),
     logger,
     prisma,
     storage,
   });
+  const pipelines = createPipelineRunService({
+    audit,
+    availability: (pipelineId) => {
+      if (!executorReady()) {
+        return { available: false, unavailableReason: null };
+      }
+
+      const adapter = executors.adapterFor(pipelineId);
+
+      if (adapter === nextflowAdapter) {
+        const state = nextflowAdapter.readiness(pipelineId);
+        return { available: state.ready, unavailableReason: state.reason };
+      }
+
+      return { available: adapter?.isReady() ?? false, unavailableReason: null };
+    },
+    jobs,
+    logger,
+    prisma,
+    storage,
+    uploadLimits: options.runUploadLimits,
+  });
+  const results = createResultService({ jobs, pipelines, prisma, storage });
   const sweepExpiredJobs = createRetentionSweeper({ audit, jobs, logger, prisma, storage });
   const worker = createJobWorker({
-    completionHandler: options.completionHandler ?? writeResultSummary,
     config,
+    executors,
     jobs,
     logger,
     prisma,
@@ -83,6 +148,21 @@ export function createApiApp(
   // server.ts starts/stops the worker with the HTTP server; tests drive `tick()` directly.
   app.locals.jobWorker = worker;
   const executorReady = () => (options.isExecutorReady ?? worker.isReady)();
+  /**
+   * `checks["pipeline:<id>"]` (cached Nextflow readiness) for `/health/ready`. Informational
+   * only: it never makes overall readiness 503, because Smart Checkup still works. Omitted when
+   * `NEXTFLOW_ENABLED=false`, where the Nextflow pipelines are intentionally not part of the
+   * deployment (e.g. Docker Compose).
+   */
+  const pipelineChecks = (): Record<string, 'ok' | 'failed'> =>
+    nextflowConfig.nextflowEnabled
+      ? Object.fromEntries(
+          pipelineIdsForExecutor('nextflow').map((pipelineId) => [
+            `pipeline:${pipelineId}`,
+            nextflowAdapter.readiness(pipelineId).ready ? 'ok' : 'failed',
+          ]),
+        )
+      : {};
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -125,7 +205,7 @@ export function createApiApp(
       response.status(executor === 'ok' ? 200 : 503).json(
         createSuccessResponse(
           {
-            checks: { database: 'ok', executor },
+            checks: { database: 'ok', executor, ...pipelineChecks() },
             status: executor === 'ok' ? 'ready' : 'not_ready',
           },
           getRequestId(response),
@@ -135,7 +215,11 @@ export function createApiApp(
       response.status(503).json(
         createSuccessResponse(
           {
-            checks: { database: 'failed', executor: executorReady() ? 'ok' : 'failed' },
+            checks: {
+              database: 'failed',
+              executor: executorReady() ? 'ok' : 'failed',
+              ...pipelineChecks(),
+            },
             status: 'not_ready',
           },
           getRequestId(response),
@@ -165,12 +249,32 @@ export function createApiApp(
     }),
   );
   app.use('/api/v1/audit-events', createAuditRouter({ audit, guard, prisma }));
+  // Mounted before the Jobs router: its paths do not clash, and its per-route auth + limiter
+  // chain must not run twice (the Jobs router applies its chain to every `/jobs` request).
+  app.use(
+    '/api/v1/jobs',
+    createResultsRouter({
+      audit,
+      authenticatedApiLimiter: rateLimiters.authenticatedApi,
+      guard,
+      results,
+    }),
+  );
   app.use(
     '/api/v1/jobs',
     createJobsRouter({
       authenticatedApiLimiter: rateLimiters.authenticatedApi,
       guard,
       jobs,
+      submitLimiter: rateLimiters.submit,
+    }),
+  );
+  app.use(
+    '/api/v1/pipelines',
+    createPipelinesRouter({
+      authenticatedApiLimiter: rateLimiters.authenticatedApi,
+      guard,
+      pipelines,
       submitLimiter: rateLimiters.submit,
     }),
   );

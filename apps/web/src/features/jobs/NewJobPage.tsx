@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 
 import type { JobParameters } from '@portal/shared';
 import {
@@ -150,7 +150,9 @@ export function NewJobPage() {
     <section aria-labelledby="new-job-title" className="jobs-page">
       <div className="jobs-page__head">
         <div>
-          <p className="eyebrow">Workspace / New analysis</p>
+          <p className="eyebrow">
+            <Link to="/pipelines">Pipelines</Link> / Smart Checkup
+          </p>
           <h1 id="new-job-title">Submit an analysis</h1>
           <p>
             Describe the synthetic sample, attach its marker file and submit. You receive a job link
@@ -181,6 +183,17 @@ export function NewJobPage() {
           The sample could not be loaded. Nothing was submitted — try again, or fill in the form and
           attach a file yourself.
         </FeedbackMessage>
+      ) : null}
+      {sampleState === 'error' ? (
+        // US-012 AC4: fallback paths when the guided sample cannot load.
+        <nav aria-label="Sample fallback" className="jobs-state__actions">
+          <Link className="ui-button ui-button--secondary" to="/pipelines">
+            Back to pipelines
+          </Link>
+          <Link className="ui-button ui-button--ghost" to="/help#smart-checkup">
+            Read the guide
+          </Link>
+        </nav>
       ) : null}
       {formError ? <FeedbackMessage tone="error">{formError}</FeedbackMessage> : null}
 
@@ -283,7 +296,7 @@ export function NewJobPage() {
             <Button disabled={submitting} type="submit">
               {submitting ? 'Submitting…' : 'Submit analysis'}
             </Button>
-            <Button disabled={submitting} onClick={() => navigate('/jobs')} variant="ghost">
+            <Button disabled={submitting} onClick={() => navigate('/pipelines')} variant="ghost">
               Cancel
             </Button>
           </div>

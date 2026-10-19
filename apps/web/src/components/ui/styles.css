@@ -110,6 +110,9 @@ a.ui-button {
   stroke-width: 2;
   width: var(--fs-lg);
 }
+.ui-status--cancelled {
+  color: var(--color-text-muted);
+}
 .ui-status--completed {
   color: var(--color-success);
 }

@@ -1,15 +1,15 @@
 # Units of Work
 
 ## สรุป
-- **Units**: 4 units — Foundation, Identity & Access, Submission & Job Lifecycle, Results & Guidance
+- **Units**: 5 units — Foundation, Identity & Access, Submission & Job Lifecycle, Pipeline Catalog & Nextflow Executor, Results & Guidance
 - **กลยุทธ์**: Domain-Driven
 - **Architecture**: Modular monolith
-- **Story Distribution**: Identity & Access 3 stories; Submission & Job Lifecycle 7 stories; Results & Guidance 5 stories
-- **Key Dependencies**: Foundation → ทุก domain unit; Identity & Access → Submission & Job Lifecycle; Submission & Job Lifecycle → Results & Guidance
-- **Development Sequence**: Foundation → Identity & Access → Submission & Job Lifecycle → Results & Guidance → integration verification
+- **Story Distribution**: Identity & Access 3 stories; Submission & Job Lifecycle 7 stories; Pipeline Catalog & Nextflow Executor 6 stories; Results & Guidance 5 stories
+- **Key Dependencies**: Foundation → ทุก domain unit; Identity & Access → Submission & Job Lifecycle; Submission & Job Lifecycle → Pipeline Catalog & Nextflow Executor; Submission & Job Lifecycle + Pipeline Catalog & Nextflow Executor → Results & Guidance
+- **Development Sequence**: Foundation → Identity & Access → Submission & Job Lifecycle → Pipeline Catalog & Nextflow Executor → Results & Guidance → integration verification
 
 ## ภาพรวม
-แบ่ง feature เป็น 4 units เพื่อแยก ownership ตาม bounded context และทำงานเป็นลำดับที่ปลอดภัยสำหรับทีม 3 คน โดย deploy เป็น modular monolith เดียว Foundation จัดหา contract และ secure defaults ร่วมกัน; domain units เป็นเจ้าของ logic และข้อมูลของตน ไม่ import implementation ภายในข้าม boundary
+แบ่ง feature เป็น 5 units (เพิ่ม Pipeline Catalog & Nextflow Executor ตาม requirements Add-on 2026-10-18) เพื่อแยก ownership ตาม bounded context และทำงานเป็นลำดับที่ปลอดภัยสำหรับทีม 3 คน โดย deploy เป็น modular monolith เดียว Foundation จัดหา contract และ secure defaults ร่วมกัน; domain units เป็นเจ้าของ logic และข้อมูลของตน ไม่ import implementation ภายในข้าม boundary
 
 **กลยุทธ์**: Domain-Driven
 
@@ -132,6 +132,62 @@
 
 ---
 
+## Unit 4: Pipeline Catalog & Nextflow Executor (Add-on 2026-10-18)
+
+**Purpose**: ให้ผู้ใช้เลือก pipeline จาก registry ที่ review แล้ว, ส่ง FASTQ input พร้อม run name และรัน `si-lol/wf-renamefastq` ผ่าน local Nextflow แบบ offline ตามลำดับคิว พร้อมแสดงความคืบหน้า, Cancel และบันทึก output manifest
+**Priority**: High
+**Complexity**: High
+**Stories**: 6 stories — US-016, US-017, US-018, US-019, US-020, US-021
+**Owner**: Developer 2
+**Source**: requirements Add-on 2026-10-18, D1A-10
+
+### Commands
+| Command | Description | Actor |
+|---|---|---|
+| ListPipelines | อ่าน pipeline registry พร้อม readiness ต่อ pipeline | Research Staff/Trainer |
+| UploadRunInput | รับ FASTQ file/folder และ sample sheet แบบ streaming ภายใต้ขีดจำกัด | Research Staff |
+| ValidateRunInput | ตรวจ input layout, ไฟล์, sample sheet และชื่อที่ปลอดภัยก่อนสร้าง Job | ระบบ |
+| LaunchPipelineRun | สร้าง Job ของ pipeline ที่เลือกพร้อม run name และ options ผ่าน Job lifecycle เดิม | Research Staff |
+| DispatchQueuedRun | เลือก Job `Queued` ถัดไปเมื่อมี slot ว่างตาม `MAX_CONCURRENT_RUNS` | Executor |
+| StartNextflowRun | สร้าง params file และเริ่ม Nextflow process ด้วย pinned revision แบบ offline | Executor |
+| TrackRunProgress | อ่าน trace เพื่ออัปเดตขั้นตอนที่เสร็จและขั้นตอนปัจจุบัน | Executor |
+| RecordRunOutputs | ตรวจ output และบันทึก output manifest ก่อน `Completed` | Executor |
+| CancelJob | หยุด Job `Queued`/`Running` ของทุก pipeline และเปลี่ยนเป็น `Cancelled` | Owner |
+| CleanupRunWorkspace | ลบ `work/` และไฟล์ชั่วคราวเมื่อ run จบ/ถูก cancel | Executor |
+| CheckPipelineReadiness | ตรวจ Nextflow, Java, Docker daemon และ asset ที่ pre-pull | ระบบ |
+
+### Domain Model
+**Aggregates**: PipelineCatalog (root: PipelineDefinition — read-only จาก registry), PipelineRun (root: Job — ขยาย Job aggregate ของ Submission & Job Lifecycle ผ่าน port ไม่ import implementation ภายใน)
+
+**Entities**: PipelineDefinition, JobInputFile, RunOutputEntry (output manifest), RunProgress
+
+**Value Objects**: PipelineId, PipelineRevision, RunName, InputLayout (`SINGLE_FILE` / `SAMPLE_FOLDER` / `BARCODE_FOLDERS`), SampleSheet, Barcode, SampleAlias, RunOptions, ResourceCaps, QueuePosition, FailedStep
+
+### Domain Events
+**Publishes**:
+- `JobSubmitted` (ผ่าน Job lifecycle เดิม) — เมื่อ Nextflow run ถูกสร้างในสถานะ Queued
+- `JobStatusChanged` (รวม `to: CANCELLED`) — เมื่อ run เริ่ม, จบ, ล้ม หรือถูก cancel
+- `RunProgressUpdated` — เมื่อขั้นตอนของ Nextflow เปลี่ยน
+- `RunOutputsRecorded` — เมื่อบันทึก output manifest ก่อน Completed
+
+**Subscribes**:
+- `UserAuthenticated` จาก Identity & Access — อนุญาต protected operation
+- `JobDeleted` จาก Submission & Job Lifecycle — หยุด process ที่ค้างและลบ workspace ของ run
+
+### Dependencies
+| Depends On | Type | Description |
+|---|---|---|
+| Foundation | Data/API | Shared kernel (`JOB_STATUSES` เพิ่ม `CANCELLED`), storage boundary, config, error/logging, migration |
+| Identity & Access | API | `requireAuthenticated`, owner authorization, `AuditService.record` |
+| Submission & Job Lifecycle | API/Data/Event | Job aggregate, status machine, idempotent submit, retention/delete, polling UI; เพิ่ม executor port ให้เลือก simulated หรือ Nextflow ต่อ pipeline |
+
+### Boundary Notes
+- เป็นเจ้าของ module ใหม่ `pipelines` (registry, upload/validation, Nextflow adapter, progress, output manifest) และหน้า catalog/launch
+- การแก้ module `jobs` (executor port, transitions `→ CANCELLED`, overview/detail UI) และ shared kernel ทำใน PR เดียวกันภายใต้ Add-on; Developer 2 เป็นเจ้าของ `jobs` อยู่แล้ว ส่วน shared kernel ต้องแจ้ง Developer 1
+- Output manifest เป็น contract ให้ Results & Guidance (แจ้ง Developer 3)
+
+---
+
 ## Unit 3: Results & Guidance
 
 **Purpose**: แสดง completed result, deterministic mock package recommendation, authorized download, tutorial/sample output และ landing compliance
@@ -173,6 +229,7 @@
 | Foundation | API/Data | ใช้ shared result/API types, sanitization, accessibility/error patterns และ configuration |
 | Identity & Access | API | ตรวจ owner authorization ก่อน view/download/result access |
 | Submission & Job Lifecycle | Data/API/Event | ใช้ Job status, safe input/result references และ lifecycle events เพื่อกำหนด result availability |
+| Pipeline Catalog & Nextflow Executor | Data/API | ใช้ output manifest ของ Nextflow run เพื่อออกแบบผลลัพธ์/download ของทุก pipeline; สถานะ `Cancelled` ไม่มี final result (Add-on 2026-10-18) |
 
 ---
 
@@ -187,6 +244,11 @@
 | Identity & Access | Results & Guidance | Customer/Supplier — identity provides owner authorization contract |
 | Submission & Job Lifecycle | Identity & Access | Publisher/Subscriber — lifecycle publishes auditable events |
 | Submission & Job Lifecycle | Results & Guidance | Customer/Supplier + Publisher/Subscriber — jobs provide persisted state and lifecycle events to result presentation |
+| Foundation | Pipeline Catalog & Nextflow Executor | Shared Kernel — status contract, storage, config, DB and security contracts |
+| Identity & Access | Pipeline Catalog & Nextflow Executor | Customer/Supplier — authentication, owner authorization and audit |
+| Submission & Job Lifecycle | Pipeline Catalog & Nextflow Executor | Customer/Supplier — Job aggregate and executor port; pipelines plug in an executor without importing jobs internals |
+| Pipeline Catalog & Nextflow Executor | Results & Guidance | Customer/Supplier — output manifest and run metadata for result presentation |
+| Pipeline Catalog & Nextflow Executor | Local Nextflow + Docker | Anti-Corruption Layer — adapter converts Nextflow exit code/trace into Job statuses, progress and safe summaries |
 
 ## Development Sequence
 
@@ -199,8 +261,11 @@
 ### Phase 3: Job Core
 - [ ] Unit 2: Submission & Job Lifecycle — ทำ sample/input, Job lifecycle, simulated executor, monitoring และ retention โดยพึ่ง identity boundary
 
+### Phase 3b: Pipeline Catalog (Add-on 2026-10-18)
+- [ ] Unit 4: Pipeline Catalog & Nextflow Executor — ทำ catalog, FASTQ launch/validation, local Nextflow queue/progress/cancel และ output manifest บน Job lifecycle เดิม
+
 ### Phase 4: Result Experience
-- [ ] Unit 3: Results & Guidance — ทำ completed result, mock recommendation, download, tutorial และ landing compliance โดยพึ่ง Job state และ authorization
+- [ ] Unit 3: Results & Guidance — ทำ completed result, mock recommendation, download, tutorial และ landing compliance โดยพึ่ง Job state, authorization และ output manifest ของ Nextflow run
 
 ### Phase 5: Integration Verification
 - [ ] ตรวจ end-to-end flow, authorization isolation, retention/cleanup, error states, build และ container/HTTPS configuration
@@ -212,6 +277,7 @@
 | Foundation | Developer 1 | `feat/foundation` | shared config, shared contracts, infrastructure scaffolding |
 | Identity & Access | Developer 1 | `feat/identity-access` | identity/auth/audit modules |
 | Submission & Job Lifecycle | Developer 2 | `feat/submission-job-lifecycle` | jobs/submission/executor modules |
+| Pipeline Catalog & Nextflow Executor | Developer 2 | `feat/pipeline-catalog-nextflow` | pipelines module + catalog/launch pages; coordinated edits to jobs module and shared kernel |
 | Results & Guidance | Developer 3 | `feat/results-guidance` | results/guidance modules |
 
 > Foundation ต้อง merge เข้า `main` ก่อนแตก branch ของ domain unit ทุกตัว; branch จะสร้างเมื่อเริ่ม unit จริงเท่านั้น และต้องผ่าน PR review อย่างน้อย 1 คนก่อน merge

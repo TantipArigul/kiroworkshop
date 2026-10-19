@@ -1,9 +1,15 @@
 import request from 'supertest';
 import type { Express } from 'express';
 
-/** Supertest agent that keeps the session cookie and sends the current CSRF token on mutations. */
+import { loopbackServerFor } from './loopback-server.js';
+
+/**
+ * Supertest agent that keeps the session cookie and sends the current CSRF token on mutations.
+ * Requests go to the context's 127.0.0.1 server (see `loopback-server.ts`), never to a
+ * per-request `listen(0)` on the IPv6 wildcard.
+ */
 export function createSession(app: Express) {
-  const agent = request.agent(app);
+  const agent = request.agent(loopbackServerFor(app));
   let csrfToken = '';
 
   async function refreshCsrfToken() {
@@ -45,7 +51,15 @@ export function createSession(app: Express) {
         .set({ ...headers, 'X-CSRF-Token': csrfToken })
         .send(body ?? {}),
     delete: (path: string) => agent.delete(path).set('X-CSRF-Token', csrfToken),
+    /** POST a pre-encoded body (e.g. multipart) with the current CSRF token. */
+    postRaw: (path: string, body: Buffer, headers: Record<string, string>) =>
+      agent
+        .post(path)
+        .set({ ...headers, 'X-CSRF-Token': csrfToken })
+        .send(body),
     refreshCsrfToken,
+    /** Current CSRF token (for requests built outside `post`/`postRaw`). */
+    csrfToken: () => csrfToken,
   };
 }
 
