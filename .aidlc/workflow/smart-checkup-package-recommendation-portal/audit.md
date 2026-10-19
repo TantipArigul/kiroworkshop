@@ -418,3 +418,22 @@
 
 ### [2026-10-19T09:55:00Z] Git: deploy configuration committed and pushed
 - **Action**: user "next step please" — 3 commits (`refactor(shared)`, `ci(deploy)`, `docs(aidlc)`) on `feat/results-guidance`, pushed `478c9ea..` to origin; no PR, no merge
+
+### [2026-10-19T10:20:00Z] Git: PR opened, first CI run green
+- **Action**: user "a, main" + `gh auth login` by user; `gh` 2.102.0 installed via Homebrew; PR #5 `feat/results-guidance` → `main` opened with the prepared description
+- **Outcome**: `quality` run 39232991103 success — verify 1m30s, security 11s (prod audit clean, gitleaks checksum OK, no leaks), image 1m02s (artifact `api-image-82c6575…` with image ID + SBOM; on `pull_request` the SHA is GitHub's test merge commit, not the head `055f265`). Not merged; awaiting ≥ 1 review. Note: repository visibility is PUBLIC (team policy default is private) — reported to user
+
+### [2026-10-19T10:30:00Z] Git: PR #5 merged into main
+- **Action**: user "merge"; PR #5 was already merged by `TantipArigul` at 2026-10-19T10:03:56Z (merge commit `5b4eb02`) without a submitted review — the ≥ 1 review rule was not met through GitHub's review flow
+- **Outcome**: post-merge `quality` run 39234718581 on `main` — see message; recommendation: enable branch protection on `main` (required review + required `verify`/`security`/`image` checks)
+
+### [2026-10-19T10:35:00Z] Deploy: training server skipped
+- **Action**: user "skip Step 3, the training server"
+- **Artifacts**: `deploy-summary.md` Add-on — Training server skipped
+- **Outcome**: workflow stays `completed`; deployment config is in `main` but not executed; local Mac remains the only running environment
+
+### [2026-10-19T11:45:00Z] Change request: team host-run setup (option A)
+- **Phase**: post-deploy change request (pipeline-catalog-nextflow)
+- **Action**: user "i want every users can run wf-renamefastq" → option "A"; spec refined first (`units/pipeline-catalog-nextflow/design.md` Add-on — Team host-run setup); branch `chore/nextflow-setup` from `main`
+- **Artifacts**: `scripts/setup-nextflow.sh`, `.env.host.example`, root `README.md`, `.gitignore` (allow `.env.host.example`), `docker-compose.yml` (Caddy `extra_hosts: host.docker.internal:host-gateway`)
+- **Outcome**: verified in a throwaway clone with temp data (no change to the running site or `~/portal-data`): setup exit 0, `.env.host` mode 600 with the secret copied and never printed, `pipelines:check` 11/11, existing `.env.host` kept on rerun, `--force` rewrites with `.bak`, missing `.env` stops with a clear message, host API from the clone ready with `pipeline:wf-renamefastq: ok`; shellcheck, Prettier, Compose config clean. Not verified: Intel macOS, Linux, WSL2

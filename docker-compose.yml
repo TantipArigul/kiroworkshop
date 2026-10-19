@@ -23,6 +23,9 @@ services:
     image: caddy:2.11.4
     depends_on:
       - api
+    # Lets API_UPSTREAM=host.docker.internal:3000 resolve on Linux Docker Engine too.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     environment:
       # Host-run Nextflow mode: API_UPSTREAM=host.docker.internal:3000 (see docker/README.md).
       - API_UPSTREAM=${API_UPSTREAM:-api:3000}
