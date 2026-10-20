@@ -110,6 +110,21 @@ wait_api_container_healthy() {
 
 node_bin() { command -v node || fail "node is not installed"; }
 
+# `nextflow info` still tries to read the pipeline manifest from GitHub even with NXF_OFFLINE=true and
+# waits 5 x 60 s when there is no internet, which exceeds the 20 s readiness timeout. Pointing the
+# hosts Nextflow would contact at localhost makes those attempts fail at once. nextflow-setup lifts it.
+OFFLINE_HOSTS="github.com api.github.com raw.githubusercontent.com codeload.github.com objects.githubusercontent.com registry.nextflow.io www.nextflow.io get.nextflow.io"
+
+offline_hosts_off() {
+  sed -i '/# BEGIN portal-offline/,/# END portal-offline/d' /etc/hosts
+}
+
+offline_hosts_on() {
+  offline_hosts_off
+  printf '# BEGIN portal-offline (Nextflow hosts fail fast; see portal-host.sh)\n127.0.0.1 %s\n# END portal-offline\n' \
+    "$OFFLINE_HOSTS" >>/etc/hosts
+}
+
 ensure_host_prereqs() {
   if ! command -v node >/dev/null; then
     dnf -y -q install nodejs24 >/dev/null
@@ -118,6 +133,7 @@ ensure_host_prereqs() {
     useradd --system --user-group --no-create-home --shell /sbin/nologin --groups docker portal
   fi
   install -d -m 755 /etc/portal /opt/portal "$RELEASES"
+  offline_hosts_on
   install -d -m 700 -o portal -g portal "$DB_DIR" "$APP_DATA/home" "$APP_DATA/nxf-home"
   if [[ "$(stat -c %U "$APP_DATA")" != portal ]]; then
     chown -R portal:portal "$APP_DATA"
@@ -223,6 +239,8 @@ install_release() {
     docker cp "$cid:/workspace/." "$dir.tmp/"
     docker rm "$cid" >/dev/null
     chown -R root:root "$dir.tmp"
+    # umask 077 above would leave the tree unreadable for the portal service user.
+    chmod -R a+rX,go-w "$dir.tmp"
     mv "$dir.tmp" "$dir"
   fi
   ln -sfn "$dir" "$CURRENT"
@@ -230,7 +248,7 @@ install_release() {
 
 prune_releases() {
   local keep dir
-  keep=" $(awk '{print $1}' "$STATE_DIR/current" "$STATE_DIR/previous" 2>/dev/null || true) "
+  keep=" $( { awk '{print $1}' "$STATE_DIR/current" "$STATE_DIR/previous" 2>/dev/null || true; } | tr '\n' ' ') "
   for dir in "$RELEASES"/*; do
     [[ -d "$dir" ]] || continue
     case "$keep" in *" $(basename "$dir") "*) ;; *) rm -rf -- "$dir" ;; esac
@@ -348,7 +366,7 @@ record_mode() { awk '{print ($5 == "" ? "container" : $5)}' <<<"$1"; }
 
 prune_images() {
   local keep
-  keep=" $(awk '{print $2 " " $3 " " $4}' "$STATE_DIR/current" "$STATE_DIR/previous" 2>/dev/null || true) "
+  keep=" $( { awk '{print $2 " " $3 " " $4}' "$STATE_DIR/current" "$STATE_DIR/previous" 2>/dev/null || true; } | tr '\n' ' ') "
   docker image ls --digests --no-trunc \
     | awk 'NR > 1 && $1 ~ /tan-dev-portal-/ {print $1 "@" $3, $4}' \
     | while read -r ref id; do
@@ -468,6 +486,8 @@ rollback() {
 nextflow_setup() {
   [[ "$MODE" == host ]] || fail "nextflow-setup needs API mode host (Terraform api_run_mode = \"host\")"
   [[ -L "$CURRENT" && -d "$CURRENT/apps/api/dist" ]] || fail "deploy the host-mode API first"
+  offline_hosts_off
+  trap 'offline_hosts_on; cleanup_env' EXIT
   curl -fsS -m 10 -o /dev/null https://github.com \
     || fail "no internet egress; set setup_egress_enabled = true, apply, then retry (infra/README.md)"
   local avail_gb
@@ -495,6 +515,7 @@ nextflow_setup() {
   runuser -u portal -- env -i PATH=/usr/local/bin:/usr/bin:/bin HOME="$APP_DATA/home" \
     JAVA_HOME="$JAVA_HOME_DIR" "$(node_bin)" --env-file="$CLI_ENV_FILE" \
     apps/api/dist/cli/pipelines.js pipelines:check
+  offline_hosts_on
   systemctl restart portal-api
   wait_api_host_healthy
   log "nextflow setup finished; disable setup_egress_enabled again (infra/README.md)"

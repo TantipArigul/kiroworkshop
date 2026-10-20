@@ -90,6 +90,11 @@ What changes in host mode:
 - Admin CLIs: `sudo portal-cli identity user:create --email ... --role USER` (also `jobs`,
   `pipelines`); the daily cleanups use the same wrapper.
 - Rollback across modes is not supported (exit code 4); once in host mode, stay in host mode.
+- `nextflow info` contacts `api.github.com` even with `NXF_OFFLINE=true`; without internet it waits
+  5 x 60 s, longer than the API's 20 s readiness timeout. The deploy script therefore maps the
+  hosts Nextflow would contact (GitHub, `registry.nextflow.io`) to `127.0.0.1` in `/etc/hosts`
+  (block `portal-offline`) so they fail at once. `--nextflow-setup` lifts the block while it needs
+  the internet and restores it afterwards.
 
 Order of operations:
 
