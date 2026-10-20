@@ -143,7 +143,17 @@ if [[ -n "$MISSING" ]]; then
     --build-arg "BUILD_IMAGE=portal-build:$SHA" -t "$WEB_REPO:$SHA" "$WORK" >/dev/null
   for repo in $MISSING; do
     log "pushing $repo:${SHA:0:12}"
-    docker push --quiet "$repo:$SHA" >/dev/null
+    # Retries absorb transient registry/proxy timeouts; a completed push is idempotent.
+    pushed=false
+    for attempt in 1 2 3; do
+      if docker push --quiet "$repo:$SHA" >/dev/null; then
+        pushed=true
+        break
+      fi
+      log "push attempt $attempt failed; retrying"
+      sleep $((attempt * 10))
+    done
+    [[ "$pushed" == true ]] || fail "push failed for $repo:${SHA:0:12}"
   done
 fi
 

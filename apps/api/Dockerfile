@@ -17,7 +17,12 @@ RUN pnpm --filter @portal/shared build \
   && pnpm --filter @portal/api build \
   && pnpm --filter @portal/web build
 
-FROM build AS migrate
+# Slim base + Debian security updates (deployment.md Add-on — Image OS security updates): the full
+# build image carries OS packages (kernel headers, mariadb, tiff, python) that migrations never use.
+FROM node:24-bookworm-slim AS migrate
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+COPY --from=build /workspace /workspace
 USER node
 # DATABASE_URL comes from the server env file at run time. The prisma binary is called directly:
 # `pnpm exec` as the non-root user would try to re-provision pnpm and the modules directory.
@@ -33,6 +38,8 @@ RUN corepack enable && corepack prepare pnpm@12.8.1 --activate \
   && pnpm install --frozen-lockfile --prod --filter "@portal/api..."
 
 FROM node:24-bookworm-slim AS runtime
+# Debian security updates on top of the base image (e.g. perl-base fixes flagged by ECR scanning).
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /workspace
 ENV NODE_ENV=production
 # Code and dependencies stay root-owned (read-only for the `node` user); only the data volume is writable.
