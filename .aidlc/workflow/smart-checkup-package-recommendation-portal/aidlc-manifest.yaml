@@ -160,6 +160,11 @@ decisions:
       status: "approved"
       timestamp: "2026-10-20T04:45:00Z"
       generationDecisions: "A1 accept default CloudFront certificate TLS minimum for dev; B1 account-wide budget"
+      deployed:
+        sha: "ca7201e88dc1a9c89e452fe466a691e0965c7bec"
+        url: "https://d2x749vz2rh264.cloudfront.net"
+        timestamp: "2026-10-20T06:10:00Z"
+        smoke: "passed"
       branch: "feat/aws-dev-deploy"
       region: "ap-southeast-2"
       prefix: "tan"

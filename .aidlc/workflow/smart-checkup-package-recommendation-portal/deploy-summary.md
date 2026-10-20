@@ -131,7 +131,7 @@
 - [x] Commit + push `feat/aws-dev-deploy` (2026-10-20, `0b578ec`, `4658c3d`); PR with review ≥ 1 still open
 - [x] `terraform apply` bootstrap (9) + dev (67) — 2026-10-20; URL `https://d2x749vz2rh264.cloudfront.net`, instance `i-08829a35b5153195b`
 - [ ] Set `AWS_DEV_DEPLOY_ROLE_ARN`; subscribe to the alerts topic
-- [ ] First deploy: `scripts/aws/deploy-dev.sh <sha>`; verify `scripts/smoke.sh <url>`
+- [x] First deploy (2026-10-20): `ca7201e8` live at `https://d2x749vz2rh264.cloudfront.net` — smoke 4/4, Secure/HttpOnly/SameSite=Strict cookie, HSTS + nosniff + SAMEORIGIN, HTTP→HTTPS 301, TLS 1.3 negotiated, WAF attached, cross-origin POST 403
 - [ ] Create first accounts via Session Manager (`infra/README.md` §4)
 - [ ] Account level: enable GuardDuty + CloudTrail; branch protection on `main` before relying on auto-deploy
 - [ ] Monitoring: alarm + SNS automated; no metrics dashboards (Minimal observability)
