@@ -20,7 +20,11 @@ RUN pnpm --filter @portal/shared build \
 # Slim base + Debian security updates (deployment.md Add-on — Image OS security updates): the full
 # build image carries OS packages (kernel headers, mariadb, tiff, python) that migrations never use.
 FROM node:24-bookworm-slim AS migrate
-RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+# Prisma's schema engine detects libssl through `openssl`; without it Prisma tries to fetch another
+# engine into the read-only node_modules.
+RUN apt-get update && apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /workspace
 COPY --from=build /workspace /workspace
 USER node
