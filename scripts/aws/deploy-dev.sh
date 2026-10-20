@@ -5,6 +5,8 @@
 # Usage:
 #   scripts/aws/deploy-dev.sh <commit-sha>                       build/push (if needed) → scan gate → deploy → smoke
 #   scripts/aws/deploy-dev.sh --rollback [--restore-db <name>]   redeploy the previous release → smoke
+#   scripts/aws/deploy-dev.sh --nextflow-setup                   one-time online Nextflow/pipeline setup
+#                                                                (api_run_mode = host + setup_egress_enabled)
 #
 # Requires: aws CLI v2, docker (buildx), git, curl; AWS credentials for the dev account.
 # Bash 3.2 compatible (macOS). Never prints secret values.
@@ -14,11 +16,11 @@ REGION="${AWS_REGION:-ap-southeast-2}"
 DEPLOY_PATH="${PORTAL_DEPLOY_PATH:-/tan/dev/portal/deploy}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ALLOWLIST="$REPO_DIR/infra/envs/dev/ecr-scan-allowlist.txt"
-COMMAND_TIMEOUT_SECONDS=1200
+COMMAND_TIMEOUT_SECONDS=3000
 LAST_RESPONSE_CODE=-1
 
 usage() {
-  echo "Usage: $0 <commit-sha> | --rollback [--restore-db <backup-name>]" >&2
+  echo "Usage: $0 <commit-sha> | --rollback [--restore-db <backup-name>] | --nextflow-setup" >&2
   exit 2
 }
 log() { echo "deploy-dev: $*"; }
@@ -29,6 +31,10 @@ REQUESTED=""
 RESTORE_DB=""
 [[ $# -ge 1 ]] || usage
 case "$1" in
+  --nextflow-setup)
+    [[ $# -eq 1 ]] || usage
+    ACTION=nextflow-setup
+    ;;
   --rollback)
     ACTION=rollback
     shift
@@ -105,6 +111,14 @@ rollback_and_smoke() {
 
 if [[ "$ACTION" == rollback ]]; then
   rollback_and_smoke
+  exit 0
+fi
+
+if [[ "$ACTION" == nextflow-setup ]]; then
+  log "one-time Nextflow setup: downloads about 12 GB of pipeline images; can take 10-30 minutes"
+  run_document '{"Action":["nextflow-setup"]}' || fail "nextflow setup failed (see $LOG_GROUP)"
+  "$REPO_DIR/scripts/smoke.sh" "$URL" || fail "smoke failed after setup"
+  log "setup finished; set setup_egress_enabled = false and terraform apply to remove the NAT gateway"
   exit 0
 fi
 

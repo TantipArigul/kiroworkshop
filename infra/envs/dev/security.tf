@@ -159,6 +159,15 @@ resource "aws_ssm_parameter" "env" {
   ))
 }
 
+# container | host (variable api_run_mode); read by the deploy document on the instance.
+resource "aws_ssm_parameter" "api_mode" {
+  name        = "${local.param_prefix}/api-mode"
+  description = "How the API runs: container (default) or host (Nextflow available)"
+  type        = "String"
+  tier        = "Standard"
+  value       = var.api_run_mode
+}
+
 # Deployment coordinates read by scripts/aws/deploy-dev.sh (CI and operator).
 resource "aws_ssm_parameter" "deploy" {
   for_each = {
@@ -214,7 +223,7 @@ data "aws_iam_policy_document" "instance" {
   statement {
     sid       = "RuntimeConfig"
     actions   = ["ssm:GetParameter"]
-    resources = [aws_ssm_parameter.env.arn]
+    resources = [aws_ssm_parameter.env.arn, aws_ssm_parameter.api_mode.arn]
   }
 
   statement {

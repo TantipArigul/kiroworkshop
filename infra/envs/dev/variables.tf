@@ -49,6 +49,12 @@ variable "private_subnet_cidr" {
   default = "10.40.1.0/24"
 }
 
+variable "public_subnet_cidr" {
+  description = "Holds only the NAT gateway, and only while setup_egress_enabled is true."
+  type        = string
+  default     = "10.40.0.0/24"
+}
+
 variable "availability_zone" {
   type    = string
   default = "ap-southeast-2a"
@@ -67,6 +73,28 @@ variable "root_volume_size_gb" {
 variable "data_volume_size_gb" {
   type    = number
   default = 20
+}
+
+variable "api_run_mode" {
+  description = <<-EOT
+    container: the API runs as a container; Nextflow pipelines are unavailable (default, least privilege).
+    host:      the API runs as a systemd service so Nextflow + Docker work (wf-renamefastq). The service
+               user is in the docker group (root-equivalent on the instance) - demonstration use only,
+               synthetic/test data. Needs instance_type t3.large or bigger and root_volume_size_gb >= 40.
+  EOT
+  type        = string
+  default     = "container"
+
+  validation {
+    condition     = contains(["container", "host"], var.api_run_mode)
+    error_message = "api_run_mode must be \"container\" or \"host\"."
+  }
+}
+
+variable "setup_egress_enabled" {
+  description = "Temporary internet path (NAT gateway, ~US$0.06/hour) for the one-time Nextflow setup. Turn off again afterwards."
+  type        = bool
+  default     = false
 }
 
 variable "snapshot_retention_count" {
@@ -146,6 +174,8 @@ variable "app_settings" {
     JOB_RETENTION_DAYS             = "7"
     RETENTION_SWEEP_INTERVAL_MS    = "3600000"
     NEXTFLOW_ENABLED               = "false"
+    NEXTFLOW_MAX_CPUS              = "2"
+    NEXTFLOW_MAX_MEMORY_GB         = "4"
   }
 
   validation {

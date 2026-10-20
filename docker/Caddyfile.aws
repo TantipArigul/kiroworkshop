@@ -16,7 +16,8 @@
 :80 {
 	@api path /api/* /health*
 	handle @api {
-		reverse_proxy api:3000 {
+		# API_UPSTREAM defaults to the api container; host-run mode (Nextflow) sets host.docker.internal:3000.
+		reverse_proxy {$API_UPSTREAM:api:3000} {
 			# The API trusts one proxy hop (`trust proxy = 1`): pass exactly the viewer IP and the
 			# viewer scheme so rate limiting keys on real clients and the Secure cookie is issued.
 			header_up X-Forwarded-For {client_ip}

@@ -173,11 +173,11 @@ resource "aws_ssm_document" "deploy" {
 
   content = yamlencode({
     schemaVersion = "2.2"
-    description   = "Deploy or roll back the portal containers by image digest (deployment.md AWS dev)."
+    description   = "Deploy, roll back or set up Nextflow for the portal by image digest (deployment.md AWS dev)."
     parameters = {
       Action = {
         type          = "String"
-        allowedValues = ["deploy", "rollback"]
+        allowedValues = ["deploy", "rollback", "nextflow-setup"]
       }
       Sha = {
         type           = "String"
@@ -216,7 +216,7 @@ resource "aws_ssm_document" "deploy" {
           [
             "PORTAL_HOST_EOF",
             "chmod 700 /run/portal-host.sh",
-            "PORTAL_ACTION='{{ Action }}' PORTAL_SHA='{{ Sha }}' PORTAL_API_IMAGE='{{ ApiImage }}' PORTAL_MIGRATE_IMAGE='{{ MigrateImage }}' PORTAL_WEB_IMAGE='{{ WebImage }}' PORTAL_RESTORE_DB='{{ RestoreDb }}' PORTAL_REGION='${var.region}' PORTAL_ENV_PARAM='${aws_ssm_parameter.env.name}' PORTAL_SECRET_ID='${aws_secretsmanager_secret.session.arn}' PORTAL_LOG_GROUP='${aws_cloudwatch_log_group.portal["app"].name}' bash /run/portal-host.sh",
+            "PORTAL_ACTION='{{ Action }}' PORTAL_SHA='{{ Sha }}' PORTAL_API_IMAGE='{{ ApiImage }}' PORTAL_MIGRATE_IMAGE='{{ MigrateImage }}' PORTAL_WEB_IMAGE='{{ WebImage }}' PORTAL_RESTORE_DB='{{ RestoreDb }}' PORTAL_REGION='${var.region}' PORTAL_ENV_PARAM='${aws_ssm_parameter.env.name}' PORTAL_MODE_PARAM='${aws_ssm_parameter.api_mode.name}' PORTAL_SECRET_ID='${aws_secretsmanager_secret.session.arn}' PORTAL_LOG_GROUP='${aws_cloudwatch_log_group.portal["app"].name}' bash /run/portal-host.sh",
             "rc=$?",
             "rm -f /run/portal-host.sh",
             "exit $rc",

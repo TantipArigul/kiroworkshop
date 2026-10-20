@@ -156,3 +156,81 @@ resource "aws_vpc_endpoint" "s3" {
 
   tags = { Name = "${local.name}-s3" }
 }
+
+# ---------- Temporary setup egress (api_run_mode = host: one-time Nextflow setup) ----------
+# NAT gateway in a small public subnet + a default route for the private subnet and a 443 egress
+# rule, all created only while setup_egress_enabled is true. Pipeline runs stay offline
+# (NXF_OFFLINE=true); turn it off again after `scripts/aws/deploy-dev.sh --nextflow-setup`.
+
+locals {
+  setup_egress = var.setup_egress_enabled ? 1 : 0
+}
+
+resource "aws_subnet" "public" {
+  count = local.setup_egress
+
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = false
+
+  tags = { Name = "${var.prefix}-${var.environment}-public-a" }
+}
+
+resource "aws_route_table" "public" {
+  count = local.setup_egress
+
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = { Name = "${var.prefix}-${var.environment}-public" }
+}
+
+resource "aws_route_table_association" "public" {
+  count = local.setup_egress
+
+  subnet_id      = aws_subnet.public[0].id
+  route_table_id = aws_route_table.public[0].id
+}
+
+resource "aws_eip" "nat" {
+  count = local.setup_egress
+
+  domain = "vpc"
+
+  tags = { Name = "${var.prefix}-${var.environment}-nat" }
+}
+
+resource "aws_nat_gateway" "setup" {
+  count = local.setup_egress
+
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = { Name = "${var.prefix}-${var.environment}-setup" }
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+resource "aws_route" "private_default_via_nat" {
+  count = local.setup_egress
+
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.setup[0].id
+}
+
+resource "aws_vpc_security_group_egress_rule" "instance_setup_https" {
+  count = local.setup_egress
+
+  security_group_id = aws_security_group.instance.id
+  description       = "TEMPORARY: HTTPS to the internet for the one-time Nextflow setup"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/0"
+}

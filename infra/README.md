@@ -62,6 +62,52 @@ Each deploy: build the 4 Dockerfile targets once per SHA (tags are immutable) �
 CRITICAL findings outside the allowlist → SSM document: pull by digest, back up SQLite, stop API,
 `prisma migrate deploy` (one-off), start `api` + `web` → `scripts/smoke.sh <url>` → rollback on failure.
 
+## 3b. Nextflow demo mode (wf-renamefastq available)
+
+By default `wf-renamefastq` is shown as unavailable (`NEXTFLOW_DISABLED`). For a demonstration it
+can be made available by running the API on the host instead of in a container. Added without a
+spec update at the user's request (2026-10-20): record it in `deployment.md` as an Add-on or
+revert it afterwards.
+
+| Setting (`terraform.tfvars`) | Value for the demo                                                      |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `api_run_mode`               | `"host"`                                                                |
+| `instance_type`              | `"t3.large"` (8 GB; the pipeline JVM and containers do not fit in 2 GB) |
+| `root_volume_size_gb`        | `40` (pipeline images are about 12 GB)                                  |
+| `setup_egress_enabled`       | `true` only for the one-time setup, then `false`                        |
+
+What changes in host mode:
+
+- The API runs as the systemd unit `portal-api` (user `portal`, hardened unit) from the same image
+  contents (`/opt/portal/releases/<sha>`, Node 24 from the AL2023 repositories). Caddy still runs as
+  the `web` container and proxies to `host.docker.internal:3000`; port 3000 is not open to anyone
+  but the instance itself (security group: only CloudFront on :80).
+- **Privilege**: the `portal` user is in the `docker` group, which is root-equivalent on the
+  instance (a Nextflow run starts containers). Use synthetic/test FASTQ only. This is why container
+  mode stays the default.
+- The SQLite database moves to `/srv/portal-data/db` so pipeline containers (which mount
+  `/srv/portal-data/app`) cannot read it.
+- Admin CLIs: `sudo portal-cli identity user:create --email ... --role USER` (also `jobs`,
+  `pipelines`); the daily cleanups use the same wrapper.
+- Rollback across modes is not supported (exit code 4); once in host mode, stay in host mode.
+
+Order of operations:
+
+```zsh
+# 1. terraform.tfvars: api_run_mode = "host", instance_type = "t3.large", root_volume_size_gb = 40,
+#    setup_egress_enabled = true      then: terraform apply   (instance is stopped and started, ~2 min)
+# 2. Redeploy the current commit so the host-mode API and the new web image are installed
+scripts/aws/deploy-dev.sh <sha>
+# 3. One-time online setup: Java 25, Nextflow 26.10.2 (checksum pinned), the pinned pipeline
+#    revision, plugin and images (about 12 GB; 10-30 minutes through the NAT gateway)
+scripts/aws/deploy-dev.sh --nextflow-setup
+# 4. Remove the internet path again: setup_egress_enabled = false, terraform apply
+```
+
+Runs are offline (`NXF_OFFLINE=true`). To remove everything again, set `api_run_mode = "container"`
+only after moving the database back (`/srv/portal-data/db/*` to `/srv/portal-data/app/`), or
+recreate the environment.
+
 ## 4. Accounts and admin tasks (Session Manager, no SSH)
 
 ```zsh
