@@ -366,3 +366,9 @@ push main ──> quality (verify + security + image) ──success──> deplo
 - **Steering conflicts kept per approved spec**: region ap-southeast-2 (user request; us-east-1 only for WAF/WAF logs), S3 native state locking (`use_lockfile`, DynamoDB locking is deprecated in Terraform ≥ 1.11), flat single-environment stack (D5A-6). Tags use `ManagedBy = Terraform`.
 - **Additional files**: `infra/envs/dev/terraform.tfvars.example` (account ID guard; real `terraform.tfvars` gitignored) and `.terraform.lock.hcl` for both stacks (darwin_arm64, darwin_amd64, linux_amd64).
 - **Container hardening** (within listed files): `api` runs read-only with tmpfs `/tmp`, no capabilities, `no-new-privileges`; `web` read-only with only `NET_BIND_SERVICE`; daily `audit:cleanup` + `sessions:cleanup` via a systemd timer from user data.
+
+### Add-on — Image OS security updates (approved 2026-10-20, option "A")
+- **Trigger**: first AWS dev deploy blocked by the ECR scan gate — runtime image: 5 CRITICAL in `perl-base 5.36.0-7+deb12u3` (fixed in `deb12u4`, Debian security); migrate image (full `node:24-bookworm`): 58 CRITICAL in OS packages not needed for migrations (kernel headers, mariadb, python3.11, tiff).
+- **Change** (`apps/api/Dockerfile`, outside the AWS add-on file list, approved): the `runtime` stage applies Debian security updates (`apt-get upgrade`) on `node:24-bookworm-slim`; the `migrate` stage moves from the full build image to `node:24-bookworm-slim` with the same updates and copies the built workspace from `build` (prisma CLI + `prisma/`), still `USER node` and one-off only. Applies to CI `image`, training server and AWS dev alike.
+- **Trade-off**: OS package versions depend on the build date; integrity is kept by deploying the pushed digest and by the scan gate on every SHA.
+- **Also**: `scripts/aws/deploy-dev.sh` retries `docker push` up to 3 times (intermittent Docker Desktop proxy timeouts).

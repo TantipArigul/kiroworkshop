@@ -128,8 +128,8 @@
 
 ### Post-Deployment Checklist
 
-- [ ] Commit + push `feat/aws-dev-deploy`; PR with review ≥ 1
-- [ ] `terraform apply` bootstrap, write `backend.hcl`, `terraform apply` dev (~US$100–115/month, estimate)
+- [x] Commit + push `feat/aws-dev-deploy` (2026-10-20, `0b578ec`, `4658c3d`); PR with review ≥ 1 still open
+- [x] `terraform apply` bootstrap (9) + dev (67) — 2026-10-20; URL `https://d2x749vz2rh264.cloudfront.net`, instance `i-08829a35b5153195b`
 - [ ] Set `AWS_DEV_DEPLOY_ROLE_ARN`; subscribe to the alerts topic
 - [ ] First deploy: `scripts/aws/deploy-dev.sh <sha>`; verify `scripts/smoke.sh <url>`
 - [ ] Create first accounts via Session Manager (`infra/README.md` §4)

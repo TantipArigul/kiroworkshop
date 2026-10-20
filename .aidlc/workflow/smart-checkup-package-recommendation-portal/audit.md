@@ -475,3 +475,11 @@
 - **Mode**: incremental
 - **Units**: 5 completed
 - **Final status**: All phases complete. Deployment configured for Docker Compose (training server) and AWS dev (Terraform, ap-southeast-2, `tan-dev-*`) via GitHub Actions; AWS resources not yet created
+
+### [2026-10-20T05:05:00Z] Deploy: AWS dev provisioned (steps 1–2)
+- **Action**: user "please do 1-2" — commits `0b578ec` (feat(deploy)) and `4658c3d` (docs(aidlc)) on `feat/aws-dev-deploy`, pushed to origin (no PR yet); `terraform apply` bootstrap (9 added, local state in `infra/bootstrap/terraform.tfstate`, gitignored) and dev (67 added, S3 backend with lockfile)
+- **Outcome**: verified — CloudFront `d2x749vz2rh264.cloudfront.net` Deployed; instance `i-08829a35b5153195b` registered with SSM (Online) through VPC endpoints; user data finished (Docker 25.0.14 active, encrypted data volume mounted at `/srv/portal-data`, `app/` uid 1000 and `deploy/` root 700, cleanup timer scheduled); internet egress blocked as designed. No application containers yet (site returns an origin error until the first deploy). Not done: GitHub variable `AWS_DEV_DEPLOY_ROLE_ARN`, alerts subscription, first deploy (step 3)
+
+### [2026-10-20T05:35:00Z] Deploy: first AWS dev deploy stopped at scan gate
+- **Action**: user "do 3" — `scripts/aws/deploy-dev.sh 4658c3d`; first two runs failed pushing through the Docker Desktop proxy (`http.docker.internal:3128` i/o timeout, intermittent; a direct retry succeeded) → added a 3-attempt push retry to `scripts/aws/deploy-dev.sh` (uncommitted)
+- **Outcome**: all 3 images pushed (SHA `4658c3da…`). Scan gate blocked the deploy as designed — api (bookworm-slim): 5 CRITICAL in `perl-base 5.36.0-7+deb12u3` (fix `deb12u4` available in Debian security); migrate (full `node:24-bookworm` build stage): 58 CRITICAL (54 `linux` kernel headers, mariadb, python3.11, tiff); web: 0 CRITICAL. Nothing deployed to the instance. Awaiting user decision: change `apps/api/Dockerfile` (outside the AWS add-on file list) vs allowlist
