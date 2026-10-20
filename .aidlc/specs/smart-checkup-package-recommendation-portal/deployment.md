@@ -205,3 +205,164 @@ main @ <sha> ──operator: sudo scripts/deploy.sh <sha>──> training server
   - Online SQLite backups use the `better-sqlite3` backup API inside the API image (no `sqlite3` CLI on the server).
   - `.gitignore` allows `!.env.production.example` (it matched `.env.*`).
 - **Shared testing entry point** (option A, approved 2026-10-19): the slim image failed to start because `@portal/shared` re-exported fast-check generators from its main entry; generators move to `@portal/shared/testing` (Foundation `design.md` Add-on). Coordination: Developer 1 is informed in the PR.
+
+---
+
+## Add-on — AWS Dev Environment (Terraform, 2026-10-20)
+
+แหล่งที่มา: `decisions-deploy.md` Add-on D5A-1..D5A-14 (use recommendations, 2026-10-20) · requirements Add-on — AWS Dev Environment · ส่วนเดิมด้านบน (training server) คงไว้ไม่เปลี่ยน
+
+### Summary
+<!-- 10-line max digest. Generate step reads ONLY this section + Files to Generate (AWS dev). -->
+- **CI/CD**: GitHub Actions — workflow ใหม่ `deploy-dev.yml` รันหลัง `quality` สำเร็จบน `main` (+ `workflow_dispatch` ระบุ SHA/rollback) ผ่าน OIDC role ชั่วคราว
+- **Target**: AWS ap-southeast-2 — EC2 `t3.small` (AL2023) ตัวเดียวใน private subnet รัน containers `web` (Caddy + SPA) + `api`; CloudFront + WAF เป็น entry point เดียวผ่าน VPC origin
+- **Strategy**: Recreate, single instance (SQLite + in-process worker)
+- **Environments**: `dev` (AWS) — auto-deploy จาก `main`; operator deploy ครั้งแรกด้วยสคริปต์เดียวกัน
+- **IaC**: Terraform — `infra/bootstrap` (state bucket) + `infra/envs/dev` (S3 backend + lockfile); prefix `tan-dev-*`
+- **Secrets**: `SESSION_SECRET` ใน Secrets Manager (ephemeral + write-only, KMS CMK); config ไม่ลับใน SSM Parameter Store; ไม่มี long-term key ใน CI
+- **Rollback**: SSM document action `rollback` → digest ก่อนหน้า (+ `--restore-db` หรือ EBS snapshot)
+- **Verification**: `scripts/smoke.sh https://<cloudfront-domain>` จากฝั่งผู้สั่ง deploy; fail → rollback อัตโนมัติ
+
+### Pipeline Architecture (AWS dev)
+
+| # | Stage | Trigger | Purpose | Key Actions |
+|---|---|---|---|---|
+| 1–3 | `verify`, `security`, `image` (มีอยู่ใน `quality.yml`) | PR, push `main` | Quality/security/integrity gates เดิม | ไม่เปลี่ยน |
+| 4 | `deploy-dev` (ใหม่, `deploy-dev.yml`) | `workflow_run` ของ `quality` = success บน `main`; `workflow_dispatch` (`sha`, `action` = deploy/rollback) | ปล่อย commit ที่ผ่าน gates ไป dev | OIDC assume role → `scripts/aws/deploy-dev.sh <sha>`: build 4 targets (`linux/amd64`) → push ECR (ข้ามถ้า tag มีแล้ว) → รอ scan → gate CRITICAL (allowlist ที่ review แล้ว) → `ssm send-command` (document `tan-dev-portal-deploy`, by digest) → smoke ผ่าน CloudFront → fail = rollback |
+
+```
+push main ──> quality (verify + security + image) ──success──> deploy-dev
+                                                                 │ OIDC (sub = repo:TantipArigul/kiroworkshop:ref:refs/heads/main)
+                                                                 v
+                 build api/migrate/web @sha ──> ECR (immutable, scan) ──> CRITICAL gate
+                                                                 │
+                                         ssm send-command (digests) ──> EC2: backup → stop → migrate → start
+                                                                 │
+                                        smoke.sh https://<cloudfront> ──fail──> ssm rollback ──> smoke
+```
+
+- `concurrency: deploy-dev` (ไม่รันซ้อน), `permissions: id-token: write, contents: read`; third-party actions pin ด้วย commit SHA
+- Role ARN อยู่ใน GitHub **repository variable** `AWS_DEV_DEPLOY_ROLE_ARN` (ไม่ใช่ secret); ตั้งค่าครั้งเดียวโดยผู้ใช้ (เครื่องนี้ไม่มี `gh`)
+- Operator path: `scripts/aws/deploy-dev.sh <sha>` จาก Mac ใช้ credential ของ operator; commit ต้องถูก push ไป `origin` แล้ว; build จาก `git archive <sha>` ไม่ใช่ working tree
+
+### Target Infrastructure (AWS dev)
+
+| Component | Service/Resource | Configuration |
+|---|---|---|
+| Network | VPC `tan-dev-vpc` 10.40.0.0/16, 1 private subnet (AZ a) + IGW (เงื่อนไขของ VPC origin, ไม่มี route ไป IGW) | ไม่มี NAT, ไม่มี public subnet/public IP |
+| Endpoints | S3 gateway; interface `ecr.api`, `ecr.dkr`, `ssm`, `ssmmessages`, `ec2messages`, `logs`, `secretsmanager` | private DNS; SG รับ 443 จาก instance SG เท่านั้น; S3 endpoint policy จำกัด bucket ECR layers + AL2023 repos |
+| Compute | EC2 `tan-dev-portal` `t3.small`, AL2023 x86_64 (AMI จาก SSM public parameter, `ignore_changes`) | IMDSv2 required, hop limit 1 (container เข้าถึง IMDS ไม่ได้); root gp3 20 GB encrypted; ไม่มี key pair; user data: Docker, mount data volume |
+| Data | EBS gp3 20 GB `tan-dev-portal-data` → `/srv/portal-data` → `/var/lib/portal-private` | KMS CMK; `prevent_destroy`; tag `DataClassification=Restricted`, `DataType=Synthetic`, `Backup=tan-dev-daily` |
+| Backup | DLM policy daily, เก็บ 7 snapshots | + `backup-db` ก่อน migrate (7 ชุดใน `backups/`) |
+| Containers | `api` (runtime image), `web` (FROM `caddy:2.11.4` + `apps/web/dist` + `docker/Caddyfile.aws`), `migrate` one-off | docker network `portal`; `web` publish `:80` เท่านั้น; `api` ไม่ publish port; log driver `awslogs`; `--restart unless-stopped`; `api` stop timeout 40 s |
+| Edge | CloudFront `tan-dev-portal` + VPC origin → EC2 `:80` | viewer `redirect-to-https`, `TLSv1.2_2021` minimum (cert `*.cloudfront.net`), `PriceClass_200`; `/api/*`, `/health*` = CachingDisabled + AllViewerExceptHostHeader + all methods; `/assets/*` = CachingOptimized; default = CachingDisabled |
+| Inspection | WAFv2 `tan-dev-portal` (CLOUDFRONT scope, us-east-1) | AWSManagedRulesCommonRuleSet (`SizeRestrictions_BODY` → count), KnownBadInputs, AmazonIpReputationList, rate-based 1,000 req / 5 min / IP |
+| Registry | ECR `tan-dev-portal-{api,migrate,web}` | IMMUTABLE tags, scan on push (basic), KMS CMK, lifecycle 10 images |
+| Keys | KMS `alias/tan-dev-portal` (ap-southeast-2), `alias/tan-dev-portal-edge` (us-east-1, WAF logs) | rotation on; key policy: account root admin + service principals (logs, DLM grants) ตามที่ต้องใช้ |
+| Config | Secrets Manager `tan/dev/portal/session-secret`; SSM `/tan/dev/portal/env` (String), `/tan/dev/portal/deploy` (String JSON: instance, repos, URL, document) | `ALLOWED_ORIGINS=https://<cloudfront-domain>` เติมโดย Terraform |
+| Operations | SSM document `tan-dev-portal-deploy` (Command, parameters มี `allowedPattern`); Session Manager logs → CloudWatch | action `deploy`/`rollback`; ไม่มี SSH |
+| Alerts | CloudWatch alarm `StatusCheckFailed_System` → EC2 recover + SNS `tan-dev-portal-alerts`; AWS Budget รายเดือน (tag `Project`) → SNS | ไม่ subscribe email อัตโนมัติ |
+
+| Environment | Purpose | Trigger | Auto-deploy | Protection |
+|---|---|---|---|---|
+| local dev | พัฒนา | developer | No | ตามเดิม |
+| dev (AWS) | ทดสอบบน AWS | `quality` success บน `main` / dispatch / operator | Yes (`main`) | OIDC trust เฉพาะ `refs/heads/main`; SSM document จำกัด parameter; smoke + rollback |
+
+### Request Path, Proxy Headers และ Cookie
+
+- Browser → CloudFront (HTTPS, TLS ≥ 1.2) → VPC origin (private connection, HTTP :80) → Caddy → `api:3000`
+- `Caddyfile.aws`: `auto_https off`, `admin off`, `servers { trusted_proxies static private_ranges; client_ip_headers X-Forwarded-For }`; ส่งต่อ API ด้วย `X-Forwarded-For {client_ip}` (ค่าเดียว = viewer IP จาก CloudFront) และ `X-Forwarded-Proto https` → API (`trust proxy = 1`) เห็น `req.secure = true` (cookie `Secure` ทำงาน) และ rate limit ต่อ IP ผู้ใช้จริง — ไม่แก้โค้ดแอป
+- เหตุผลที่ตั้ง `X-Forwarded-Proto https` ได้อย่างปลอดภัย: instance ไม่มี public IP และ SG รับ :80 จาก CloudFront origin-facing managed prefix list เท่านั้น; viewer policy เป็น redirect-to-https
+- `ALLOWED_ORIGINS` = CloudFront origin เดียว; CloudFront ส่ง header `Origin` และ cookie ไปยัง `/api/*`
+
+### Security & Secrets (AWS dev)
+
+| Secret / Credential | Purpose | Storage / Lifetime |
+|---|---|---|
+| `SESSION_SECRET` | sign session cookie | Secrets Manager (CMK); ค่าเกิดจาก `ephemeral "random_password"` → `secret_string_wo` (ไม่ลง state/plan); rotate: เพิ่ม `session_secret_version` แล้ว apply + redeploy (ทุก session ถูกตัด) ทุก 90 วัน/เมื่อสงสัยรั่ว |
+| Instance role `tan-dev-portal-instance` | ECR pull, อ่าน secret/parameter ของตัวเอง, เขียน log group ของตัวเอง, SSM core | instance profile, temporary credentials ผ่าน IMDSv2 |
+| CI role `tan-dev-portal-deploy` | push 3 ECR repos, describe images/scan, `ssm:SendCommand` เฉพาะ document + instance นี้, อ่าน `/tan/dev/portal/deploy` | OIDC (provider เดิมในบัญชี), session ≤ 1 ชม., trust `aud = sts.amazonaws.com` + `sub = repo:TantipArigul/kiroworkshop:ref:refs/heads/main` |
+| Operator | `terraform apply`, deploy ครั้งแรก, Session Manager | ตอนนี้เป็น IAM user + long-term key (ตรวจพบ) — แนะนำย้ายไป IAM Identity Center/assume-role; ไม่เพิ่ม key ใหม่ |
+
+- Runtime env: deploy document รวม `/tan/dev/portal/env` + secret เป็น `/run/portal/portal.env` (tmpfs, umask 077) → `docker run --env-file` → ลบไฟล์ทันที; ค่าไม่ถูก echo/log
+- Defense in depth: CloudFront + WAF → SG (prefix list :80) → Caddy → API (Helmet, CSRF, origin guard, rate limit, auth/owner checks) · ไม่มี inbound อื่น · egress SG: 443 ไป endpoint SG + S3 prefix list เท่านั้น
+- Encryption at rest: EBS root/data, snapshots, ECR, Secrets Manager, CloudWatch Logs, state bucket = KMS CMK; in transit: viewer TLS ≥ 1.2, AWS API calls HTTPS ผ่าน endpoints; ช่วง CloudFront→origin = HTTP ภายใน VPC origin (ดู Risk)
+- Shared responsibility (ลูกค้า): patch OS ของ EC2 (`dnf upgrade` ผ่าน Session Manager/redeploy instance), base image/dependency updates, IAM/KMS/SG configuration, ข้อมูลใน EBS; AWS ดูแล CloudFront/WAF/KMS/Secrets Manager infrastructure
+- Threat model (หลัก): web attacks/bots → WAF managed rules + rate rule + app controls; origin bypass → private subnet + prefix list; credential theft → OIDC/instance role ชั่วคราว, IMDSv2 hop 1; supply chain → frozen lockfile, audit, gitleaks, SBOM, ECR scan gate, deploy by digest; data loss → snapshot + backup; secret leak → Secrets Manager + write-only + tmpfs
+- Account-level (ไม่อยู่ใน stack): GuardDuty, CloudTrail, Security Hub — post-deploy checklist
+
+### Operations Integration (AWS dev)
+
+- **Health**: smoke 4 checks เดิมผ่าน CloudFront URL; Docker `HEALTHCHECK` เดิมใน api image; EC2 status check → auto recover
+- **Logging**: `awslogs` → `/tan/dev/portal/app` (streams `api`, `web`), Session Manager → `/tan/dev/portal/ssm-sessions`, WAF → `aws-waf-logs-tan-dev-portal` (us-east-1); ทั้งหมด 30 วัน + KMS; app redaction เดิม; audit events ใน SQLite 90 วัน
+- **Metrics/Alerting**: alarm EC2 system status + Budget → SNS `tan-dev-portal-alerts` (ผู้ใช้ subscribe เอง)
+- **Graceful shutdown**: `docker stop --time 40 api` (> `SHUTDOWN_TIMEOUT_MS` 30 s)
+- **Incident (dev)**: detect (smoke/alarm/WAF logs) → contain (WAF block rule, หยุด `api` ผ่าน Session Manager, revoke ด้วย rotate secret) → remediate (redeploy/patch) → recover (rollback/snapshot) → review (บันทึกใน `infra/README.md`)
+
+### Rollback / Database Migrations (AWS dev)
+
+- Deploy action (บน instance, root ผ่าน SSM): ECR login → pull 3 digests → backup (`better-sqlite3` ใน api image) → `docker stop api` → migrate one-off (`--network none`) → fail = start api เดิม, exit 1 → recreate `api` + `web` → บันทึก `/srv/portal-data/deploy/{current,previous}` (sha + digests)
+- Rollback action: อ่าน `previous` → recreate containers ด้วย digests เดิม (ไม่ migrate) → optional `RestoreDb=<backup-name>` (stop api → คืนไฟล์ → start) → caller smoke อีกครั้ง
+- Recovery: < 2 นาที (image) · EBS snapshot restore เป็นขั้นตอน manual ใน `infra/README.md`
+
+### Files to Generate (AWS dev)
+
+| File | Purpose | Notes |
+|---|---|---|
+| `infra/bootstrap/main.tf` | S3 state bucket `tan-tfstate-<account-id>` + KMS key | versioning, SSE-KMS, block public access, TLS-only policy, local state |
+| `infra/bootstrap/.terraform.lock.hcl` | provider lock | สร้างจาก `terraform init` |
+| `infra/envs/dev/versions.tf` | Terraform/provider pins, S3 backend (`use_lockfile`), providers ap-southeast-2 + us-east-1 alias, default tags | backend config bucket ผ่าน `-backend-config` |
+| `infra/envs/dev/variables.tf` | `prefix=tan`, `environment=dev`, region, CIDR, instance type, `session_secret_version`, budget | validation |
+| `infra/envs/dev/network.tf` | VPC, subnet, IGW, route table, endpoints, security groups | |
+| `infra/envs/dev/security.tf` | KMS keys, IAM roles/policies (instance, CI OIDC, DLM), Secrets Manager, SSM parameters | least privilege, ไม่มี `*` ยกเว้น action ที่ไม่รองรับ resource-level |
+| `infra/envs/dev/compute.tf` | EC2, data volume + attachment, DLM, SSM document, log groups, alarm, SNS, budget | `prevent_destroy` data volume |
+| `infra/envs/dev/edge.tf` | CloudFront VPC origin + distribution, WAF + logging | provider `aws.us_east_1` |
+| `infra/envs/dev/registry.tf` | ECR repos + lifecycle | |
+| `infra/envs/dev/outputs.tf` | CloudFront URL, role ARN, instance ID, repo URLs | ไม่มีค่าลับ |
+| `infra/envs/dev/files/user-data.sh` | bootstrap Docker + data volume mount | idempotent |
+| `infra/envs/dev/files/portal-host.sh` | deploy/rollback logic ที่ฝังใน SSM document | `set -euo pipefail`, ไม่ echo env |
+| `infra/envs/dev/.terraform.lock.hcl` | provider lock | |
+| `infra/envs/dev/ecr-scan-allowlist.txt` | CVE ที่ review แล้วว่ายอมรับได้ (เช่น Debian "will not fix") | แก้ผ่าน PR เท่านั้น |
+| `infra/README.md` | bootstrap/apply/deploy/rollback/rotate/destroy/incident, post-deploy checklist | |
+| `docker/web.Dockerfile` | web image = Caddy 2.11.4 + SPA + `Caddyfile.aws` | `ARG BUILD_IMAGE` |
+| `docker/Caddyfile.aws` | HTTP :80 behind CloudFront, trusted proxy headers | |
+| `scripts/aws/deploy-dev.sh` | build/push/scan gate/deploy/smoke/rollback (CI + operator) | `--rollback [--restore-db <name>]` |
+| `.github/workflows/deploy-dev.yml` | CD ไป dev ผ่าน OIDC | actions pin SHA |
+| `.gitignore`, `.dockerignore` (แก้) | ignore `.terraform/`, `*.tfstate*`, `*.tfvars`; ไม่ส่ง `infra/` เข้า build context | |
+
+### Risk Assessment (AWS dev)
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| CloudFront→origin เป็น HTTP (ไม่ใช่ TLS end-to-end) | Low | Med | VPC origin private connection, ไม่มี public path, ข้อมูล synthetic; production ต้องใช้ ALB/NLB + ACM หรือ origin TLS |
+| ECR basic scan พบ CRITICAL ใน Debian base ที่ไม่มี fix ทำให้ deploy ไม่ผ่าน | Med | Med | allowlist ที่ review แล้วผ่าน PR; รายงานทุกครั้ง |
+| Build `linux/amd64` บน Mac (emulation) ช้า | High | Low | CI build บน x86 runner; operator ใช้เฉพาะครั้งแรก |
+| Single AZ/instance ล่ม | Low | Med | auto recover, snapshot รายวัน, HA นอก scope |
+| WAF rule บล็อก request ปกติ (false positive) | Med | Low | `SizeRestrictions_BODY` = count; WAF logs; ปรับ rule เป็น count ได้ |
+| `terraform destroy` ลบข้อมูล | Low | Med | `prevent_destroy` + ขั้นตอน final snapshot ใน README |
+| Operator credential ระยะยาวรั่ว | Low | High | แนะนำ Identity Center; CI ไม่ใช้ key; ไม่สร้าง IAM user ใหม่ |
+| ไม่มี GuardDuty/CloudTrail ในบัญชี | Med | Med | post-deploy checklist (account-level) |
+
+### Cost Estimate (AWS dev, ap-southeast-2 — ประมาณการ ยังไม่ได้ตรวจกับหน้าราคาปัจจุบัน)
+
+| Resource | Estimated Monthly | Notes |
+|---|---|---|
+| EC2 `t3.small` on-demand | ~US$18–20 | 730 ชม. |
+| EBS gp3 40 GB + snapshots | ~US$4–6 | |
+| Interface endpoints × 7 (1 AZ) | ~US$65–70 | ส่วนใหญ่ของค่าใช้จ่าย |
+| WAF (ACL + 4 rules + requests) | ~US$9–11 | |
+| CloudFront, CloudWatch Logs, KMS × 3, Secrets Manager, ECR | ~US$5–10 | ทราฟฟิกทดสอบต่ำ |
+
+**Total estimated**: ~US$100–115 /month (หยุดได้ด้วย `terraform destroy`)
+
+### Out of Scope (AWS dev)
+- staging/production บน AWS, HA/multi-AZ, custom domain/ACM, RDS, wf-renamefastq บน AWS, GuardDuty/CloudTrail/Security Hub ใน stack นี้, automatic secret rotation Lambda, การแก้โค้ดแอป
+
+### Add-on — Generation findings (approved 2026-10-20, "approve A1 B1")
+- **A1 — Viewer TLS minimum**: the default `*.cloudfront.net` certificate does not allow a minimum protocol version, so CloudFront also accepts TLS 1.0/1.1 handshakes. Accepted for dev (synthetic data; current browsers negotiate TLS 1.2/1.3). Production or any non-synthetic data requires a custom domain + ACM certificate with `TLSv1.2_2021`. Replaces "viewer TLS ≥ 1.2" in the Summary/Topology above for this environment.
+- **B1 — Budget scope**: the account is a linked account and cannot filter by cost-allocation tags until the payer activates `Project`; the `tan-dev-portal-monthly` budget is account-wide (80% forecast, 100% actual → SNS).
+- **OIDC subject**: the repository was created after 2026-07-15, so the role trusts both `repo:TantipArigul/kiroworkshop:ref:refs/heads/main` and the ID-qualified form; still main-only.
+- **Session Manager preferences**: `SSM-SessionManagerRunShell` is account/region-wide; none existed, so the stack creates it.
+- **Steering conflicts kept per approved spec**: region ap-southeast-2 (user request; us-east-1 only for WAF/WAF logs), S3 native state locking (`use_lockfile`, DynamoDB locking is deprecated in Terraform ≥ 1.11), flat single-environment stack (D5A-6). Tags use `ManagedBy = Terraform`.
+- **Additional files**: `infra/envs/dev/terraform.tfvars.example` (account ID guard; real `terraform.tfvars` gitignored) and `.terraform.lock.hcl` for both stacks (darwin_arm64, darwin_amd64, linux_amd64).
+- **Container hardening** (within listed files): `api` runs read-only with tmpfs `/tmp`, no capabilities, `no-new-privileges`; `web` read-only with only `NET_BIND_SERVICE`; daily `audit:cleanup` + `sessions:cleanup` via a systemd timer from user data.

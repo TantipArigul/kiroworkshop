@@ -602,3 +602,23 @@ Personas เดิมครอบคลุมผู้ใช้ทั้งห�
 |---|---|---|
 | `units/results-guidance/decisions-design.md` (D3-5, D3-10, Conflict 1–3) | US-009, US-011, US-013 | HTML report viewing, DAG download-only, copyright holder |
 | Smoke run outputs ของ wf-renamefastq 1.0.3 (2026-10-18) | US-009 | `pipeline_info/execution_report_*`, `execution_timeline_*` (script ฝังในไฟล์), `pipeline_dag_*` (โหลด mermaid จาก CDN) |
+
+## Add-on — AWS Dev Environment (2026-10-20)
+แหล่งที่มา: change request ของผู้ใช้ 2026-10-20 ("deploy ไป AWS dev environment สำหรับทดสอบ, Terraform, ap-southeast-2, prefix `tan`") และ `decisions-deploy.md` Add-on D5A-1..D5A-14 (use recommendations)
+
+### การเปลี่ยนขอบเขต
+- **เพิ่มในขอบเขต**: dev environment บน AWS (ap-southeast-2) หนึ่งชุด provision ด้วย Terraform สำหรับทดสอบ ข้อมูลยังเป็น synthetic/test เท่านั้น
+- **ยังคงนอกขอบเขต**: production/staging บน AWS, HA, large scale, custom domain, wf-renamefastq บน AWS, การเปลี่ยน database engine
+
+### NFR ที่ปรับ (เพิ่มเติม ไม่แทนข้อเดิม)
+- **NFR-007 (เพิ่ม)**: นอกจาก Docker Compose บน local/Linux ระบบ SHALL deploy ได้บน AWS dev environment ที่ provision ด้วย Terraform (state เข้ารหัส, lock ได้) และ routine deploy SHALL ทำผ่าน CI ด้วย temporary credentials (OIDC); การเข้าถึง instance SHALL ผ่าน Session Manager ที่บันทึก session โดยไม่มี SSH
+- **NFR-003 (ระบุกลไก AWS)**: viewer traffic SHALL เป็น HTTPS ผ่าน CloudFront (เบี่ยงเบนที่ผู้ใช้อนุมัติ A1 2026-10-20: dev ใช้ certificate `*.cloudfront.net` ซึ่งกำหนด TLS ขั้นต่ำไม่ได้ — browser เจรจา TLS 1.2/1.3; production หรือข้อมูลที่ไม่ใช่ synthetic SHALL ใช้ custom domain + ACM `TLSv1.2_2021`); data at rest (EBS, snapshots, secrets, logs, images, Terraform state) SHALL เข้ารหัสด้วย AWS KMS customer-managed key ที่เปิด rotation; ช่วง CloudFront→origin ใช้ VPC origin private connection (ยอมรับสำหรับ dev ที่มีแต่ข้อมูล synthetic และบันทึกเป็น risk)
+- **NFR-004 (ระบุกลไก AWS)**: image SHALL ถูก scan ใน ECR และ deploy โดยอ้างอิง digest; CRITICAL finding SHALL หยุด deploy เว้นแต่อยู่ใน allowlist ที่ผ่าน PR review
+- **NFR-005 (conditional AWS ที่เปิดใช้)**: ทรัพยากรทั้งหมด SHALL มี tag `Project`, `Environment`, `Owner`, `ManagedBy`; data store SHALL มี tag `DataClassification=Restricted` และ `DataType=Synthetic`; tag SHALL ไม่บรรจุข้อมูลอ่อนไหว
+- **NFR-007 incident (AWS)**: incident handling สำหรับ AWS dev SHALL ระบุความรับผิดชอบฝั่งลูกค้าตาม shared responsibility (OS patching, IAM/KMS/SG, ข้อมูล) และขั้นตอน detect/contain/remediate/recover/review ใน `infra/README.md`; บริการระดับ account (GuardDuty, CloudTrail) อยู่ใน post-deploy checklist
+
+### Traceability (Add-on)
+| แหล่งข้อมูล | ส่วนที่กระทบ | การใช้งาน |
+|---|---|---|
+| `decisions-deploy.md` Add-on D5A | NFR-003, NFR-004, NFR-005, NFR-007 | target, ingress, egress, encryption, secrets, IaC, promotion, access, logging |
+| `deployment.md` Add-on — AWS Dev Environment | NFR-007 | topology, files to generate, risks, cost |
