@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (gitignored) and set the account ID.
+aws_account_id = "000000000000"

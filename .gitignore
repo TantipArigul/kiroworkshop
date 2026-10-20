@@ -16,3 +16,11 @@ apps/api/src/generated/
 *.sqlite-*
 *.log
 .DS_Store
+# Terraform (deployment.md — AWS dev): state and plans stay local/S3; lock files are committed.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+crash.log
+infra/**/backend.hcl

@@ -1,0 +1,61 @@
+name: deploy-dev
+# AWS dev environment (deployment.md — Add-on AWS Dev Environment, D5A-8).
+# Runs after `quality` succeeds for a push to main, or manually (deploy a main commit / roll back).
+# AWS access uses OIDC temporary credentials; the role trusts refs/heads/main of this repository only.
+on:
+  workflow_run:
+    workflows: [quality]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: deploy or rollback
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      sha:
+        description: Commit on main to deploy (blank = the selected ref)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      AWS_REGION: ap-southeast-2
+      DEPLOY_ACTION: ${{ inputs.action || 'deploy' }}
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 0
+      - name: Commit must be on main
+        run: |
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{7,40}$ ]] || { echo "invalid sha" >&2; exit 1; }
+          git merge-base --is-ancestor "$DEPLOY_SHA" origin/main
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_DEPLOY_ROLE_ARN }}
+          role-session-name: deploy-dev-${{ github.run_id }}
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Deploy
+        if: env.DEPLOY_ACTION == 'deploy'
+        run: scripts/aws/deploy-dev.sh "$DEPLOY_SHA"
+      - name: Roll back to the previous release
+        if: env.DEPLOY_ACTION == 'rollback'
+        run: scripts/aws/deploy-dev.sh --rollback

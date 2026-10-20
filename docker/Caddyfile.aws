@@ -1,0 +1,33 @@
+# AWS dev (deployment.md — Add-on AWS Dev Environment): Caddy sits behind CloudFront (VPC origin).
+# TLS ends at CloudFront; the instance has no public IP and its security group accepts :80 only
+# from the CloudFront origin-facing prefix list, so plain HTTP here never crosses the internet.
+{
+	auto_https off
+	admin off
+	servers {
+		# CloudFront VPC origin connections arrive from private addresses. Read the viewer IP
+		# right-to-left from X-Forwarded-For so a client-supplied value cannot spoof it.
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For
+		trusted_proxies_strict
+	}
+}
+
+:80 {
+	@api path /api/* /health*
+	handle @api {
+		reverse_proxy api:3000 {
+			# The API trusts one proxy hop (`trust proxy = 1`): pass exactly the viewer IP and the
+			# viewer scheme so rate limiting keys on real clients and the Secure cookie is issued.
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Forwarded-Proto https
+		}
+	}
+
+	# SPA: everything else is a static file, falling back to index.html for client-side routes.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

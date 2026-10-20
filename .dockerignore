@@ -15,3 +15,8 @@ coverage/
 .corepack/
 apps/api/src/generated/
 .DS_Store
+# Infrastructure code and state never enter an image.
+infra/
+**/.terraform/
+*.tfstate
+*.tfstate.*

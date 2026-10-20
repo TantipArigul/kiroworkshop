@@ -1,0 +1,3 @@
+# Reviewed CRITICAL findings accepted for the AWS dev environment (deployment.md — D5A-7).
+# One CVE ID per line, followed by "# <reason, reviewer, date>". Change only through a reviewed PR.
+# Empty by default: every CRITICAL finding blocks the deploy until it is fixed or reviewed here.
